@@ -21,7 +21,7 @@ jobs:
             pip install -U pip setuptools numpy cython pybind11
             pip install -r dev-requirements.txt
             pip install -r requirements.txt
-            pip install .
+            pip install --upgrade --force-reinstall .
 
       - save_cache:
           paths:
