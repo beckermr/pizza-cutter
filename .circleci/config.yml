@@ -15,10 +15,8 @@ jobs:
       - run:
           name: install dependencies
           command: |
-            python3 -m venv venv
-            . venv/bin/activate
             sudo apt-get install libfftw3-dev libeigen3-dev build-essential
-            pip install -U pip setuptools numpy
+            pip install -U pip setuptools numpy cython
             pip install -r dev-requirements.txt
             pip install -r requirements.txt
             pip install .
