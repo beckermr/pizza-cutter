@@ -33,3 +33,4 @@ jobs:
           command: |
             . venv/bin/activate
             flake8 pizza_cutter
+            flake8 bin/pizza-cutter
