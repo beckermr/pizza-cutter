@@ -15,11 +15,11 @@ jobs:
       - run:
           name: install dependencies
           command: |
-            apt-get install libfftw3-dev libeigen3-dev build-essential
-            pip install -U pip setuptools numpy cython
-            pip install -r dev-requirements.txt
-            pip install -r requirements.txt
-            pip install .
+            sudo apt-get install libfftw3-dev libeigen3-dev build-essential
+            sudo pip install -U pip setuptools numpy cython
+            sudo pip install -r dev-requirements.txt
+            sudp pip install -r requirements.txt
+            sudo pip install .
 
       - save_cache:
           paths:
