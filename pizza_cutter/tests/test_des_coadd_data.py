@@ -5,7 +5,7 @@ from ..des_coadd_data import DESCoadd, DESCoaddSources
 
 
 @pytest.mark.skipif(
-    os.environ.get('CI', False),
+    os.environ.get('CI', 'false') == 'true',
     reason='DES coadd classes can only be tested with database access.')
 def test_descoadd(tmpdir):
     try:
@@ -46,7 +46,7 @@ def test_descoadd(tmpdir):
 
 
 @pytest.mark.skipif(
-    os.environ.get('CI', False),
+    os.environ.get('CI', 'false') == 'true',
     reason='DES coadd classes can only be tested with database access.')
 def test_descoaddsources(tmpdir):
     try:
@@ -64,6 +64,29 @@ def test_descoaddsources(tmpdir):
         assert all(i['tilename'] == tilename for i in info)
         assert all(i['band'] == band for i in info)
         assert all(i['compression'] == '.fz' for i in info)
+    except Exception:
+        os.environ.pop('MEDS_DIR', None)
+        raise
+
+
+@pytest.mark.skipif(
+    os.environ.get('CI', 'false') == 'true',
+    reason='DES coadd classes can only be tested with database access.')
+def test_descoadd_and_descoaddsources(tmpdir):
+    try:
+        band = 'r'
+        tilename = 'DES0417-5914'
+        os.environ['MEDS_DIR'] = str(tmpdir)
+        medsconf = 'test_des_coadd_data'
+        coaddsrcs = DESCoaddSources(
+            medsconf=medsconf, tilename=tilename, band=band,
+            campaign='Y3A1_COADD')
+        coadd = DESCoadd(
+            medsconf=medsconf, tilename=tilename, band=band,
+            campaign='Y3A1_COADD', sources=coaddsrcs)
+
+        info = coadd.get_info()
+        assert 'src_info' in info
     except Exception:
         os.environ.pop('MEDS_DIR', None)
         raise
