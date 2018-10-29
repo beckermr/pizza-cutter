@@ -1,3 +1,4 @@
+import time
 import os
 import copy
 
@@ -47,6 +48,31 @@ def get_source_dir(medsconf, tilename, band):
     """
     dr = get_meds_dir(medsconf, tilename)
     return os.path.join(dr, 'sources-%s' % band)
+
+
+def try_remove_timeout(fname, ntry=2, sleep_time=2):
+    """Try and remove a filename with a timeout and retries.
+
+    Parameters
+    ----------
+    fname : str
+        The file to remove.
+    ntry : int
+        The number of retries.
+    sleep_time : int
+        The number of seconds to sleep between tries.
+    """
+    for i in range(ntry):
+        try:
+            os.remove(fname)
+            break
+        except Exception:
+            if i == (ntry-1):
+                raise
+            else:
+                print("could not remove '%s', trying again "
+                      "in %f seconds" % (fname, sleep_time))
+                time.sleep(sleep_time)
 
 # import shutil
 # import tarfile

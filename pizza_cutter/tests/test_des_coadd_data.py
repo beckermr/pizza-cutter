@@ -87,6 +87,17 @@ def test_descoadd_and_descoaddsources(tmpdir):
 
         info = coadd.get_info()
         assert 'src_info' in info
+
+        # now try the download
+        coadd.download()
+        files = [
+            os.path.join(d, f)
+            for d, _, fs in os.walk(coadd.source_dir)
+            for f in fs]
+        assert len(files) > 1
+
+        coadd.clean()
+        assert not os.path.exists(coadd.source_dir)
     except Exception:
         os.environ.pop('MEDS_DIR', None)
         raise
