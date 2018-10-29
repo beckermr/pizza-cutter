@@ -6,29 +6,6 @@ import subprocess
 
 from . import files
 
-_QUERY_COADD_TEMPLATE_BYTILE = """\
-select
-    m.tilename as tilename,
-    fai.path as path,
-    fai.filename as filename,
-    fai.compression as compression,
-    m.band as band,
-    m.pfw_attempt_id as pfw_attempt_id
-
-from
-    prod.proctag t,
-    prod.coadd m,
-    prod.file_archive_info fai
-where
-    t.tag='%(campaign)s'
-    and t.pfw_attempt_id=m.pfw_attempt_id
-    and m.tilename='%(tilename)s'
-    and m.band='%(band)s'
-    and m.filetype='coadd'
-    and fai.filename=m.filename
-    and fai.archive_name='desar2home'\n"""
-
-
 _DOWNLOAD_CMD = r"""
     rsync \
         -av \
