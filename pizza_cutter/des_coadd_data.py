@@ -23,7 +23,6 @@ select
     fai.compression as compression,
     m.band as band,
     m.pfw_attempt_id as pfw_attempt_id
-
 from
     %(campaign)s m,
     %(campaign_no_coadd)s_FILE_ARCHIVE_INFO fai
