@@ -5,3 +5,4 @@ git+https://github.com/esheldon/ngmix.git@v1.0.0
 fitsio
 pyyaml
 numba
+easyaccess
