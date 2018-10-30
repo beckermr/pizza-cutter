@@ -15,7 +15,7 @@ _DOWNLOAD_CMD = r"""
         %(source_dir)s/
 """
 
-_QUERY_COADD_TEMPLATE_BYTILE_DESSCI = """\
+_QUERY_COADD_TEMPLATE_BYTILE = """\
 select
     m.tilename as tilename,
     fai.path as path,
@@ -23,11 +23,15 @@ select
     fai.compression as compression,
     m.band as band,
     m.pfw_attempt_id as pfw_attempt_id
+
 from
-    %(campaign)s m,
-    %(campaign_no_coadd)s_FILE_ARCHIVE_INFO fai
+    prod.proctag t,
+    prod.coadd m,
+    prod.file_archive_info fai
 where
-    m.tilename='%(tilename)s'
+    t.tag='%(campaign)s'
+    and t.pfw_attempt_id=m.pfw_attempt_id
+    and m.tilename='%(tilename)s'
     and m.band='%(band)s'
     and m.filetype='coadd'
     and fai.filename=m.filename
@@ -177,10 +181,8 @@ class DESCoadd(object):
         """Get info for the specified tilename and band
         """
 
-        campaign_no_coadd = self.campaign.replace('_COADD', '')
-        query = _QUERY_COADD_TEMPLATE_BYTILE_DESSCI % {
+        query = _QUERY_COADD_TEMPLATE_BYTILE % {
             'campaign': self.campaign,
-            'campaign_no_coadd': campaign_no_coadd,
             'tilename': self.tilename,
             'band': self.band
         }
@@ -335,7 +337,7 @@ class DESCoadd(object):
 
     def _make_conn(self):
         import easyaccess as ea
-        conn = ea.connect(section='dessci')
+        conn = ea.connect(section='desoper')
         self._conn = conn
 
     def _get_all_dirs(self, info):
