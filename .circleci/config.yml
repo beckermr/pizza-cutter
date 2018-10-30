@@ -34,3 +34,4 @@ jobs:
             pip install --upgrade --force-reinstall .
             flake8 pizza_cutter
             flake8 bin/pizza-cutter
+            pytest -vv pizza_cutter
