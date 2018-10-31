@@ -315,8 +315,8 @@ def _fill_psf_data_and_write_psf_cutouts(
     psf_start_row = 0
     psf_shape = None
     for iobj in range(len(object_data)):
-        row = object_data['orig_row'][iobj]
-        col = object_data['orig_col'][iobj]
+        row = object_data['orig_row'][iobj, 0]
+        col = object_data['orig_col'][iobj, 0]
 
         pim = pex.get_rec(row, col)
         cen = pex.get_center(row, col)
@@ -328,7 +328,7 @@ def _fill_psf_data_and_write_psf_cutouts(
         if psf_shape is None:
             psf_shape = pim.shape
             psf_npix = psf_shape[0]**2
-            object_data['psf_box_size'] = psf_shape[0]
+            object_data['psf_box_size'][iobj] = psf_shape[0]
 
             # reserve the mosaic here
             print(
@@ -350,10 +350,10 @@ def _fill_psf_data_and_write_psf_cutouts(
                 raise ValueError("currently all psfs "
                                  "must be same size")
 
-        object_data['psf_cutout_row'][iobj] = cen[0]
-        object_data['psf_cutout_col'][iobj] = cen[1]
-        object_data['psf_sigma'][iobj] = sigma
-        object_data['psf_start_row'][iobj] = psf_start_row
+        object_data['psf_cutout_row'][iobj, 0] = cen[0]
+        object_data['psf_cutout_col'][iobj, 0] = cen[1]
+        object_data['psf_sigma'][iobj, 0] = sigma
+        object_data['psf_start_row'][iobj, 0] = psf_start_row
 
         fits[PSF_CUTOUT_EXTNAME].write(pim, start=psf_start_row)
 
@@ -424,7 +424,7 @@ def _build_object_data(
 
     # now make the object data
     # extra fields for the PSF
-    nmax = 1
+    nmax = 2
     psf_dtype = [
         ('psf_box_size', 'i4'),
         ('psf_cutout_row', 'f8', nmax),
@@ -458,19 +458,19 @@ def _build_object_data(
 
             output_info['ra'][index] = ra
             output_info['dec'][index] = dec
-            output_info['start_row'][index] = start_row
-            output_info['orig_row'][index] = row_or_y
-            output_info['orig_col'][index] = col_or_x
-            output_info['orig_start_row'][index] = (
+            output_info['start_row'][index, 0] = start_row
+            output_info['orig_row'][index, 0] = row_or_y
+            output_info['orig_col'][index, 0] = col_or_x
+            output_info['orig_start_row'][index, 0] = (
                 row_or_y - cen_offset - buffer_size)
-            output_info['orig_start_col'][index] = (
+            output_info['orig_start_col'][index, 0] = (
                 col_or_x - cen_offset - buffer_size)
-            output_info['cutout_row'][index] = cen_offset
-            output_info['cutout_col'][index] = cen_offset
-            output_info['dudcol'][index] = jacob[0]
-            output_info['dudrow'][index] = jacob[1]
-            output_info['dvdcol'][index] = jacob[2]
-            output_info['dvdrow'][index] = jacob[3]
+            output_info['cutout_row'][index, 0] = cen_offset
+            output_info['cutout_col'][index, 0] = cen_offset
+            output_info['dudcol'][index, 0] = jacob[0]
+            output_info['dudrow'][index, 0] = jacob[1]
+            output_info['dvdcol'][index, 0] = jacob[2]
+            output_info['dvdrow'][index, 0] = jacob[3]
 
             start_row += box_size2
 
