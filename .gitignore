@@ -1,3 +1,7 @@
+# Data
+*.fits
+*.fits.fz
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

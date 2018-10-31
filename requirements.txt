@@ -6,3 +6,5 @@ fitsio
 pyyaml
 numba
 easyaccess
+click
+psfex
