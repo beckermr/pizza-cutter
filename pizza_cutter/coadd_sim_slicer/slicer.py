@@ -328,7 +328,8 @@ def _fill_psf_data_and_write_psf_cutouts(
         if psf_shape is None:
             psf_shape = pim.shape
             psf_npix = psf_shape[0]**2
-            object_data['psf_box_size'][iobj] = psf_shape[0]
+            # set for all objects here
+            object_data['psf_box_size'] = psf_shape[0]
 
             # reserve the mosaic here
             print(
