@@ -1,9 +1,11 @@
 # these are in pixels
+# the total "pizza slice" will be central_size + 2 * buffer_size
 central_size: 250  # size of the central region
 buffer_size: 125  # size of the buffer on each size
 
-# these are relative to the input `sim_dir`
-# the brackets {tilename} and {band} are filled from the input config
+# these are relative to the input `--sim-path` CLI option
+# the brackets {tilename} and {band} are filled from the input CLI options
+# `--tilename` and `--band`
 image_path: output-{tilename}e/{tilename}e-sim_band{band}.fits
 image_ext: 0
 bkg_path: output-{tilename}e/{tilename}e-sim_band{band}_bkg.fits
@@ -19,6 +21,7 @@ psf: output-{tilename}e/{tilename}_r2601p01_{band}_psfcat.psf
 # random seed is used to make the noise field
 seed: 42
 
+# optional but these are good defaults
 fpack_pars:
   FZQVALUE: 4
   FZTILE: "(10240,1)"
