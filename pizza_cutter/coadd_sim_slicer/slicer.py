@@ -422,8 +422,9 @@ def _build_object_data(
             "The coadd tile must be exactly tiled by the pizza slices!")
     nobj = int(nobj)
 
-    # now make the object data
-    # extra fields for the PSF
+    # now make the object data and extra fields for the PSF
+    # we use an namx of 2 because if we set 1, then the fields come out with
+    # the wrong shape when we read them from fitsio
     nmax = 2
     psf_dtype = [
         ('psf_box_size', 'i4'),
