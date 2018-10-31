@@ -15,7 +15,7 @@ jobs:
       - run:
           name: install dependencies
           command: |
-            sudo apt-get install libfftw3-dev libeigen3-dev build-essential
+            sudo apt-get install libfftw3-dev libeigen3-dev build-essential libcfitsio-bin
             python3 -m venv venv
             . venv/bin/activate
             pip install -U pip setuptools numpy cython pybind11
