@@ -7,4 +7,4 @@ pyyaml
 numba
 easyaccess
 click
-psfex
+git+https://github.com/esheldon/psfex.git@master
