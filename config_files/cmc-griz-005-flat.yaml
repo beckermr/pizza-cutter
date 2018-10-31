@@ -1,0 +1,30 @@
+# these are in pixels
+# the total "pizza slice" will be central_size + 2 * buffer_size
+central_size: 250  # size of the central region
+buffer_size: 125  # size of the buffer on each size
+
+# these are relative to the input `--sim-path` CLI option
+# the brackets {tilename} and {band} are filled from the input CLI options
+# `--tilename` and `--band`
+image_path: output-{tilename}e/{tilename}e-sim_band{band}.fits
+image_ext: 0
+bkg_path: output-{tilename}e/{tilename}e-sim_band{band}_bkg.fits
+bkg_ext: 0
+weight_path: output-{tilename}e/{tilename}e-sim_band{band}.fits
+weight_ext: 2
+seg_path: output-{tilename}e/{tilename}e-sim_band{band}_seg.fits
+seg_ext: 0
+bmask_path: output-{tilename}e/{tilename}e-sim_band{band}.fits
+bmask_ext: 1
+psf: output-{tilename}e/{tilename}_r2601p01_{band}_psfcat.psf
+
+# random seed is used to make the noise field
+seed: 42
+
+# optional but these are good defaults
+fpack_pars:
+  FZQVALUE: 4
+  FZTILE: "(10240,1)"
+  FZALGOR: "RICE_1"
+  # preserve zeros, don't dither them
+  FZQMETHD: "SUBTRACTIVE_DITHER_2"

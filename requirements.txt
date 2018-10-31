@@ -6,3 +6,7 @@ fitsio
 pyyaml
 numba
 easyaccess
+click
+git+https://github.com/esheldon/psfex.git@master
+git+https://github.com/esheldon/meds.git@master
+esutil
