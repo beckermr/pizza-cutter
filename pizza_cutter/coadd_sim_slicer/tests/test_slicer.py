@@ -118,7 +118,7 @@ def data(tmpdir_factory):
 
 
 # I am mocking out the psfex call. I HATE doing this, but the effort to
-# build fake PSFEx input data is just too great to justofy this test. I am only
+# build fake PSFEx input data is just too great to justify this test. I am only
 # looking for the data to appear in the MEDS file in the right spot. This
 # means the test functionally still tests the right thing.
 @unittest.mock.patch('pizza_cutter.coadd_sim_slicer.slicer.psfex.PSFEx')
