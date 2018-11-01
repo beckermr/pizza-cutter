@@ -1,14 +1,18 @@
 import os
 import unittest.mock
+import json
 
 import numpy as np
+import esutil as eu
 import fitsio
 import meds
 import yaml
 import pytest
 from esutil.wcsutil import WCS
+from meds.maker import MEDS_FMT_VERSION
+from ... import __version__
 
-from ..slicer import make_meds_pizza_slices
+from ..slicer import make_meds_pizza_slices, POSITION_OFFSET, MAGZP_REF
 
 
 class FakePSF(object):
@@ -114,6 +118,7 @@ def data(tmpdir_factory):
         'bmask': bmask,
         'meds_path': os.path.join(tmpdir, 'meds.fits'),
         'wcs': wcs,
+        'wcs_header': wcs_header,
         'nobj': ((100 - 10 - 10) // 20)**2}
 
 
@@ -220,3 +225,44 @@ def test_make_meds_pizza_slices(psf_mock, data):
             assert np.allclose(
                 cutout,
                 pex.get_rec(obj['orig_row'][i, 0], obj['orig_col'][i, 0]))
+
+        ii = m.get_image_info()
+        for tag in ['image', 'weight', 'seg', 'bmask', 'bkg']:
+            for tail in ['path', 'ext']:
+                col = '%s_%s' % (tag, tail)
+                if tail == 'path':
+                    val = bytes(ii[col]).decode('utf-8').strip()
+                else:
+                    val = ii[col][0]
+                assert val == data['config'][col]
+        assert ii['image_id'] == 0
+        assert ii['image_flags'] == 0
+        assert ii['magzp'] == 30.0
+        assert ii['scale'] == 10.0**(0.4*(MAGZP_REF - 30.0))
+        assert ii['position_offset'] == POSITION_OFFSET
+        ii_wcs = json.loads(ii['wcs'][0].decode('utf=8'))
+        for k, v in data['wcs_header'].items():
+            assert ii_wcs[k] == v
+
+        metadata = m.get_meta()
+        assert metadata['magzp_ref'] == MAGZP_REF
+        assert (
+            yaml.load(metadata['config'][0].decode('utf-8')) == data['config'])
+        assert (
+            metadata['numpy_version'][0].decode('utf-8').strip()
+            == np.__version__)
+        assert (
+            metadata['esutil_version'][0].decode('utf-8').strip()
+            == eu.__version__)
+        assert (
+            metadata['fitsio_version'][0].decode('utf-8').strip()
+            == fitsio.__version__)
+        assert (
+            metadata['meds_version'][0].decode('utf-8').strip()
+            == meds.__version__)
+        assert (
+            metadata['meds_fmt_version'][0].decode('utf-8').strip()
+            == MEDS_FMT_VERSION)
+        assert (
+            metadata['pizza_cutter_version'][0].decode('utf-8').strip()
+            == __version__)
