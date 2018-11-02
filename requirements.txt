@@ -1,4 +1,5 @@
 numpy
+scipy
 galsim==2.0.7
 git+https://github.com/esheldon/psc.git@c9a064ee1294a8c9a3eb4c6f32b8879731231ab4
 git+https://github.com/esheldon/ngmix.git@master

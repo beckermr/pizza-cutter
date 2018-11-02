@@ -20,8 +20,8 @@ jobs:
             python3 -m venv venv
             . venv/bin/activate
             pip install -U pip setuptools numpy cython pybind11
-            pip install -r dev-requirements.txt
-            pip install -r requirements.txt
+            pip install -U --upgrade-strategy=eager -r dev-requirements.txt
+            pip install -U --upgrade-strategy=eager -r requirements.txt
 
       - save_cache:
           paths:
