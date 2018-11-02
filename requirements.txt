@@ -10,5 +10,5 @@ click
 git+https://github.com/esheldon/psfex.git@master
 git+https://github.com/esheldon/meds.git@master
 esutil
-git+https://github.com/esheldon/metacal.git@master
+git+https://github.com/esheldon/metadetect.git@master
 sep
