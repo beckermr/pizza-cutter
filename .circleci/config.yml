@@ -9,7 +9,7 @@ jobs:
 
       - restore_cache:
           keys:
-          - v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "dev-requirements.txt" }}
+          - v1-{{ checksum "requirements.txt" }}-{{ checksum "volatile-requirements.txt" }}-{{ checksum "dev-requirements.txt" }}
 
       - run:
           name: install dependencies
@@ -22,11 +22,12 @@ jobs:
             pip install -U pip setuptools numpy cython pybind11
             pip install -U --upgrade-strategy=eager -r dev-requirements.txt
             pip install -U --upgrade-strategy=eager -r requirements.txt
+            pip install -U --upgrade-strategy=eager --force-resinatll -r volatile-requirements.txt
 
       - save_cache:
           paths:
             - ./venv
-          key: v1-dependencies-{{ checksum "requirements.txt" }}-{{ checksum "dev-requirements.txt" }}
+          key: v1-{{ checksum "requirements.txt" }}-{{ checksum "volatile-requirements.txt" }}-{{ checksum "dev-requirements.txt" }}
 
       - run:
           name: run tests

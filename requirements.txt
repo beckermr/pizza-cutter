@@ -1,8 +1,6 @@
 numpy
 scipy
 galsim==2.0.7
-git+https://github.com/esheldon/psc.git@c9a064ee1294a8c9a3eb4c6f32b8879731231ab4
-git+https://github.com/esheldon/ngmix.git@master
 fitsio
 pyyaml
 numba
@@ -12,4 +10,3 @@ git+https://github.com/esheldon/psfex.git@master
 git+https://github.com/esheldon/meds.git@master
 esutil
 sep
-git+https://github.com/esheldon/metadetect.git@master
