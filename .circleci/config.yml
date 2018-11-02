@@ -32,7 +32,7 @@ jobs:
           name: run tests
           command: |
             . venv/bin/activate
-            pip install -U --upgrade-strategy=eager --force-resinatll -r volatile-requirements.txt
+            pip install -U --upgrade-strategy=eager --force-reinstall -r volatile-requirements.txt
             pip install --upgrade --force-reinstall .
             flake8 pizza_cutter
             flake8 bin/pizza-cutter
