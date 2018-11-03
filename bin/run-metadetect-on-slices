@@ -1,11 +1,22 @@
 #!/usr/bin/env python
 import click
+from pizza_cutter.metadetect.run_metadetect import run_metadetect
 
 
 @click.command()
-def main():
-    """WHAT!?"""
-    pass
+@click.argument('meds_files', nargs=-1)
+@click.option(
+    '--config', default=None, type=str,
+    help='configuration file')
+@click.option(
+    '--output-path', default='.', type=str,
+    help='path to write the outputs')
+def main(meds_files, config, output_path):
+    """Run metdetect on MEDS_FILES."""
+    run_metadetect(
+        config=config,
+        output_path=output_path,
+        meds_file_list=meds_files)
 
 
 if __name__ == '__main__':

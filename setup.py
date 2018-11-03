@@ -2,7 +2,6 @@ import os
 from setuptools import setup, find_packages
 
 scripts = [
-    'bin/pizza-cutter',
     'bin/coadd-sim-pizza-cutter',
     'bin/run-metadetect-on-slices']
 

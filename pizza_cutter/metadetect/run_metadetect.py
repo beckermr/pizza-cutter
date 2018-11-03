@@ -17,4 +17,4 @@ def run_metadetect(
     output_path : str
         The path to which to write the outputs.
     """
-    pass
+    print(config, meds_file_list, output_path)
