@@ -1,10 +1,17 @@
+import time
+import numpy as np
+
+from metadetect.metadetect import do_metadetect
+
+from ._medscrap import NGMIXedMEDS, MultiBandNGMIXedMEDS
 
 
 def run_metadetect(
         *,
         config,
         meds_file_list,
-        output_path):
+        output_path,
+        seed):
     """Run metadetect on a "pizza slice" MEDS file and write the outputs to
     disk.
 
@@ -17,4 +24,17 @@ def run_metadetect(
     output_path : str
         The path to which to write the outputs.
     """
-    print(config, meds_file_list, output_path)
+    rng = np.random.RandomState(seed=seed)
+
+    t0 = time.time()
+    meds_list = [
+        NGMIXedMEDS(fname) for fname in meds_file_list]
+    mbmeds = MultiBandNGMIXedMEDS(meds_list)
+
+    for i in range(mbmeds.size):
+        mbobs = mbmeds.get_mbobs(i)
+        res = do_metadetect(config, mbobs, rng)
+        print(res)
+        break
+    total_time = time.time() - t0
+    print("time per: ", total_time / 1)
