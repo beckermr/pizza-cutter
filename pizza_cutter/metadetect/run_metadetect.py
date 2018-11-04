@@ -2,8 +2,7 @@ import time
 import numpy as np
 
 from metadetect.metadetect import do_metadetect
-
-from ._medscrap import NGMIXedMEDS, MultiBandNGMIXedMEDS
+from ngmix.medsreaders import MultiBandMEDS, MEDS
 
 
 def run_metadetect(
@@ -28,8 +27,8 @@ def run_metadetect(
 
     t0 = time.time()
     meds_list = [
-        NGMIXedMEDS(fname) for fname in meds_file_list]
-    mbmeds = MultiBandNGMIXedMEDS(meds_list)
+        MEDS(fname) for fname in meds_file_list]
+    mbmeds = MultiBandMEDS(meds_list)
 
     for i in range(mbmeds.size):
         mbobs = mbmeds.get_mbobs(i)
