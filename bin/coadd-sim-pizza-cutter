@@ -33,10 +33,10 @@ def main(config, sim_path, tilename, band, output_path):
 
     meds_path = os.path.join(
         output_path,
-        "%s_%s_meds-pizza-slices-%s.fits" % (
+        "%s_%s_%s_meds-pizza-slices.fits" % (
             tilename,
-            os.path.basename(config).replace('.yaml', ''),
-            band))
+            band,
+            os.path.basename(config).replace('.yaml', '')))
 
     make_meds_pizza_slices(
         config=_config,
