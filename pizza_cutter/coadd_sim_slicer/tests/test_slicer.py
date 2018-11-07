@@ -149,7 +149,8 @@ def test_make_meds_pizza_slices(psf_mock, data):
         seg_ext=data['config']['seg_ext'],
         psf=data['config']['psf'],
         fpack_pars=data['config']['fpack_pars'],
-        seed=data['config']['seed'])
+        seed=data['config']['seed'],
+        remove_fits_file=False)
 
     psf_mock.assert_called_with(data['config']['psf'])
 

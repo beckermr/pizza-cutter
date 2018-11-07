@@ -19,9 +19,12 @@ from pizza_cutter.coadd_sim_slicer.slicer import make_meds_pizza_slices
     '--band', default=None, type=str,
     help='band to process')
 @click.option(
+    '--tag', default=None, type=str,
+    help='an extra tag to attach to the filename if desired')
+@click.option(
     '--output-path', default='.', type=str,
     help='path to write the MEDS file')
-def main(config, sim_path, tilename, band, output_path):
+def main(config, sim_path, tilename, band, tag, output_path):
     """Create a metadetection MEDS file from a coadd simulation."""
     with open(config, 'r') as fp:
         _config = fp.read()
@@ -31,12 +34,15 @@ def main(config, sim_path, tilename, band, output_path):
         pass
     cfg = yaml.load(_config)
 
+    sname = os.path.basename(config).replace('.yaml', '')
+    if tag is not None:
+        sname = '-'.join([sname, tag])
     meds_path = os.path.join(
         output_path,
-        "%s_%s_meds-pizza-slices-%s.fits" % (
+        "%s_%s_%s_meds-pizza-slices.fits" % (
             tilename,
-            os.path.basename(config).replace('.yaml', ''),
-            band))
+            band,
+            sname))
 
     make_meds_pizza_slices(
         config=_config,

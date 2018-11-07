@@ -1,3 +1,4 @@
+import os
 import subprocess
 import json
 import numpy as np
@@ -59,7 +60,8 @@ def make_meds_pizza_slices(
         seg_path=None, seg_ext=None,
         psf,
         fpack_pars=None,
-        seed):
+        seed,
+        remove_fits_file=True):
     """Build a MEDS pizza slices file.
 
     Parameters
@@ -102,6 +104,8 @@ def make_meds_pizza_slices(
         A dictionary of fpack header keywords for compression.
     seed : int
         The random seed used to make the noise field.
+    remove_fits_file : bool, optional
+        If `True`, remove the FITS file after fpacking.
     """
 
     metadata = _build_metadata(config)
@@ -144,7 +148,13 @@ def make_meds_pizza_slices(
     # fpack it
     cmd = 'fpack %s' % meds_path
     print("fpacking:\n    command: '%s'" % cmd, flush=True)
-    subprocess.check_call(cmd, shell=True)
+    try:
+        subprocess.check_call(cmd, shell=True)
+    except Exception:
+        pass
+    else:
+        if remove_fits_file:
+            os.remove(meds_path)
 
     # validate the fpacked file
     print('validating:', flush=True)
