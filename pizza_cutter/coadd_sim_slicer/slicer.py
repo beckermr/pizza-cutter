@@ -1,3 +1,4 @@
+import os
 import subprocess
 import json
 import numpy as np
@@ -144,7 +145,12 @@ def make_meds_pizza_slices(
     # fpack it
     cmd = 'fpack %s' % meds_path
     print("fpacking:\n    command: '%s'" % cmd, flush=True)
-    subprocess.check_call(cmd, shell=True)
+    try:
+        subprocess.check_call(cmd, shell=True)
+    except Exception:
+        pass
+    else:
+        os.remove(meds_path)
 
     # validate the fpacked file
     print('validating:', flush=True)
