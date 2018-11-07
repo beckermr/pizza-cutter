@@ -20,5 +20,6 @@ coadd-sim-pizza-cutter \
     --config=config.yaml \
     --sim-path=sims \
     --tilename=<tilename> \
-    --band=<band>
+    --band=<band> \
+    --tag=<tag, optional>
 ```
