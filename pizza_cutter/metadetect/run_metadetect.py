@@ -44,6 +44,11 @@ def _post_process_results(*, outputs, obj_data, image_info):
         dt += _dt
         for mcal_step, data in res.items():
             if data.size > 0:
+                wcs = eu.wcsutil.WCS(
+                    json.loads(image_info['wcs'][obj_data['file_id'][i, 0]]))
+                position_offset \
+                    = image_info['position_offset'][obj_data['file_id'][i, 0]]
+
                 output.append(_make_output_array(
                     data=data,
                     obj_id=obj_data['id'][i],
