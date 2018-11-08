@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 import click
+import jinja2
 import yaml
 from pizza_cutter.coadd_sim_slicer.slicer import make_meds_pizza_slices
 
@@ -28,11 +29,8 @@ def main(config, sim_path, tilename, band, tag, output_path):
     """Create a metadetection MEDS file from a coadd simulation."""
     with open(config, 'r') as fp:
         _config = fp.read()
-    try:
-        _config = _config.format(tilename=tilename, band=band)
-    except Exception:
-        pass
-    cfg = yaml.load(_config)
+    cfg = yaml.load(
+        jinja2.Template(_config).render(tilename=tilename, band=band))
 
     sname = os.path.basename(config).replace('.yaml', '')
     if tag is not None:

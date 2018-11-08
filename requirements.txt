@@ -11,3 +11,4 @@ git+https://github.com/esheldon/meds.git@master
 esutil
 sep
 joblib
+jinja2
