@@ -4,19 +4,19 @@ central_size: 250  # size of the central region
 buffer_size: 125  # size of the buffer on each size
 
 # these are relative to the input `--sim-path` CLI option
-# the brackets {tilename} and {band} are filled from the input CLI options
-# `--tilename` and `--band`
-image_path: output-{tilename}e/{tilename}e-sim_band{band}.fits
+# the brackets {{ tilename }} and {{ band }} are filled from the input
+# CLI options `--tilename` and `--band`
+image_path: output-{{ tilename }}/{{ tilename }}-sim_band{{ band }}.fits
 image_ext: 0
-bkg_path: output-{tilename}e/{tilename}e-sim_band{band}_bkg.fits
+bkg_path: output-{{ tilename }}/{{ tilename }}-sim_band{{ band }}_bkg.fits
 bkg_ext: 0
-weight_path: output-{tilename}e/{tilename}e-sim_band{band}.fits
+weight_path: output-{{ tilename }}/{{ tilename }}-sim_band{{ band }}.fits
 weight_ext: 2
-seg_path: output-{tilename}e/{tilename}e-sim_band{band}_seg.fits
+seg_path: output-{{ tilename }}/{{ tilename }}-sim_band{{ band }}_seg.fits
 seg_ext: 0
-bmask_path: output-{tilename}e/{tilename}e-sim_band{band}.fits
+bmask_path: output-{{ tilename }}/{{ tilename }}-sim_band{{ band }}.fits
 bmask_ext: 1
-psf: output-{tilename}e/{tilename}_r2601p01_{band}_psfcat.psf
+psf: output-{{ tilename }}/{{ tilename[:-1] }}_r2601p01_{{ band }}_psfcat.psf
 
 # random seed is used to make the noise field
 seed: 42
