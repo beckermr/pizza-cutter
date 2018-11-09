@@ -14,7 +14,7 @@ from .._slice_flagging import (
      (-1, range(10))  # bottom
      ])
 def test_slice_full_edge_masked(inds):
-    """Make sure images with fully maslked edges are all properly flagged."""
+    """Make sure images with fully masked edges are all properly flagged."""
     weight = np.ones((10, 10))
     bmask = np.zeros((10, 10), dtype=np.int32)
     bmask[:, 0] = 4  # try a different flag
