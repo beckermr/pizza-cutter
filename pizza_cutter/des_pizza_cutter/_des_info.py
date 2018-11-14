@@ -7,7 +7,7 @@ import psfex
 
 from ._sky_bounds import get_rough_sky_bounds
 from ..des_coadd_data import DESCoadd, DESCoaddSources
-from ._constants import MAGZP_REF
+from ._constants import MAGZP_REF, POSITION_OFFSET
 
 
 def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
@@ -103,7 +103,7 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
     info['wcs'] = eu.wcsutil.WCS(
         fitsio.read_header(info['image_path'], ext='sci'))
     info['galsim_wcs'] = galsim.FitsWCS(info['image_path'])
-    info['position_offset'] = 1
+    info['position_offset'] = POSITION_OFFSET
 
     info['image_ext'] = 'sci'
 
@@ -130,7 +130,7 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
         ii['wcs'] = eu.wcsutil.WCS(
             fitsio.read_header(ii['image_path'], ext='sci'))
         ii['galsim_wcs'] = galsim.FitsWCS(ii['image_path'])
-        ii['position_offset'] = 1
+        ii['position_offset'] = POSITION_OFFSET
 
         # psf
         ii['psf_rec'] = psfex.PSFEx(ii['psf_path'])
@@ -139,7 +139,7 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
         ncol, nrow = ii['wcs'].get_naxis()
         sky_bnds, ra_ccd, dec_ccd = get_rough_sky_bounds(
             wcs=ii['wcs'],
-            position_offset=1,
+            position_offset=POSITION_OFFSET,
             bounds_buffer_uv=16.0,
             n_grid=4)
         ii['sky_bnds'] = sky_bnds
