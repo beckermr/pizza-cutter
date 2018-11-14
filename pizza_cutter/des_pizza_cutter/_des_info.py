@@ -7,11 +7,12 @@ import psfex
 
 from ._sky_bounds import get_rough_sky_bounds
 from ..des_coadd_data import DESCoadd, DESCoaddSources
+from ._constants import MAGZP_REF
 
 
-def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf, magzp):
+def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
     """Read the coadd tile info, load WCS info, and load PSF info for
-    DES Y3.
+    the DES Y3 DESDM layout.
 
     Parameters
     ----------
@@ -24,8 +25,6 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf, magzp):
     medsconf : str
         The MEDS version. This string is used to set the download directory
         for the files for subsequent downloads.
-    magzp : float
-        The desired magnitude reference zero-point. Usually this is 30.
 
     Returns
     -------
@@ -38,6 +37,16 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf, magzp):
                 coordinates to get transform them to the convention assumed
                 by the WCS.
             'src_info' : list of dicts for the SE sources
+            'image_path' : the path to the FITS file with the coadd image
+            'image_ext' : the name of the FITS extension with the coadd image
+            'weight_path' : the path to the FITS file with the coadd weight map
+            'weight_ext' : the name of the FITS extension with the coadd weight
+                map
+            'bmask_path' : the path to the FITS file with the coadd bit mask
+            'bmask_ext' : the name of the FITS extension with the coadd bit
+                mask
+            'seg_path' : the path to the FITS file with the coadd seg map
+            'seg_ext' : the name of the FITS extension with the coadd seg map
 
         The dictionaries in the 'src_info' list have at least the
         following keys:
@@ -52,10 +61,11 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf, magzp):
             'bkg_path' : the path to the FITS file with the SE background image
             'bkg_ext' : the name of the FITS extension with the SE background
                 image
-            'wgt_path' : the path to the FITS file with the SE weight map
-            'wgt_ext' : the name of the FITS extension with the SE weight map
-            'msk_path' : the path to the FITS file with the SE bit mask
-            'msk_ext' : the name of the FITS extension with the SE bit mask
+            'weight_path' : the path to the FITS file with the SE weight map
+            'weight_ext' : the name of the FITS extension with the SE weight
+                map
+            'bmask_path' : the path to the FITS file with the SE bit mask
+            'bmask_ext' : the name of the FITS extension with the SE bit mask
             'psf_rec' : an object with the PSF reconstruction. This object
                 will have the methods `get_rec(row, col)` and
                 `get_center(row, col)` for getting an image of the PSF and
@@ -72,7 +82,8 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf, magzp):
                 (`*= scale`) and weight map (`/= scale**2`) for magnitude
                 zero-point calibration.
     coadd : `DESCoadd`
-        The coadd object that can be used to download the data.
+        The `DESCoadd` object that can be used to download the data via the
+        `download()` method.
     """
     coadd_srcs = DESCoaddSources(
         medsconf=medsconf,
@@ -94,14 +105,24 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf, magzp):
     info['galsim_wcs'] = galsim.FitsWCS(info['image_path'])
     info['position_offset'] = 1
 
+    info['image_ext'] = 'sci'
+
+    info['weight_path'] = info['image_path']
+    info['weight_ext'] = 'wgt'
+
+    info['bmask_path'] = info['image_path']
+    info['bmask_ext'] = 'msk'
+
+    info['seg_ext'] = 'sci'
+
     for ii in info['src_info']:
         ii['image_ext'] = 'sci'
 
-        ii['wgt_path'] = ii['image_path']
-        ii['wgt_ext'] = 'wgt'
+        ii['weight_path'] = ii['image_path']
+        ii['weight_ext'] = 'wgt'
 
-        ii['msk_path'] = ii['image_path']
-        ii['msk_ext'] = 'msk'
+        ii['bmask_path'] = ii['image_path']
+        ii['bmask_ext'] = 'msk'
 
         ii['bkg_ext'] = 'sci'
 
@@ -125,6 +146,6 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf, magzp):
         ii['ra_ccd'] = ra_ccd
         ii['dec_ccd'] = dec_ccd
         ii['ccd_bnds'] = Bounds(0, nrow-1, 0, ncol-1)
-        ii['scale'] = 10.0**(0.4*(magzp - ii['magzp']))
+        ii['scale'] = 10.0**(0.4*(MAGZP_REF - ii['magzp']))
 
     return info, coadd

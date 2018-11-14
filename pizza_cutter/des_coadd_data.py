@@ -3,8 +3,12 @@ import shutil
 import copy
 import tempfile
 import subprocess
+import logging
+from contextlib import redirect_stdout
 
 from . import files
+
+logger = logging.getLogger(__name__)
 
 _DOWNLOAD_CMD = r"""
     rsync \
@@ -147,7 +151,7 @@ class DESCoadd(object):
         """
 
         if not os.path.exists(self.source_dir):
-            print("making source dir:", self.source_dir)
+            logger.info("making source dir: %s", self.source_dir)
             os.makedirs(self.source_dir)
 
         info = self.get_info()
@@ -165,7 +169,19 @@ class DESCoadd(object):
             'source_dir': self.source_dir}
 
         try:
-            subprocess.check_call(cmd, shell=True)
+            with subprocess.Popen(
+                    cmd,
+                    shell=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT) as proc:
+                for line in iter(proc.stdout.readline, b''):
+                    logger.info(line.decode('utf-8').rstrip())
+                oe = proc.communicate()[0].decode('utf-8')
+                logger.info(oe)
+                retcode = proc.poll()
+                if retcode:
+                    raise subprocess.CalledProcessError(
+                        'Download command "%s" failed!' % cmd)
         finally:
             files.try_remove_timeout(self.flist_file)
 
@@ -174,7 +190,7 @@ class DESCoadd(object):
     def clean(self):
         """Remove downloaded files for the specified tile and band.
         """
-        print("removing sources:", self.source_dir)
+        logger.info("removing sources: %s", self.source_dir)
         shutil.rmtree(self.source_dir)
 
     def _do_query(self):
@@ -187,7 +203,7 @@ class DESCoadd(object):
             'band': self.band
         }
 
-        print('executing query:\n', query)
+        logger.info('executing query:\n%s', query)
         conn = self.get_conn()
         curs = conn.cursor()
         curs.execute(query)
@@ -285,7 +301,7 @@ class DESCoadd(object):
         flist_file = self._get_tempfile()
         flist = self._get_download_flist(info, no_prefix=True)
 
-        print("writing file list to:", flist_file)
+        logger.info("writing file list to: %s", flist_file)
         with open(flist_file, 'w') as fobj:
             for fname in flist:
                 fobj.write(fname)
@@ -337,7 +353,8 @@ class DESCoadd(object):
 
     def _make_conn(self):
         import easyaccess as ea
-        conn = ea.connect(section='desoper')
+        with redirect_stdout(None):
+            conn = ea.connect(section='desoper')
         self._conn = conn
 
     def _get_all_dirs(self, info):
@@ -491,7 +508,7 @@ class DESCoaddSources(object):
             'finalcut_campaign': self.finalcut_campaign,
             'tilename': self.tilename,
             'band': self.band}
-        print('executing query:\n', query)
+        logger.info('executing query:\n%s', query)
 
         curs = conn.cursor()
         curs.execute(query)
@@ -627,5 +644,6 @@ class DESCoaddSources(object):
 
     def _make_conn(self):
         import easyaccess as ea
-        conn = ea.connect(section='desoper')
+        with redirect_stdout(None):
+            conn = ea.connect(section='desoper')
         self._conn = conn

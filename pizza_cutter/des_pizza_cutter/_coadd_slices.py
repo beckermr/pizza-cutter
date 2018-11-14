@@ -95,8 +95,9 @@ def _read_image_lists(*, images_to_use, se_src_info, box_size):
         image = (
             _read_image(src_info['image_path'], ext=src_info['image_ext']) -
             _read_image(src_info['bkg_path'], ext=src_info['bkg_ext']))
-        weight = _read_image(src_info['wgt_path'], ext=src_info['wgt_ext'])
-        bmask = _read_image(src_info['msk_path'], ext=src_info['msk_ext'])
+        weight = _read_image(
+            src_info['weight_path'], ext=src_info['weight_ext'])
+        bmask = _read_image(src_info['bmask_path'], ext=src_info['bmask_ext'])
 
         row = image_info['start_row']
         col = image_info['start_col']
@@ -318,11 +319,11 @@ def _build_slice_inputs(
             box_size=box_size)
         if image_info:
             images_to_use[i] = image_info
-    logger.info('images found in rough cut: %d', len(images_to_use))
+    logger.debug('images found in rough cut: %d', len(images_to_use))
 
     # just stop now if we find nothing
     if not images_to_use:
-        return [], [], [], []
+        return [], [], [], [], [], []
 
     # we found some stuff - let's read it in
     # note that `_read_image` (called by `_read_image_lists`) is cached
@@ -337,7 +338,7 @@ def _build_slice_inputs(
     # we reject outliers after scaling the images to the same zero points
     if reject_outliers:
         nreject = meds.meds.reject_outliers(imlist, wtlist)
-        logger.info('# of rejected pixels: %d', nreject)
+        logger.debug('# of rejected pixels: %d', nreject)
 
     # finally, we do the final set of cuts, interp, and build the needed
     # galsim objects
@@ -351,7 +352,7 @@ def _build_slice_inputs(
     se_images_kept = []
     for image, weight, bmask, (index, image_info) in zip(
             imlist, wtlist, bmlist, images_to_use.items()):
-        logger.info('proccseeing image %d', index)
+        logger.debug('proccseeing image %d', index)
 
         src_info = se_src_info[index]
 
@@ -366,16 +367,25 @@ def _build_slice_inputs(
             symmetrize_bmask(bmask=bmask, bad_flags=bad_flags)
             symmetrize_weight(weight=weight)
 
-        skip = (
-            slice_full_edge_masked(
-                weight=weight, bmask=bmask, bad_flags=se_interp_flags) or
-            slice_has_flags(
-                bmask=bmask, flags=bad_image_flags) or
-            (compute_masked_fraction(
+        skip_edge_masked = slice_full_edge_masked(
+                weight=weight, bmask=bmask, bad_flags=se_interp_flags)
+        skip_has_flags = slice_has_flags(bmask=bmask, flags=bad_image_flags)
+        skip_masked_fraction = (
+            compute_masked_fraction(
                 weight=weight, bmask=bmask, bad_flags=bad_flags) >
-             max_masked_fraction))
+            max_masked_fraction)
 
-        if not skip:
+        skip = skip_edge_masked or skip_has_flags or skip_masked_fraction
+
+        if skip:
+            if skip_edge_masked:
+                msg = 'full edge masked'
+            elif skip_has_flags:
+                msg = 'bad image flags'
+            elif skip_masked_fraction:
+                msg = 'masked fraction too high'
+            logger.debug('rejecting image %d: %s', index, msg)
+        else:
             se_images_kept.append(index)
 
             # first we do the noise interp
