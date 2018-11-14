@@ -19,7 +19,7 @@ jobs:
             sudo apt-get -qq install libfftw3-dev libeigen3-dev build-essential libcfitsio-bin
             python3 -m venv venv
             . venv/bin/activate
-            pip install -U -q pip setuptools numpy cython pybind11
+            pip install -U pip setuptools numpy cython pybind11
             pip install -U -q --upgrade-strategy=eager -r dev-requirements.txt
             pip install -U -q --upgrade-strategy=eager -r requirements.txt
 
