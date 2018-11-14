@@ -19,9 +19,9 @@ jobs:
             sudo apt-get install libfftw3-dev libeigen3-dev build-essential libcfitsio-bin
             python3 -m venv venv
             . venv/bin/activate
-            pip install -U pip setuptools numpy cython pybind11
-            pip install -U --upgrade-strategy=eager -r dev-requirements.txt
-            pip install -U --upgrade-strategy=eager -r requirements.txt
+            pip install -U -q pip setuptools numpy cython pybind11
+            pip install -U -q --upgrade-strategy=eager -r dev-requirements.txt
+            pip install -U -q --upgrade-strategy=eager -r requirements.txt
 
       - save_cache:
           paths:
@@ -32,8 +32,8 @@ jobs:
           name: run tests
           command: |
             . venv/bin/activate
-            pip install -U --upgrade-strategy=eager --force-reinstall -r volatile-requirements.txt
-            pip install --upgrade --force-reinstall .
+            pip install -U -q --upgrade-strategy=eager --force-reinstall -r volatile-requirements.txt
+            pip install -q -U --force-reinstall .
             flake8 pizza_cutter
             flake8 bin/pizza-cutter
             pytest -vv pizza_cutter
