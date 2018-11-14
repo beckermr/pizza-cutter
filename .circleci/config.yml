@@ -20,8 +20,8 @@ jobs:
             python3 -m venv venv
             . venv/bin/activate
             pip install -U pip setuptools numpy cython pybind11
-            pip install -U --no-progress --upgrade-strategy=eager -r dev-requirements.txt
-            pip install -U --no-progress --upgrade-strategy=eager -r requirements.txt
+            pip install -U --progress-bar=off --upgrade-strategy=eager -r dev-requirements.txt
+            pip install -U --progress-bar=off --upgrade-strategy=eager -r requirements.txt
 
       - save_cache:
           paths:
@@ -32,8 +32,8 @@ jobs:
           name: run tests
           command: |
             . venv/bin/activate
-            pip install -U --no-progress --upgrade-strategy=eager --force-reinstall -r volatile-requirements.txt
-            pip install -q --no-progress --force-reinstall .
+            pip install -U --progress-bar=off --upgrade-strategy=eager --force-reinstall -r volatile-requirements.txt
+            pip install -q --progress-bar=off --force-reinstall .
             flake8 pizza_cutter
             flake8 bin/pizza-cutter
             pytest -vv pizza_cutter
