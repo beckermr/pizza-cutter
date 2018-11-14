@@ -12,4 +12,4 @@ esutil
 sep
 joblib
 jinja2
-python-blosc
+blosc
