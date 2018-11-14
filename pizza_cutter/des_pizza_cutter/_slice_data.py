@@ -159,7 +159,8 @@ def interpolate_image_and_noise(*, image, weight, bmask, bad_flags, rng):
         # fill the weight map with the median so we can draw a noise map
         # we could apply the interpolator too?
         interp_weight = weight.copy().ravel()
-        interp_weight[bad_msk] = np.median(interp_weight[good_msk])
+        if np.any(interp_weight[bad_msk] == 0):
+            interp_weight[bad_msk] = np.median(interp_weight[good_msk])
 
         # now draw a noise map and apply an interp to it
         # this is to propagate how the interpolation correlates pixel noise
