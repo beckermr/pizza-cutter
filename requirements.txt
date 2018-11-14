@@ -13,3 +13,4 @@ sep
 joblib
 jinja2
 blosc
+tqdm
