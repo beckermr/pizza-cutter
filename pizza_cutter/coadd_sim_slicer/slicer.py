@@ -63,7 +63,7 @@ def make_meds_pizza_slices(
         psf,
         fpack_pars=None,
         seed,
-        tmpdir,
+        tmpdir=None,
         remove_fits_file=True):
     """Build a MEDS pizza slices file.
 
