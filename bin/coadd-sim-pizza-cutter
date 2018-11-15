@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 import os
+import sys
+import logging
 import tempfile
 import click
 import jinja2
@@ -29,12 +31,20 @@ from pizza_cutter.coadd_sim_slicer.slicer import make_meds_pizza_slices
 @click.option(
     '--use-tmpdir', is_flag=True,
     help='use a temporary directory to stage data')
-def main(config, sim_path, tilename, band, tag, output_path, use_tmpdir):
+@click.option(
+    '--log-level', default='warning', type=str,
+    help='python logging level')
+def main(
+        config, sim_path, tilename, band, tag, output_path, use_tmpdir,
+        log_level):
     """Create a metadetection MEDS file from a coadd simulation."""
     with open(config, 'r') as fp:
         _config = fp.read()
     cfg = yaml.load(
         jinja2.Template(_config).render(tilename=tilename, band=band))
+
+    logging.basicConfig(
+        stream=sys.stdout, level=getattr(logging, log_level.upper()))
 
     sname = os.path.basename(config).replace('.yaml', '')
     if tag is not None:
