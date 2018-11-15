@@ -1,6 +1,7 @@
 import os
 import subprocess
 import json
+
 import numpy as np
 import fitsio
 import psfex
@@ -12,6 +13,7 @@ from meds.util import (
 from esutil.wcsutil import WCS
 
 from .._version import __version__
+from ..files import StagedOutFile
 
 # these are constants that are etched in stone for MEDS files
 MAGZP_REF = 30.0
@@ -61,6 +63,7 @@ def make_meds_pizza_slices(
         psf,
         fpack_pars=None,
         seed,
+        tmpdir,
         remove_fits_file=True):
     """Build a MEDS pizza slices file.
 
@@ -106,6 +109,8 @@ def make_meds_pizza_slices(
         The random seed used to make the noise field.
     remove_fits_file : bool, optional
         If `True`, remove the FITS file after fpacking.
+    tmpdir : str, optional
+        A temporary directory to use. If `None`
     """
 
     metadata = _build_metadata(config)
@@ -121,44 +126,46 @@ def make_meds_pizza_slices(
         bmask_path=bmask_path,
         bmask_ext=bmask_ext)
 
-    with fitsio.FITS(meds_path, 'rw', clobber=True) as fits:
-        # make the image data here since we need to have the file open to
-        # fill the arrays on disk
-        _slice_coadd_image(
-            central_size=central_size,
-            buffer_size=buffer_size,
-            image_path=image_path,
-            image_ext=image_ext,
-            bkg_path=bkg_path,
-            bkg_ext=bkg_ext,
-            weight_path=weight_path,
-            weight_ext=weight_ext,
-            seg_path=seg_path,
-            seg_ext=seg_ext,
-            bmask_path=bmask_path,
-            bmask_ext=bmask_ext,
-            psf=psf,
-            fits=fits,
-            fpack_pars=fpack_pars,
-            seed=seed)
+    with StagedOutFile(meds_path + '.fz', tmpdir) as sf:
+        tmp_meds_file = sf.path.replace('.fz', '')
+        with fitsio.FITS(tmp_meds_file, 'rw', clobber=True) as fits:
+            # make the image data here since we need to have the file open to
+            # fill the arrays on disk
+            _slice_coadd_image(
+                central_size=central_size,
+                buffer_size=buffer_size,
+                image_path=image_path,
+                image_ext=image_ext,
+                bkg_path=bkg_path,
+                bkg_ext=bkg_ext,
+                weight_path=weight_path,
+                weight_ext=weight_ext,
+                seg_path=seg_path,
+                seg_ext=seg_ext,
+                bmask_path=bmask_path,
+                bmask_ext=bmask_ext,
+                psf=psf,
+                fits=fits,
+                fpack_pars=fpack_pars,
+                seed=seed)
 
-        fits.write(image_info, extname=IMAGE_INFO_EXTNAME)
-        fits.write(metadata, extname=METADATA_EXTNAME)
+            fits.write(image_info, extname=IMAGE_INFO_EXTNAME)
+            fits.write(metadata, extname=METADATA_EXTNAME)
 
-    # fpack it
-    cmd = 'fpack %s' % meds_path
-    print("fpacking:\n    command: '%s'" % cmd, flush=True)
-    try:
-        subprocess.check_call(cmd, shell=True)
-    except Exception:
-        pass
-    else:
-        if remove_fits_file:
-            os.remove(meds_path)
+        # fpack it
+        cmd = 'fpack %s' % tmp_meds_file
+        print("fpacking:\n    command: '%s'" % cmd, flush=True)
+        try:
+            subprocess.check_call(cmd, shell=True)
+        except Exception:
+            pass
+        else:
+            if remove_fits_file:
+                os.remove(tmp_meds_file)
 
-    # validate the fpacked file
-    print('validating:', flush=True)
-    validate_meds(meds_path + '.fz')
+        # validate the fpacked file
+        print('validating:', flush=True)
+        validate_meds(sf.path)
 
 
 def _build_image_info(
