@@ -70,7 +70,7 @@ def _do_metadetect(config, mbobs, seed, i):
     return res, i, time.time() - _t0
 
 
-def _make_meds_iterator(mbmeds):
+def _make_meds_iterator(mbmeds, part, n_parts):
     """This function returns a function which is used as an iterator.
 
     Closure closure blah blah blah.
@@ -81,10 +81,18 @@ def _make_meds_iterator(mbmeds):
     This works because all of the list-like things fed to joblib are actually
     generators that build their values on-the-fly.
     """
+    n_slices_per_part = mbmeds.size // n_parts
+    first = (part-1) * n_slices_per_part
+    if (part-1) == n_parts - 1:
+        num = mbmeds.size - first
+    else:
+        num = n_slices_per_part
+
     def _func():
-        for i in range(mbmeds.size):
+        for i in range(first, first + num):
             mbobs = mbmeds.get_mbobs(i)
             yield i, mbobs
+
     return _func
 
 
@@ -93,7 +101,9 @@ def run_metadetect(
         config,
         multiband_meds,
         output_file,
-        seed):
+        seed,
+        part=1,
+        n_parts=1):
     """Run metadetect on a "pizza slice" MEDS file and write the outputs to
     disk.
 
@@ -105,11 +115,15 @@ def run_metadetect(
         A multiband MEDS data structure.
     output_file : str
         The file to which to write the outputs.
+    part : int, optional
+        The part of the file to process. Starts at 1 and runs to n_parts.
+    n_parts : int, optional
+        The number of parts to split the file into.
     """
     t0 = time.time()
 
     # process each slice in a pipeline
-    meds_iter = _make_meds_iterator(multiband_meds)
+    meds_iter = _make_meds_iterator(multiband_meds, part, n_parts)
     outputs = joblib.Parallel(
             verbose=10,
             n_jobs=int(os.environ.get('OMP_NUM_THREADS', 1)),
