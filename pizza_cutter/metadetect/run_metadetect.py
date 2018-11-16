@@ -134,7 +134,8 @@ def run_metadetect(
     outputs = joblib.Parallel(
             verbose=10,
             n_jobs=int(os.environ.get('OMP_NUM_THREADS', 1)),
-            pre_dispatch='2*n_jobs')(
+            pre_dispatch='2*n_jobs',
+            max_nbytes=None)(
         joblib.delayed(_do_metadetect)(config, mbobs, seed+i, i)
         for i, mbobs in meds_iter())
 
