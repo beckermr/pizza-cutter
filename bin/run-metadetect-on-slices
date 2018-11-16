@@ -39,7 +39,7 @@ def _make_output_filename(meds_fname, part):
 @click.option(
     '--part', default='1:1', type=str,
     help=('the part of the file to process in the '
-          'form `--part="<part>:<n_parts>`" - '
+          'form `--part="<part>:<n_parts>"` - '
           'Note that parts are one-indexed.'))
 @click.option(
     '--log-level', default='warning', type=str,
