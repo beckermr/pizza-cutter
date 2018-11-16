@@ -530,8 +530,8 @@ def _load_fits_objects(
     """
     Load fits objects for the input paths
 
-    If paths are the same for some objects, the same
-    fits object is returned
+    If paths are the same for some objects, the same underlying fits object is
+    used
 
     Returns
     -------
@@ -591,9 +591,17 @@ def _load_fits_objects(
 
 class FakeRandomImage(object):
     """
-    implements an interface to a random state which can be sliced
-    like an image.  The sigma for normal random numbers
-    is taken from the input weight HDU
+    implements an interface to a random state which can be sliced like an
+    image.  The sigma for normal random numbers is taken from the input weight
+    HDU
+
+    Parameters
+    ----------
+    wgt_hdu: FITS HDU
+        The FITS HDU for the weight map
+    rng: np.random.RandomState
+        A random number generator, to be used to generate random
+        images
     """
     def __init__(self, wgt_hdu, rng):
         self.wgt_hdu = wgt_hdu
