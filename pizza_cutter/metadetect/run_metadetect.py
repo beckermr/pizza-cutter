@@ -80,7 +80,7 @@ def _get_part_ranges(part, n_parts, size):
     return start[part-1], n_per[part-1]
 
 
-def _make_meds_iterator(mbmeds, part, n_parts):
+def _make_meds_iterator(mbmeds, start, num):
     """This function returns a function which is used as an iterator.
 
     Closure closure blah blah blah.
@@ -91,8 +91,6 @@ def _make_meds_iterator(mbmeds, part, n_parts):
     This works because all of the list-like things fed to joblib are actually
     generators that build their values on-the-fly.
     """
-    start, num = _get_part_ranges(part, n_parts, mbmeds.size)
-
     def _func():
         for i in range(start, start+num):
             mbobs = mbmeds.get_mbobs(i)
@@ -128,7 +126,10 @@ def run_metadetect(
     t0 = time.time()
 
     # process each slice in a pipeline
-    meds_iter = _make_meds_iterator(multiband_meds, part, n_parts)
+    start, num = _get_part_ranges(part, n_parts, multiband_meds.size)
+    print('# of slices: %d' % num, flush=True)
+    print('slice range: [%d, %d)' % (start, start+num), flush=True)
+    meds_iter = _make_meds_iterator(multiband_meds, start, num)
     outputs = joblib.Parallel(
             verbose=10,
             n_jobs=int(os.environ.get('OMP_NUM_THREADS', 1)),
