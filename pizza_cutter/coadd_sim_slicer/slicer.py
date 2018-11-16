@@ -411,8 +411,6 @@ def _write_cutouts(*, im, ext, object_data, fits, fpack_pars, bkg=None):
             read_im -= bkg_im
 
         # nothing ever hits the edge here, but doing this anyways
-        # note any background subtraction will be bogus for the edge
-        # parts
 
         subim = np.zeros((bsize, bsize), dtype=CUTOUT_DTYPES[ext])
         subim += CUTOUT_DEFAULT_VALUES[ext]
@@ -535,7 +533,9 @@ def _load_fits_objects(
 
     Returns
     -------
-    FITS HDU objects for each type, or None as appropriate
+    im_hdu, wt_hdu, bmask_hdu, bkg_hdu, seg_hdu, wcs:
+        FITS HDU objects for each type, or None as appropriate, and
+        the wcs
     """
 
     im_fits = fitsio.FITS(image_path)
