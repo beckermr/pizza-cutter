@@ -56,6 +56,8 @@ def main(meds_files, config, output_path, seed, use_tmpdir, part, log_level):
     meds_list = [NGMixMEDS(fname) for fname in meds_files]
     mbmeds = MultiBandNGMixMEDS(meds_list)
     part, n_parts = part.split(':')
+    part = int(part)
+    n_parts = int(n_parts)
 
     def _call(output_file):
         run_metadetect(
@@ -63,8 +65,8 @@ def main(meds_files, config, output_path, seed, use_tmpdir, part, log_level):
             output_file=output_file,
             multiband_meds=mbmeds,
             seed=seed,
-            part=int(part),
-            n_parts=int(n_parts))
+            part=part,
+            n_parts=n_parts)
 
     filename = os.path.join(
         output_path,
