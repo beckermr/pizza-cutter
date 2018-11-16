@@ -261,7 +261,7 @@ def _slice_coadd_image(
     # make object data so we can write the cutouts
     # assuming the coadd is square
     im_dims = im_hdu.get_dims()
-    assert im_dims[0]==im_dims[1],'coadd image must be square'
+    assert im_dims[0] == im_dims[1], 'coadd image must be square'
 
     object_data = _build_object_data(
         central_size=central_size,
@@ -503,7 +503,8 @@ def _build_object_data(
 
     return output_info
 
-def _load_psf(*,fname):
+
+def _load_psf(*, fname):
     """
     load the psf object. Currently only supports PSFEx
 
@@ -517,6 +518,7 @@ def _load_psf(*,fname):
     The psf object, currently this will be a PSFEx object
     """
     return psfex.PSFEx(fname)
+
 
 def _load_fits_objects(
         *,
@@ -552,7 +554,6 @@ def _load_fits_objects(
 
     wt_hdu = wt_fits[weight_ext]
 
-
     # bit mask, not optional
     if bmask_path == image_path:
         bmask_fits = im_fits
@@ -577,7 +578,6 @@ def _load_fits_objects(
         else:
             seg_fits = fitsio.FITS(seg_path)
         seg_hdu = seg_fits[seg_ext]
-
 
     return (
         im_hdu,
