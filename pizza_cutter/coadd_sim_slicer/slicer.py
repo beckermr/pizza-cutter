@@ -565,7 +565,7 @@ def _load_fits_objects(
     # background and seg map, optional
     bkg_hdu = None
     if bkg_path is not None:
-        if bkg_path==image_path:
+        if bkg_path == image_path:
             bkg_fits = im_fits
         else:
             bkg_fits = fitsio.FITS(bkg_path)
@@ -573,7 +573,7 @@ def _load_fits_objects(
 
     seg_hdu = None
     if seg_path is not None:
-        if seg_path==image_path:
+        if seg_path == image_path:
             seg_fits = im_fits
         else:
             seg_fits = fitsio.FITS(seg_path)
@@ -596,8 +596,8 @@ class FakeRandomImage(object):
     is taken from the input weight HDU
     """
     def __init__(self, wgt_hdu, rng):
-        self.wgt_hdu=wgt_hdu
-        self.rng=rng
+        self.wgt_hdu = wgt_hdu
+        self.rng = rng
 
     def __getitem__(self, slices):
 
