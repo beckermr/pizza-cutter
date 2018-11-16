@@ -12,7 +12,12 @@ from esutil.wcsutil import WCS
 from meds.maker import MEDS_FMT_VERSION
 from ... import __version__
 
-from ..slicer import make_meds_pizza_slices, POSITION_OFFSET, MAGZP_REF
+from ..slicer import (
+    make_meds_pizza_slices,
+    POSITION_OFFSET,
+    MAGZP_REF,
+    FakeRandomImage,
+)
 
 
 class FakePSF(object):
@@ -203,10 +208,8 @@ def test_make_meds_pizza_slices(psf_mock, data):
             if tpe == 'image':
                 im = data[tpe] - data['bkg']
             elif tpe == 'noise':
-                _rng = np.random.RandomState(seed=data['config']['seed'])
-                im = (
-                    _rng.normal(size=data['image'].shape) /
-                    np.sqrt(data['weight']))
+                rng = np.random.RandomState(seed=data['config']['seed'])
+                im = FakeRandomImage(data['weight'], rng)
             else:
                 im = data[tpe]
             for i in range(data['nobj']):

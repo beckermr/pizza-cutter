@@ -241,8 +241,11 @@ def _slice_coadd_image(
         seed):
     """Slice a coadd image into metadetection regions, making a MEDS file."""
 
-    # read the images, wcs and psf
-    img, bkg, seg, wgt, bmask, pex, wcs = _read_data(
+    # load a PSF object
+    pex = _load_psf(fname=psf)
+
+    # load the image HDUs and wcs and psf
+    im_hdu, wgt_hdu, bmask_hdu, bkg_hdu, seg_hdu, wcs = _load_fits_objects(
         image_path=image_path,
         image_ext=image_ext,
         bkg_path=bkg_path,
@@ -253,13 +256,17 @@ def _slice_coadd_image(
         seg_ext=seg_ext,
         bmask_path=bmask_path,
         bmask_ext=bmask_ext,
-        psf=psf)
+    )
 
     # make object data so we can write the cutouts
+    # assuming the coadd is square
+    im_dims = im_hdu.get_dims()
+    assert im_dims[0]==im_dims[1],'coadd image must be square'
+
     object_data = _build_object_data(
         central_size=central_size,
         buffer_size=buffer_size,
-        image_width=img.shape[0],
+        image_width=im_dims[0],
         wcs=wcs)
 
     _fill_psf_data_and_write_psf_cutouts(
@@ -270,44 +277,43 @@ def _slice_coadd_image(
     fits.write(object_data, extname=OBJECT_DATA_EXTNAME)
 
     # now go one by one and write the different images
-    if bkg is not None:
-        im = img - bkg
-    else:
-        im = img
+
     _write_cutouts(
-        im=im,
+        im=im_hdu,
         ext=IMAGE_CUTOUT_EXTNAME,
         object_data=object_data,
         fits=fits,
-        fpack_pars=fpack_pars)
+        fpack_pars=fpack_pars,
+        bkg=bkg_hdu,
+    )
 
     _write_cutouts(
-        im=wgt,
+        im=wgt_hdu,
         ext=WEIGHT_CUTOUT_EXTNAME,
         object_data=object_data,
         fits=fits,
         fpack_pars=fpack_pars)
 
-    if seg is not None:
+    if seg_hdu is not None:
         _write_cutouts(
-            im=seg,
+            im=seg_hdu,
             ext=SEG_CUTOUT_EXTNAME,
             object_data=object_data,
             fits=fits,
             fpack_pars=fpack_pars)
 
     _write_cutouts(
-        im=bmask,
+        im=bmask_hdu,
         ext=BMASK_CUTOUT_EXTNAME,
         object_data=object_data,
         fits=fits,
         fpack_pars=fpack_pars)
 
     rng = np.random.RandomState(seed=seed)
-    noise = rng.normal(size=wgt.shape) * np.sqrt(1.0 / wgt)
+    noiseobj = FakeRandomImage(wgt_hdu, rng)
 
     _write_cutouts(
-        im=noise,
+        im=noiseobj,
         ext=NOISE_CUTOUT_EXTNAME,
         object_data=object_data,
         fits=fits,
@@ -371,7 +377,7 @@ def _fill_psf_data_and_write_psf_cutouts(
         psf_start_row += psf_npix
 
 
-def _write_cutouts(*, im, ext, object_data, fits, fpack_pars):
+def _write_cutouts(*, im, ext, object_data, fits, fpack_pars, bkg=None):
     """Write the cutouts of a given image to an ext"""
 
     print('%s:\n    reserving mosaic' % ext, flush=True)
@@ -398,10 +404,19 @@ def _write_cutouts(*, im, ext, object_data, fits, fpack_pars):
         bsize = object_data['box_size'][i]
         start_row = object_data['start_row'][i, 0]
 
-        # nothing ever hits the edge here, but doing this anyways
         read_im = im[orow:orow + bsize, ocol:ocol+bsize]
+
+        if bkg is not None:
+            bkg_im = bkg[orow:orow + bsize, ocol:ocol+bsize]
+            read_im -= bkg_im
+
+        # nothing ever hits the edge here, but doing this anyways
+        # note any background subtraction will be bogus for the edge
+        # parts
+
         subim = np.zeros((bsize, bsize), dtype=CUTOUT_DTYPES[ext])
         subim += CUTOUT_DEFAULT_VALUES[ext]
+
         subim[:, :] = read_im
 
         fits[ext].write(subim, start=start_row)
@@ -488,41 +503,105 @@ def _build_object_data(
 
     return output_info
 
+def _load_psf(*,fname):
+    """
+    load the psf object. Currently only supports PSFEx
 
-def _read_data(
+    Parameters
+    ----------
+    fname: string
+        Path name for the psf file
+
+    Returns
+    --------
+    The psf object, currently this will be a PSFEx object
+    """
+    return psfex.PSFEx(fname)
+
+def _load_fits_objects(
         *,
         image_path, image_ext,
         bkg_path, bkg_ext,
         weight_path, weight_ext,
         seg_path, seg_ext,
-        bmask_path, bmask_ext,
-        psf):
-    """Read the data.
+        bmask_path, bmask_ext):
+    """
+    Load fits objects for the input paths
+
+    If paths are the same for some objects, the same
+    fits object is returned
 
     Returns
     -------
-    img, bkg, seg, wgt, bmask, pex, wcs
+    FITS HDU objects for each type, or None as appropriate
     """
 
-    img = fitsio.read(image_path, ext=image_ext)
-    imh = fitsio.read_header(image_path)
+    im_fits = fitsio.FITS(image_path)
+    im_hdu = im_fits[image_ext]
+
+    imh = im_hdu.read_header()
+
     wcs_dict = {k.lower(): imh[k] for k in imh.keys()}
     wcs = WCS(wcs_dict)
 
-    wgt = fitsio.read(weight_path, ext=weight_ext)
+    # weight map, not optional
+    if weight_path == image_path:
+        wt_fits = im_fits
+    else:
+        wt_fits = fitsio.FITS(weight_path)
 
+    wt_hdu = wt_fits[weight_ext]
+
+
+    # bit mask, not optional
+    if bmask_path == image_path:
+        bmask_fits = im_fits
+    else:
+        bmask_fits = fitsio.FITS(bmask_path)
+
+    bmask_hdu = bmask_fits[bmask_ext]
+
+    # background and seg map, optional
+    bkg_hdu = None
     if bkg_path is not None:
-        bkg = fitsio.read(bkg_path, ext=bkg_ext)
-    else:
-        bkg = None
+        if bkg_path==image_path:
+            bkg_fits = im_fits
+        else:
+            bkg_fits = fitsio.FITS(bkg_path)
+        bkg_hdu = bkg_fits[bkg_ext]
 
+    seg_hdu = None
     if seg_path is not None:
-        seg = fitsio.read(seg_path, ext=seg_ext)
-    else:
-        seg = None
+        if seg_path==image_path:
+            seg_fits = im_fits
+        else:
+            seg_fits = fitsio.FITS(seg_path)
+        seg_hdu = seg_fits[seg_ext]
 
-    bmask = fitsio.read(bmask_path, ext=bmask_ext)
 
-    pex = psfex.PSFEx(psf)
+    return (
+        im_hdu,
+        wt_hdu,
+        bmask_hdu,
+        bkg_hdu,
+        seg_hdu,
+        wcs,
+    )
 
-    return img, bkg, seg, wgt, bmask, pex, wcs
+
+class FakeRandomImage(object):
+    """
+    implements an interface to a random state which can be sliced
+    like an image.  The sigma for normal random numbers
+    is taken from the input weight HDU
+    """
+    def __init__(self, wgt_hdu, rng):
+        self.wgt_hdu=wgt_hdu
+        self.rng=rng
+
+    def __getitem__(self, slices):
+
+        wt = self.wgt_hdu[slices]
+        sigma = np.sqrt(1.0/wt)
+
+        return sigma*self.rng.normal(size=wt.shape)
