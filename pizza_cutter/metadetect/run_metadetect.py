@@ -74,7 +74,8 @@ def _get_part_ranges(part, n_parts, size):
     n_per = size // n_parts
     n_extra = size - n_per * n_parts
     n_per = np.ones(n_parts, dtype=np.int64) * n_per
-    n_per[:n_extra] += 1
+    if n_extra > 0:
+        n_per[:n_extra] += 1
     stop = np.cumsum(n_per)
     start = stop - n_per
     return start[part-1], n_per[part-1]

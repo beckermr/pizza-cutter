@@ -8,6 +8,7 @@ from ..run_metadetect import _get_part_ranges
     (1, 1),
     (13, 1),
     (10, 10),
+    (100, 1000),
     (4343, 4000)
 ])
 def test_get_part_ranges(size, n_parts):
@@ -18,7 +19,8 @@ def test_get_part_ranges(size, n_parts):
         start, num = _get_part_ranges(i+1, n_parts, size)
 
         max_num = max([max_num, num])
-        min_num = min([min_num, num])
+        if num > 0:
+            min_num = min([min_num, num])
 
         if i > 0:
             assert prev_start + prev_num == start  # noqa
