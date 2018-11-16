@@ -92,7 +92,7 @@ def run_metadetect(
         *,
         config,
         multiband_meds,
-        output_fname,
+        output_file,
         seed):
     """Run metadetect on a "pizza slice" MEDS file and write the outputs to
     disk.
@@ -103,7 +103,7 @@ def run_metadetect(
         The metadetect configuration file.
     multiband_meds : `ngmix.medsreaders.MultiBandNGMixMEDS`
         A multiband MEDS data structure.
-    output_fname : str
+    output_file : str
         The file to which to write the outputs.
     """
     t0 = time.time()
@@ -133,4 +133,4 @@ def run_metadetect(
         "CPU seconds per slice: ",
         cpu_time / len(outputs), flush=True)
 
-    fitsio.write(output_fname, output, clobber=True)
+    fitsio.write(output_file, output, clobber=True)
