@@ -70,6 +70,16 @@ def _do_metadetect(config, mbobs, seed, i):
     return res, i, time.time() - _t0
 
 
+def _get_part_ranges(part, n_parts, size):
+    n_per = size // n_parts
+    n_extra = size - n_per * n_parts
+    n_per = np.ones(n_parts, dtype=np.int64) * n_per
+    n_per[:n_extra] += 1
+    stop = np.cumsum(n_per)
+    start = stop - n_per
+    return start[part-1], n_per[part-1]
+
+
 def _make_meds_iterator(mbmeds, part, n_parts):
     """This function returns a function which is used as an iterator.
 
@@ -81,15 +91,10 @@ def _make_meds_iterator(mbmeds, part, n_parts):
     This works because all of the list-like things fed to joblib are actually
     generators that build their values on-the-fly.
     """
-    n_slices_per_part = mbmeds.size // n_parts
-    first = (part-1) * n_slices_per_part
-    if (part-1) == n_parts - 1:
-        num = mbmeds.size - first
-    else:
-        num = n_slices_per_part
+    start, num = _get_part_ranges(part, n_parts, mbmeds.size)
 
     def _func():
-        for i in range(first, first + num):
+        for i in range(start, start+num):
             mbobs = mbmeds.get_mbobs(i)
             yield i, mbobs
 
