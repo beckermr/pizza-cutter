@@ -3,7 +3,10 @@ import numpy as np
 import pytest
 
 from .._slice_flagging import (
-    slice_full_edge_masked, slice_has_flags, compute_masked_fraction)
+    slice_full_edge_masked,
+    slice_has_flags,
+    compute_masked_fraction,
+    compute_unmasked_trail_fraction)
 
 
 @pytest.mark.parametrize(
@@ -77,3 +80,12 @@ def test_slice_has_flags():
 
     bmask[6, 6] = 2**0
     assert slice_has_flags(bmask=bmask, flags=flags)
+
+
+def test_compute_unmasked_trail_fraction():
+    bmask = np.zeros((10, 10), dtype=np.int32)
+    bmask[0, :] = 64
+    bmask[5, 8] = 64
+    bmask[0, 5:] |= 32
+
+    assert compute_unmasked_trail_fraction(bmask=bmask) == 0.06
