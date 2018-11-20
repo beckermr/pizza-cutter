@@ -184,7 +184,7 @@ def _build_image_info(
     strlen = np.max([len(image_path), len(weight_path), len(bmask_path)])
     if seg_path is not None:
         strlen = max([strlen, len(seg_path)])
-    if bmask_path is not None:
+    if bkg_path is not None:
         strlen = max([strlen, len(bkg_path)])
     ii = get_image_info_struct(
         1,
