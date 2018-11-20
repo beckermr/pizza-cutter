@@ -51,6 +51,7 @@ def make_des_pizza_slices(
         se_interp_flags,
         bad_image_flags,
         max_masked_fraction,
+        max_unmasked_trail_fraction,
         psf_box_size,
         remove_fits_file=True):
     """Build a MEDS pizza slices file for the DES.
@@ -78,6 +79,7 @@ def make_des_pizza_slices(
     se_interp_flags : int
     bad_image_flags : int
     max_masked_fraction : float
+    max_unmasked_trail_fraction : float
     psf_box_size : int
     remove_fits_file : bool, optional
         If `True`, remove the FITS file after fpacking.
@@ -108,6 +110,7 @@ def make_des_pizza_slices(
             se_interp_flags=se_interp_flags,
             bad_image_flags=bad_image_flags,
             max_masked_fraction=max_masked_fraction,
+            max_unmasked_trail_fraction=max_unmasked_trail_fraction,
             seed=seed,
             fpack_pars=fpack_pars)
 
@@ -144,6 +147,7 @@ def _coadd_and_write_images(
         se_interp_flags,
         bad_image_flags,
         max_masked_fraction,
+        max_unmasked_trail_fraction,
         seed):
     """
     """
@@ -191,6 +195,7 @@ def _coadd_and_write_images(
             se_interp_flags=se_interp_flags,
             bad_image_flags=bad_image_flags,
             max_masked_fraction=max_masked_fraction,
+            max_unmasked_trail_fraction=max_unmasked_trail_fraction,
             rng=rng)
 
         # did we get anything?

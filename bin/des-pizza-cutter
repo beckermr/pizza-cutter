@@ -84,6 +84,7 @@ def main(config, tilename, band, tag, output_path, log_level, seed):
         se_interp_flags=sum(cfg['se_interp_flags']),
         bad_image_flags=sum(cfg['bad_image_flags']),
         max_masked_fraction=cfg['max_masked_fraction'],
+        max_unmasked_trail_fraction=cfg['max_unmasked_trail_fraction'],
         psf_box_size=cfg['psf_box_size'])
 
 

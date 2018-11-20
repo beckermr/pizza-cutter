@@ -14,7 +14,8 @@ from meds.util import radec_to_uv
 from ._slice_flagging import (
     slice_full_edge_masked,
     slice_has_flags,
-    compute_masked_fraction)
+    compute_masked_fraction,
+    compute_unmasked_trail_fraction)
 from ._slice_data import (
     symmetrize_bmask,
     symmetrize_weight,
@@ -272,6 +273,7 @@ def _build_slice_inputs(
         se_interp_flags,
         bad_image_flags,
         max_masked_fraction,
+        max_unmasked_trail_fraction,
         rng):
     """Build the inputs to coadd a single slice.
 
@@ -372,10 +374,16 @@ def _build_slice_inputs(
         skip_has_flags = slice_has_flags(bmask=bmask, flags=bad_image_flags)
         skip_masked_fraction = (
             compute_masked_fraction(
-                weight=weight, bmask=bmask, bad_flags=bad_flags) >
+                weight=weight, bmask=bmask, bad_flags=bad_flags) >=
             max_masked_fraction)
+        skip_unmasked_trail_too_big = compute_unmasked_trail_fraction(
+            bmask=bmask) >= max_unmasked_trail_fraction
 
-        skip = skip_edge_masked or skip_has_flags or skip_masked_fraction
+        skip = (
+            skip_edge_masked or
+            skip_has_flags or
+            skip_masked_fraction or
+            skip_unmasked_trail_too_big)
 
         if skip:
             if skip_edge_masked:
@@ -384,10 +392,10 @@ def _build_slice_inputs(
                 msg = 'bad image flags'
             elif skip_masked_fraction:
                 msg = 'masked fraction too high'
+            elif skip_unmasked_trail_too_big:
+                msg = 'unmasked bleed trail too big'
             logger.debug('rejecting image %d: %s', index, msg)
         else:
-            se_images_kept.append(index)
-
             # first we do the noise interp
             msk = (bmask & noise_interp_flags) != 0
             if np.any(msk):
@@ -404,6 +412,13 @@ def _build_slice_inputs(
                 bmask=bmask,
                 bad_flags=se_interp_flags,
                 rng=rng)
+
+            if interp_image is None or interp_noise is None:
+                logger.debug(
+                    'rejecting image %d: interpolated region too big', index)
+                continue
+
+            se_images_kept.append(index)
 
             # finally we build the galsim inteprolated images to be used for
             # coadding

@@ -14,6 +14,7 @@ symmetrize_masking: True
 coadding_weight: 'noise'
 coadding_interp: 'lanczos3'
 max_masked_fraction: 0.1
+max_unmasked_trail_fraction: 0.05
 
 # DES Y3 bit mask flags
 # "BPM":          1,  #/* set in bpm (hot/dead pixel/column)        */
@@ -37,6 +38,7 @@ se_interp_flags:
   - 2     # SATURATE
   - 16    # CRAY
   - 1024  # STREAK
+  - 64    # TRAIL
 
 noise_interp_flags:
   - 4     # INTERP. Already interpolated; is this ever set?
@@ -47,7 +49,7 @@ noise_interp_flags:
   - 2048  # SUSPECT for y3 this includes TAPEBUMP
 
 bad_image_flags:
-  - 64    # TRAIL
+  - 0
 
 # optional but these are good defaults
 fpack_pars:
