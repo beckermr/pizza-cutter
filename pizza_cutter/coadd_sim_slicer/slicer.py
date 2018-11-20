@@ -181,9 +181,11 @@ def _build_image_info(
     imh = fitsio.read_header(image_path)
     wcs_dict = {k.lower(): imh[k] for k in imh.keys()}
     wcs_json = json.dumps(wcs_dict)
-    strlen = np.max([
-        len(image_path), len(bkg_path), len(weight_path),
-        len(seg_path), len(bmask_path)]),
+    strlen = np.max([len(image_path), len(weight_path), len(bmask_path)])
+    if seg_path is not None:
+        strlen = max([strlen, len(seg_path)])
+    if bmask_path is not None:
+        strlen = max([strlen, len(bkg_path)])
     ii = get_image_info_struct(
         1,
         strlen,
@@ -192,12 +194,14 @@ def _build_image_info(
     ii['image_ext'] = image_ext
     ii['weight_path'] = weight_path
     ii['weight_ext'] = weight_ext
-    ii['seg_path'] = seg_path
-    ii['seg_ext'] = seg_ext
+    if seg_path is not None:
+        ii['seg_path'] = seg_path
+        ii['seg_ext'] = seg_ext
     ii['bmask_path'] = bmask_path
     ii['bmask_ext'] = bmask_ext
-    ii['bkg_path'] = bkg_path
-    ii['bkg_ext'] = bkg_ext
+    if bkg_path is not None:
+        ii['bkg_path'] = bkg_path
+        ii['bkg_ext'] = bkg_ext
     ii['image_id'] = 0
     ii['image_flags'] = 0
     ii['magzp'] = 30.0
