@@ -1,0 +1,111 @@
+#!/usr/bin/env python
+import os
+import sys
+import logging
+
+import jinja2
+import click
+import yaml
+
+from pizza_cutter.metadetect.run_metadetect import run_metadetect
+from ngmix.medsreaders import MultiBandNGMixMEDS
+from pizza_cutter.coadd_sim_slicer.medsreader import CoaddSimSliceMEDS
+
+
+def _build_meds_list(*, tilename, band, sim_path, coadd_config, seed):
+    with open(coadd_config, 'r') as fp:
+        _config = fp.read()
+
+    mlist = []
+    for i, b in enumerate(band.split(',')):
+        print('making meds interface for band:', b, flush=True)
+        cfg = yaml.load(
+            jinja2.Template(_config).render(tilename=tilename, band=b))
+        mlist.append(
+            CoaddSimSliceMEDS(
+                central_size=cfg['central_size'],
+                buffer_size=cfg['buffer_size'],
+                image_path=os.path.join(sim_path, cfg['image_path']),
+                image_ext=cfg['image_ext'],
+                weight_path=os.path.join(sim_path, cfg['weight_path']),
+                weight_ext=cfg['weight_ext'],
+                bmask_path=os.path.join(sim_path, cfg['bmask_path']),
+                bmask_ext=cfg['bmask_ext'],
+                seg_path=(
+                    None
+                    if cfg.get('seg_path', None) is None
+                    else os.path.join(sim_path, cfg['seg_path'])),
+                seg_ext=cfg.get('seg_ext', None),
+                bkg_path=(
+                    None
+                    if cfg.get('bkg_path', None) is None
+                    else os.path.join(sim_path, cfg['bkg_path'])),
+                bkg_ext=cfg.get('bkg_ext', None),
+                psf=os.path.join(sim_path, cfg['psf']),
+                seed=seed + i))
+    return mlist
+
+
+@click.command()
+@click.option(
+    '--metadetect-config', default=None, type=str,
+    help='metadetect configuration file')
+@click.option(
+    '--coadd-config', default=None, type=str,
+    help='coadd sim configuration file')
+@click.option(
+    '--output-path', default='.', type=str,
+    help='path to write the outputs')
+@click.option(
+    '--sim-path', default=None, type=str,
+    help='path to directory that holds the simulations')
+@click.option(
+    '--tilename', default=None, type=str,
+    help='tile to process')
+@click.option(
+    '--band', default=None, type=str,
+    help='band(s) to process - list multiple with commas')
+@click.option(
+    '--tag', default=None, type=str,
+    help='an extra tag to attach to the filename if desired')
+@click.option(
+    '--seed', default=-1, type=int,
+    help='seed for the RNG')
+@click.option(
+    '--log-level', default='warning', type=str,
+    help='python logging level')
+def main(
+        metadetect_config, coadd_config, output_path, sim_path,
+        tilename, band, tag, seed, log_level):
+    """Run metdetect on MEDS_FILES."""
+    with open(metadetect_config, 'r') as fp:
+        _metadetect_config = yaml.load(fp.read())
+
+    logging.basicConfig(
+        stream=sys.stdout, level=getattr(logging, log_level.upper()))
+
+    sname = os.path.basename(coadd_config).replace('.yaml', '')
+    if tag is not None:
+        sname = '-'.join([sname, tag])
+    fname = os.path.join(
+        output_path,
+        "%s_%s_meds-pizza-slices-metadetect-output.fits.fits" % (
+            tilename, sname))
+
+    mlist = _build_meds_list(
+        tilename=tilename,
+        band=band,
+        sim_path=sim_path,
+        coadd_config=coadd_config,
+        seed=seed)
+    mbmeds = MultiBandNGMixMEDS(mlist)
+
+    run_metadetect(
+        config=_metadetect_config,
+        output_fname=fname,
+        multiband_meds=mbmeds,
+        seed=seed)
+
+
+if __name__ == '__main__':
+    main()
