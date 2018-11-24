@@ -9,7 +9,6 @@ import esutil as eu
 import fitsio
 
 from metadetect.metadetect import do_metadetect
-from ngmix.medsreaders import MultiBandNGMixMEDS, NGMixMEDS
 
 
 def _make_output_array(
@@ -64,15 +63,6 @@ def _post_process_results(*, outputs, obj_data, image_info):
     return output, dt
 
 
-def _make_output_filename(meds_fname):
-    fname = os.path.basename(meds_fname)
-    fname = fname.replace('.fz', '').replace('.fits', '')
-    # remove the band - always comes after the tilename by convention
-    items = fname.split('_')
-    fname = '_'.join(items[0:1] + items[2:])
-    return fname + '-metadetect-output.fits'
-
-
 def _do_metadetect(config, mbobs, seed, i):
     _t0 = time.time()
     rng = np.random.RandomState(seed=seed)
@@ -101,8 +91,8 @@ def _make_meds_iterator(mbmeds):
 def run_metadetect(
         *,
         config,
-        meds_file_list,
-        output_path,
+        multiband_meds,
+        output_fname,
         seed):
     """Run metadetect on a "pizza slice" MEDS file and write the outputs to
     disk.
@@ -111,19 +101,15 @@ def run_metadetect(
     ----------
     config : dict
         The metadetect configuration file.
-    meds_file_list : list of str
-        A list of the input MEDS files to run on.
-    output_path : str
-        The path to which to write the outputs.
+    multiband_meds : `ngmix.medsreaders.MultiBandNGMixMEDS`
+        A multiband MEDS data structure.
+    output_fname : str
+        The file to which to write the outputs.
     """
     t0 = time.time()
 
-    # init meds once here
-    meds_list = [NGMixMEDS(fname) for fname in meds_file_list]
-    mbmeds = MultiBandNGMixMEDS(meds_list)
-
     # process each slice in a pipeline
-    meds_iter = _make_meds_iterator(mbmeds)
+    meds_iter = _make_meds_iterator(multiband_meds)
     outputs = joblib.Parallel(
             verbose=10,
             n_jobs=int(os.environ.get('OMP_NUM_THREADS', 1)),
@@ -134,8 +120,8 @@ def run_metadetect(
     # join all the outputs
     output, cpu_time = _post_process_results(
         outputs=outputs,
-        obj_data=meds_list[0].get_cat(),
-        image_info=meds_list[0].get_image_info())
+        obj_data=multiband_meds.mlist[0].get_cat(),
+        image_info=multiband_meds.mlist[0].get_image_info())
 
     # report and do i/o
     wall_time = time.time() - t0
@@ -147,8 +133,4 @@ def run_metadetect(
         "CPU seconds per slice: ",
         cpu_time / len(outputs), flush=True)
 
-    fname = os.path.join(
-        output_path,
-        _make_output_filename(meds_file_list[0]))
-    print("output file:", fname, flush=True)
-    fitsio.write(fname, output, clobber=True)
+    fitsio.write(output_fname, output, clobber=True)

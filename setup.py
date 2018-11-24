@@ -3,7 +3,8 @@ from setuptools import setup, find_packages
 
 scripts = [
     'bin/coadd-sim-pizza-cutter',
-    'bin/run-metadetect-on-slices']
+    'bin/run-metadetect-on-slices',
+    'bin/run-metadetect-on-coadd-sim']
 
 __version__ = None
 pth = os.path.join(

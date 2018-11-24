@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import os
 import sys
 import logging
 
@@ -6,6 +7,16 @@ import click
 import yaml
 
 from pizza_cutter.metadetect.run_metadetect import run_metadetect
+from ngmix.medsreaders import MultiBandNGMixMEDS, NGMixMEDS
+
+
+def _make_output_filename(meds_fname):
+    fname = os.path.basename(meds_fname)
+    fname = fname.replace('.fz', '').replace('.fits', '')
+    # remove the band - always comes after the tilename by convention
+    items = fname.split('_')
+    fname = '_'.join(items[0:1] + items[2:])
+    return fname + '-metadetect-output.fits'
 
 
 @click.command()
@@ -30,10 +41,18 @@ def main(meds_files, config, output_path, seed, log_level):
     logging.basicConfig(
         stream=sys.stdout, level=getattr(logging, log_level.upper()))
 
+    # init meds once here
+    meds_list = [NGMixMEDS(fname) for fname in meds_files]
+    mbmeds = MultiBandNGMixMEDS(meds_list)
+
+    fname = os.path.join(
+        output_path,
+        _make_output_filename(meds_files[0]))
+
     run_metadetect(
         config=_config,
-        output_path=output_path,
-        meds_file_list=meds_files,
+        output_fname=fname,
+        multiband_meds=mbmeds,
         seed=seed)
 
 

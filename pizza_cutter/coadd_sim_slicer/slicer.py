@@ -413,7 +413,7 @@ def _build_object_data(
         buffer_size,
         image_width,
         wcs):
-    """Build the internal MEDS data structureself.
+    """Build the internal MEDS data structure.
 
     Information about the PSF is filled when the PSF is drawn
     """
