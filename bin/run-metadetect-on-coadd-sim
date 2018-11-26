@@ -2,6 +2,7 @@
 import os
 import sys
 import logging
+import tempfile
 
 import jinja2
 import click
@@ -10,6 +11,7 @@ import yaml
 from pizza_cutter.metadetect.run_metadetect import run_metadetect
 from ngmix.medsreaders import MultiBandNGMixMEDS
 from pizza_cutter.coadd_sim_slicer.medsreader import CoaddSimSliceMEDS
+from pizza_cutter.files import StagedOutFile
 
 
 def _build_meds_list(*, tilename, band, sim_path, coadd_config, seed):
@@ -74,9 +76,17 @@ def _build_meds_list(*, tilename, band, sim_path, coadd_config, seed):
 @click.option(
     '--log-level', default='warning', type=str,
     help='python logging level')
+@click.option(
+    '--part', default='1:1', type=str,
+    help=('the part of the file to process in the '
+          'form `--part="<part>:<n_parts>"` - '
+          'Note that parts are one-indexed.'))
+@click.option(
+    '--use-tmpdir', is_flag=True,
+    help='use a temporary directory to stage data')
 def main(
         metadetect_config, coadd_config, output_path, sim_path,
-        tilename, band, tag, seed, log_level):
+        tilename, band, tag, seed, log_level, part, use_tmpdir):
     """Run metdetect on MEDS_FILES."""
     with open(metadetect_config, 'r') as fp:
         _metadetect_config = yaml.load(fp.read())
@@ -84,13 +94,17 @@ def main(
     logging.basicConfig(
         stream=sys.stdout, level=getattr(logging, log_level.upper()))
 
+    part, n_parts = part.split(':')
+    part = int(part)
+    n_parts = int(n_parts)
+
     sname = os.path.basename(coadd_config).replace('.yaml', '')
     if tag is not None:
         sname = '-'.join([sname, tag])
-    fname = os.path.join(
+    filename = os.path.join(
         output_path,
-        "%s_%s_meds-pizza-slices-metadetect-output.fits.fits" % (
-            tilename, sname))
+        "%s_%s_meds-pizza-slices-metadetect-output-part%04d.fits" % (
+            tilename, sname, part))
 
     mlist = _build_meds_list(
         tilename=tilename,
@@ -100,11 +114,21 @@ def main(
         seed=seed)
     mbmeds = MultiBandNGMixMEDS(mlist)
 
-    run_metadetect(
-        config=_metadetect_config,
-        output_fname=fname,
-        multiband_meds=mbmeds,
-        seed=seed)
+    def _call(fname):
+        run_metadetect(
+            config=_metadetect_config,
+            output_file=fname,
+            multiband_meds=mbmeds,
+            seed=seed,
+            part=part,
+            n_parts=n_parts)
+
+    if use_tmpdir:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with StagedOutFile(filename, tmpdir) as sf:
+                _call(sf.path)
+    else:
+        _call(filename)
 
 
 if __name__ == '__main__':

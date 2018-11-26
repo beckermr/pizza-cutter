@@ -14,7 +14,8 @@ from .slicer import (
     BMASK_CUTOUT_EXTNAME,
     NOISE_CUTOUT_EXTNAME,
     CUTOUT_DTYPES,
-    CUTOUT_DEFAULT_VALUES)
+    CUTOUT_DEFAULT_VALUES,
+    MAGZP_REF)
 from .memmappednoise import MemMappedNoiseImage
 
 
@@ -51,11 +52,14 @@ class CoaddSimSliceMEDS(NGMixMEDS):
         The path to the input PSFEX file.
     seed : int
         The random seed used to make the noise field.
+    noise_size : int, optional
+        The size of patches for generating the noise image.
     """
     def __init__(
             self, *, central_size, buffer_size, image_path, image_ext,
             bkg_path=None, bkg_ext=None, seg_path=None, seg_ext=None,
-            weight_path, weight_ext, bmask_path, bmask_ext, psf, seed):
+            weight_path, weight_ext, bmask_path, bmask_ext, psf, seed,
+            noise_size=1000):
 
         # we need to set the slice properties here
         # they get used later to subset the images
@@ -119,7 +123,12 @@ class CoaddSimSliceMEDS(NGMixMEDS):
             self._seg_ext = seg_ext
         self._noise_obj = MemMappedNoiseImage(
             seed=seed,
-            weight=self._fits_objs['weight'][self._weight_ext])
+            weight=self._fits_objs['weight'][self._weight_ext],
+            sx=noise_size, sy=noise_size)
+
+        # set metadata just in case
+        self._meta = np.zeros(1, dtype=[('magzp_ref', 'f8')])
+        self._meta['magzp_ref'] = MAGZP_REF
 
     def close(self):
         """Close all of the FITS objects.

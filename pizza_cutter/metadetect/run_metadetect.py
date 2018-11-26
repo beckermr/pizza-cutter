@@ -70,7 +70,18 @@ def _do_metadetect(config, mbobs, seed, i):
     return res, i, time.time() - _t0
 
 
-def _make_meds_iterator(mbmeds):
+def _get_part_ranges(part, n_parts, size):
+    n_per = size // n_parts
+    n_extra = size - n_per * n_parts
+    n_per = np.ones(n_parts, dtype=np.int64) * n_per
+    if n_extra > 0:
+        n_per[:n_extra] += 1
+    stop = np.cumsum(n_per)
+    start = stop - n_per
+    return start[part-1], n_per[part-1]
+
+
+def _make_meds_iterator(mbmeds, start, num):
     """This function returns a function which is used as an iterator.
 
     Closure closure blah blah blah.
@@ -82,9 +93,10 @@ def _make_meds_iterator(mbmeds):
     generators that build their values on-the-fly.
     """
     def _func():
-        for i in range(mbmeds.size):
+        for i in range(start, start+num):
             mbobs = mbmeds.get_mbobs(i)
             yield i, mbobs
+
     return _func
 
 
@@ -92,8 +104,10 @@ def run_metadetect(
         *,
         config,
         multiband_meds,
-        output_fname,
-        seed):
+        output_file,
+        seed,
+        part=1,
+        n_parts=1):
     """Run metadetect on a "pizza slice" MEDS file and write the outputs to
     disk.
 
@@ -103,17 +117,25 @@ def run_metadetect(
         The metadetect configuration file.
     multiband_meds : `ngmix.medsreaders.MultiBandNGMixMEDS`
         A multiband MEDS data structure.
-    output_fname : str
+    output_file : str
         The file to which to write the outputs.
+    part : int, optional
+        The part of the file to process. Starts at 1 and runs to n_parts.
+    n_parts : int, optional
+        The number of parts to split the file into.
     """
     t0 = time.time()
 
     # process each slice in a pipeline
-    meds_iter = _make_meds_iterator(multiband_meds)
+    start, num = _get_part_ranges(part, n_parts, multiband_meds.size)
+    print('# of slices: %d' % num, flush=True)
+    print('slice range: [%d, %d)' % (start, start+num), flush=True)
+    meds_iter = _make_meds_iterator(multiband_meds, start, num)
     outputs = joblib.Parallel(
             verbose=10,
             n_jobs=int(os.environ.get('OMP_NUM_THREADS', 1)),
-            pre_dispatch='2*n_jobs')(
+            pre_dispatch='2*n_jobs',
+            max_nbytes=None)(
         joblib.delayed(_do_metadetect)(config, mbobs, seed+i, i)
         for i, mbobs in meds_iter())
 
@@ -133,4 +155,4 @@ def run_metadetect(
         "CPU seconds per slice: ",
         cpu_time / len(outputs), flush=True)
 
-    fitsio.write(output_fname, output, clobber=True)
+    fitsio.write(output_file, output, clobber=True)

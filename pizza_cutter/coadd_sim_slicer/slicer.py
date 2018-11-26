@@ -1,6 +1,8 @@
 import os
 import subprocess
 import json
+import gc
+
 import numpy as np
 import fitsio
 import psfex
@@ -12,6 +14,7 @@ from meds.util import (
 from esutil.wcsutil import WCS
 
 from .._version import __version__
+from ..files import StagedOutFile
 
 # these are constants that are etched in stone for MEDS files
 MAGZP_REF = 30.0
@@ -61,6 +64,7 @@ def make_meds_pizza_slices(
         psf,
         fpack_pars=None,
         seed,
+        tmpdir=None,
         remove_fits_file=True):
     """Build a MEDS pizza slices file.
 
@@ -106,6 +110,8 @@ def make_meds_pizza_slices(
         The random seed used to make the noise field.
     remove_fits_file : bool, optional
         If `True`, remove the FITS file after fpacking.
+    tmpdir : str, optional
+        A temporary directory to use. If `None`
     """
 
     metadata = _build_metadata(config)
@@ -121,44 +127,46 @@ def make_meds_pizza_slices(
         bmask_path=bmask_path,
         bmask_ext=bmask_ext)
 
-    with fitsio.FITS(meds_path, 'rw', clobber=True) as fits:
-        # make the image data here since we need to have the file open to
-        # fill the arrays on disk
-        _slice_coadd_image(
-            central_size=central_size,
-            buffer_size=buffer_size,
-            image_path=image_path,
-            image_ext=image_ext,
-            bkg_path=bkg_path,
-            bkg_ext=bkg_ext,
-            weight_path=weight_path,
-            weight_ext=weight_ext,
-            seg_path=seg_path,
-            seg_ext=seg_ext,
-            bmask_path=bmask_path,
-            bmask_ext=bmask_ext,
-            psf=psf,
-            fits=fits,
-            fpack_pars=fpack_pars,
-            seed=seed)
+    with StagedOutFile(meds_path + '.fz', tmpdir) as sf:
+        tmp_meds_file = sf.path.replace('.fz', '')
+        with fitsio.FITS(tmp_meds_file, 'rw', clobber=True) as fits:
+            # make the image data here since we need to have the file open to
+            # fill the arrays on disk
+            _slice_coadd_image(
+                central_size=central_size,
+                buffer_size=buffer_size,
+                image_path=image_path,
+                image_ext=image_ext,
+                bkg_path=bkg_path,
+                bkg_ext=bkg_ext,
+                weight_path=weight_path,
+                weight_ext=weight_ext,
+                seg_path=seg_path,
+                seg_ext=seg_ext,
+                bmask_path=bmask_path,
+                bmask_ext=bmask_ext,
+                psf=psf,
+                fits=fits,
+                fpack_pars=fpack_pars,
+                seed=seed)
 
-        fits.write(image_info, extname=IMAGE_INFO_EXTNAME)
-        fits.write(metadata, extname=METADATA_EXTNAME)
+            fits.write(image_info, extname=IMAGE_INFO_EXTNAME)
+            fits.write(metadata, extname=METADATA_EXTNAME)
 
-    # fpack it
-    cmd = 'fpack %s' % meds_path
-    print("fpacking:\n    command: '%s'" % cmd, flush=True)
-    try:
-        subprocess.check_call(cmd, shell=True)
-    except Exception:
-        pass
-    else:
-        if remove_fits_file:
-            os.remove(meds_path)
+        # fpack it
+        cmd = 'fpack %s' % tmp_meds_file
+        print("fpacking:\n    command: '%s'" % cmd, flush=True)
+        try:
+            subprocess.check_call(cmd, shell=True)
+        except Exception:
+            pass
+        else:
+            if remove_fits_file:
+                os.remove(tmp_meds_file)
 
-    # validate the fpacked file
-    print('validating:', flush=True)
-    validate_meds(meds_path + '.fz')
+        # validate the fpacked file
+        print('validating:', flush=True)
+        validate_meds(sf.path)
 
 
 def _build_image_info(
@@ -173,9 +181,11 @@ def _build_image_info(
     imh = fitsio.read_header(image_path)
     wcs_dict = {k.lower(): imh[k] for k in imh.keys()}
     wcs_json = json.dumps(wcs_dict)
-    strlen = np.max([
-        len(image_path), len(bkg_path), len(weight_path),
-        len(seg_path), len(bmask_path)]),
+    strlen = np.max([len(image_path), len(weight_path), len(bmask_path)])
+    if seg_path is not None:
+        strlen = max([strlen, len(seg_path)])
+    if bkg_path is not None:
+        strlen = max([strlen, len(bkg_path)])
     ii = get_image_info_struct(
         1,
         strlen,
@@ -184,12 +194,14 @@ def _build_image_info(
     ii['image_ext'] = image_ext
     ii['weight_path'] = weight_path
     ii['weight_ext'] = weight_ext
-    ii['seg_path'] = seg_path
-    ii['seg_ext'] = seg_ext
+    if seg_path is not None:
+        ii['seg_path'] = seg_path
+        ii['seg_ext'] = seg_ext
     ii['bmask_path'] = bmask_path
     ii['bmask_ext'] = bmask_ext
-    ii['bkg_path'] = bkg_path
-    ii['bkg_ext'] = bkg_ext
+    if bkg_path is not None:
+        ii['bkg_path'] = bkg_path
+        ii['bkg_ext'] = bkg_ext
     ii['image_id'] = 0
     ii['image_flags'] = 0
     ii['magzp'] = 30.0
@@ -241,8 +253,8 @@ def _slice_coadd_image(
         seed):
     """Slice a coadd image into metadetection regions, making a MEDS file."""
 
-    # read the images, wcs and psf
-    img, bkg, seg, wgt, bmask, pex, wcs = _read_data(
+    # make object data so we can write the cutouts
+    wcs = _read_data(
         image_path=image_path,
         image_ext=image_ext,
         bkg_path=bkg_path,
@@ -253,15 +265,27 @@ def _slice_coadd_image(
         seg_ext=seg_ext,
         bmask_path=bmask_path,
         bmask_ext=bmask_ext,
-        psf=psf)
-
-    # make object data so we can write the cutouts
+        psf=psf,
+        which='wcs')
     object_data = _build_object_data(
         central_size=central_size,
         buffer_size=buffer_size,
-        image_width=img.shape[0],
+        image_width=wcs.get_naxis()[0],
         wcs=wcs)
 
+    pex = _read_data(
+        image_path=image_path,
+        image_ext=image_ext,
+        bkg_path=bkg_path,
+        bkg_ext=bkg_ext,
+        weight_path=weight_path,
+        weight_ext=weight_ext,
+        seg_path=seg_path,
+        seg_ext=seg_ext,
+        bmask_path=bmask_path,
+        bmask_ext=bmask_ext,
+        psf=psf,
+        which='psf')
     _fill_psf_data_and_write_psf_cutouts(
         pex=pex,
         object_data=object_data,
@@ -270,17 +294,55 @@ def _slice_coadd_image(
     fits.write(object_data, extname=OBJECT_DATA_EXTNAME)
 
     # now go one by one and write the different images
-    if bkg is not None:
-        im = img - bkg
-    else:
-        im = img
+    img = _read_data(
+        image_path=image_path,
+        image_ext=image_ext,
+        bkg_path=bkg_path,
+        bkg_ext=bkg_ext,
+        weight_path=weight_path,
+        weight_ext=weight_ext,
+        seg_path=seg_path,
+        seg_ext=seg_ext,
+        bmask_path=bmask_path,
+        bmask_ext=bmask_ext,
+        psf=psf,
+        which='img')
+    if bkg_path is not None and bkg_ext is not None:
+        img -= _read_data(
+            image_path=image_path,
+            image_ext=image_ext,
+            bkg_path=bkg_path,
+            bkg_ext=bkg_ext,
+            weight_path=weight_path,
+            weight_ext=weight_ext,
+            seg_path=seg_path,
+            seg_ext=seg_ext,
+            bmask_path=bmask_path,
+            bmask_ext=bmask_ext,
+            psf=psf,
+            which='bkg')
     _write_cutouts(
-        im=im,
+        im=img,
         ext=IMAGE_CUTOUT_EXTNAME,
         object_data=object_data,
         fits=fits,
         fpack_pars=fpack_pars)
+    del img
+    gc.collect()
 
+    wgt = _read_data(
+        image_path=image_path,
+        image_ext=image_ext,
+        bkg_path=bkg_path,
+        bkg_ext=bkg_ext,
+        weight_path=weight_path,
+        weight_ext=weight_ext,
+        seg_path=seg_path,
+        seg_ext=seg_ext,
+        bmask_path=bmask_path,
+        bmask_ext=bmask_ext,
+        psf=psf,
+        which='wgt')
     _write_cutouts(
         im=wgt,
         ext=WEIGHT_CUTOUT_EXTNAME,
@@ -288,30 +350,62 @@ def _slice_coadd_image(
         fits=fits,
         fpack_pars=fpack_pars)
 
-    if seg is not None:
-        _write_cutouts(
-            im=seg,
-            ext=SEG_CUTOUT_EXTNAME,
-            object_data=object_data,
-            fits=fits,
-            fpack_pars=fpack_pars)
-
-    _write_cutouts(
-        im=bmask,
-        ext=BMASK_CUTOUT_EXTNAME,
-        object_data=object_data,
-        fits=fits,
-        fpack_pars=fpack_pars)
-
     rng = np.random.RandomState(seed=seed)
-    noise = rng.normal(size=wgt.shape) * np.sqrt(1.0 / wgt)
-
+    noise = rng.normal(size=wcs.get_naxis()) * np.sqrt(1.0 / wgt)
     _write_cutouts(
         im=noise,
         ext=NOISE_CUTOUT_EXTNAME,
         object_data=object_data,
         fits=fits,
         fpack_pars=fpack_pars)
+    del noise
+    del wgt
+    gc.collect()
+
+    if seg_path is not None and seg_ext is not None:
+        seg = _read_data(
+            image_path=image_path,
+            image_ext=image_ext,
+            bkg_path=bkg_path,
+            bkg_ext=bkg_ext,
+            weight_path=weight_path,
+            weight_ext=weight_ext,
+            seg_path=seg_path,
+            seg_ext=seg_ext,
+            bmask_path=bmask_path,
+            bmask_ext=bmask_ext,
+            psf=psf,
+            which='seg')
+        _write_cutouts(
+            im=seg,
+            ext=SEG_CUTOUT_EXTNAME,
+            object_data=object_data,
+            fits=fits,
+            fpack_pars=fpack_pars)
+        del seg
+        gc.collect()
+
+    msk = _read_data(
+        image_path=image_path,
+        image_ext=image_ext,
+        bkg_path=bkg_path,
+        bkg_ext=bkg_ext,
+        weight_path=weight_path,
+        weight_ext=weight_ext,
+        seg_path=seg_path,
+        seg_ext=seg_ext,
+        bmask_path=bmask_path,
+        bmask_ext=bmask_ext,
+        psf=psf,
+        which='msk')
+    _write_cutouts(
+        im=msk,
+        ext=BMASK_CUTOUT_EXTNAME,
+        object_data=object_data,
+        fits=fits,
+        fpack_pars=fpack_pars)
+    del msk
+    gc.collect()
 
 
 def _fill_psf_data_and_write_psf_cutouts(
@@ -496,33 +590,30 @@ def _read_data(
         weight_path, weight_ext,
         seg_path, seg_ext,
         bmask_path, bmask_ext,
-        psf):
+        psf,
+        which):
     """Read the data.
 
     Returns
     -------
-    img, bkg, seg, wgt, bmask, pex, wcs
+    the requested item
     """
 
-    img = fitsio.read(image_path, ext=image_ext)
-    imh = fitsio.read_header(image_path)
-    wcs_dict = {k.lower(): imh[k] for k in imh.keys()}
-    wcs = WCS(wcs_dict)
-
-    wgt = fitsio.read(weight_path, ext=weight_ext)
-
-    if bkg_path is not None:
-        bkg = fitsio.read(bkg_path, ext=bkg_ext)
+    if which == 'img':
+        return fitsio.read(image_path, ext=image_ext)
+    elif which == 'wcs':
+        imh = fitsio.read_header(image_path)
+        wcs_dict = {k.lower(): imh[k] for k in imh.keys()}
+        return WCS(wcs_dict)
+    elif which == 'wgt':
+        return fitsio.read(weight_path, ext=weight_ext)
+    elif which == 'bkg':
+        return fitsio.read(bkg_path, ext=bkg_ext)
+    elif which == 'seg':
+        return fitsio.read(seg_path, ext=seg_ext)
+    elif which == 'msk':
+        return fitsio.read(bmask_path, ext=bmask_ext)
+    elif which == 'psf':
+        return psfex.PSFEx(psf)
     else:
-        bkg = None
-
-    if seg_path is not None:
-        seg = fitsio.read(seg_path, ext=seg_ext)
-    else:
-        seg = None
-
-    bmask = fitsio.read(bmask_path, ext=bmask_ext)
-
-    pex = psfex.PSFEx(psf)
-
-    return img, bkg, seg, wgt, bmask, pex, wcs
+        raise ValueError("Item '%s' not recognized!" % which)
