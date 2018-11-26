@@ -94,13 +94,17 @@ def main(
     logging.basicConfig(
         stream=sys.stdout, level=getattr(logging, log_level.upper()))
 
+    part, n_parts = part.split(':')
+    part = int(part)
+    n_parts = int(n_parts)
+
     sname = os.path.basename(coadd_config).replace('.yaml', '')
     if tag is not None:
         sname = '-'.join([sname, tag])
     filename = os.path.join(
         output_path,
-        "%s_%s_meds-pizza-slices-metadetect-output.fits" % (
-            tilename, sname))
+        "%s_%s_meds-pizza-slices-metadetect-output-part%04d.fits" % (
+            tilename, sname, part))
 
     mlist = _build_meds_list(
         tilename=tilename,
@@ -109,9 +113,6 @@ def main(
         coadd_config=coadd_config,
         seed=seed)
     mbmeds = MultiBandNGMixMEDS(mlist)
-    part, n_parts = part.split(':')
-    part = int(part)
-    n_parts = int(n_parts)
 
     def _call(fname):
         run_metadetect(
