@@ -8,12 +8,14 @@ import fitsio
 import meds
 import yaml
 import pytest
+import galsim
 from esutil.wcsutil import WCS
 from meds.maker import MEDS_FMT_VERSION
 from ... import __version__
 
 from ..slicer import make_meds_pizza_slices, POSITION_OFFSET, MAGZP_REF
 from ..memmappednoise import MemMappedNoiseImage
+from ..galsim_psf import GalSimPSF
 
 
 class FakePSF(object):
@@ -21,7 +23,7 @@ class FakePSF(object):
     """
     def get_rec(self, row, col):
         rng = np.random.RandomState(seed=int(col + 1000 * row))
-        return rng.normal(size=(11, 11))
+        return rng.normal(size=(33, 33))
 
     def get_center(self, row, col):
         rng = np.random.RandomState(seed=int(col + 1000 * row))
@@ -135,11 +137,24 @@ def data(tmpdir_factory):
 # build fake PSFEx input data is just too great to justify this test. I am only
 # looking for the data to appear in the MEDS file in the right spot. This
 # means the test functionally still tests the right thing.
+@pytest.mark.parametrize(
+    'pex',
+    [(FakePSF(),),
+     ({'type': 'Gaussian', 'fwhm': 0.9})])
 @unittest.mock.patch('pizza_cutter.coadd_sim_slicer.slicer.psfex.PSFEx')
-def test_make_meds_pizza_slices(psf_mock, data):
-    # return the fake PSF object that returns data
-    pex = FakePSF()
-    psf_mock.return_value = pex
+def test_make_meds_pizza_slices(psf_mock, data, pex):
+    if isinstance(pex, dict):
+        using_psfex = False
+        data['config']['psf'] = pex
+        data['config_str'] = yaml.dump(data['config'])
+        pex = GalSimPSF(
+            pex,
+            galsim.FitsWCS(header=data['wcs_header']))
+    else:
+        using_psfex = True
+        # return the fake PSF object that returns data
+        pex = FakePSF()
+        psf_mock.return_value = pex
 
     make_meds_pizza_slices(
         config=data['config_str'],
@@ -162,7 +177,10 @@ def test_make_meds_pizza_slices(psf_mock, data):
         remove_fits_file=False,
         noise_size=data['noise_size'])
 
-    psf_mock.assert_called_with(data['config']['psf'])
+    if using_psfex:
+        psf_mock.assert_called_with(data['config']['psf'])
+    else:
+        psf_mock.assert_not_called()
 
     # I am testing the non-fpacked file since fpacking makes the arrays
     # lose precision.
@@ -206,8 +224,8 @@ def test_make_meds_pizza_slices(psf_mock, data):
             assert np.allclose(obj['psf_cutout_row'][i, 0], cen[0])
             assert np.allclose(obj['psf_cutout_col'][i, 0], cen[1])
             assert np.allclose(obj['psf_sigma'][i, 0], sigma)
-            assert obj['psf_start_row'][i, 0] == 11 * 11 * i
-            assert obj['psf_box_size'][i] == 11
+            assert obj['psf_start_row'][i, 0] == 33 * 33 * i
+            assert obj['psf_box_size'][i] == 33
 
         for tpe in ['image', 'weight', 'seg', 'bmask', 'noise']:
             if tpe == 'image':

@@ -1,5 +1,6 @@
 import galsim
 import numpy as np
+import copy
 
 
 class GalSimPSF(object):
@@ -44,7 +45,7 @@ class GalSimPSF(object):
         if isinstance(psf, dict):
             self.psf_dict = psf
             _psf, safe = galsim.config.BuildGSObject(
-                {'blah': self.psf_dict}, 'blah')
+                {'blah': copy.deepcopy(self.psf_dict)}, 'blah')
             if not safe:
                 raise RuntimeError("The galsim object is not safe to reuse!")
             self.psf = _psf

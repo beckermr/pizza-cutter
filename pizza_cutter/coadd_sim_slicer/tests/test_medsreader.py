@@ -6,11 +6,13 @@ import numpy as np
 import fitsio
 import yaml
 import pytest
+import galsim
 from esutil.wcsutil import WCS
 
 from ..slicer import POSITION_OFFSET, MAGZP_REF
 from ..medsreader import CoaddSimSliceMEDS
 from ..memmappednoise import MemMappedNoiseImage
+from ..galsim_psf import GalSimPSF
 
 
 class FakePSF(object):
@@ -18,7 +20,7 @@ class FakePSF(object):
     """
     def get_rec(self, row, col):
         rng = np.random.RandomState(seed=int(col + 1000 * row))
-        return rng.normal(size=(11, 11))
+        return rng.normal(size=(33, 33))
 
     def get_center(self, row, col):
         rng = np.random.RandomState(seed=int(col + 1000 * row))
@@ -120,11 +122,23 @@ def data(tmpdir_factory):
 # build fake PSFEx input data is just too great to justify this test. I am only
 # looking for the data to appear in the MEDS file in the right spot. This
 # means the test functionally still tests the right thing.
+@pytest.mark.parametrize(
+    'pex',
+    [(FakePSF(),),
+     ({'type': 'Gaussian', 'fwhm': 0.9})])
 @unittest.mock.patch('pizza_cutter.coadd_sim_slicer.slicer.psfex.PSFEx')
-def test_medsreader(psf_mock, data):
-    # return the fake PSF object that returns data
-    pex = FakePSF()
-    psf_mock.return_value = pex
+def test_medsreader(psf_mock, data, pex):
+    if isinstance(pex, dict):
+        using_psfex = False
+        data['config']['psf'] = pex
+        pex = GalSimPSF(
+            pex,
+            galsim.FitsWCS(header=data['wcs_header']))
+    else:
+        using_psfex = True
+        # return the fake PSF object that returns data
+        pex = FakePSF()
+        psf_mock.return_value = pex
 
     kwargs = dict(
         central_size=data['config']['central_size'],
@@ -146,7 +160,10 @@ def test_medsreader(psf_mock, data):
     # I am testing the non-fpacked file since fpacking makes the arrays
     # lose precision.
     with CoaddSimSliceMEDS(**kwargs) as m:
-        psf_mock.assert_called_with(data['config']['psf'])
+        if using_psfex:
+            psf_mock.assert_called_with(data['config']['psf'])
+        else:
+            psf_mock.assert_not_called()
 
         obj = m.get_cat()
         assert len(obj) == data['nobj']
