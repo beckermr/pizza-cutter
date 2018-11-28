@@ -120,7 +120,7 @@ def data(tmpdir_factory):
 # build fake PSFEx input data is just too great to justify this test. I am only
 # looking for the data to appear in the MEDS file in the right spot. This
 # means the test functionally still tests the right thing.
-@unittest.mock.patch('pizza_cutter.coadd_sim_slicer.medsreader.psfex.PSFEx')
+@unittest.mock.patch('pizza_cutter.coadd_sim_slicer.slicer.psfex.PSFEx')
 def test_medsreader(psf_mock, data):
     # return the fake PSF object that returns data
     pex = FakePSF()
