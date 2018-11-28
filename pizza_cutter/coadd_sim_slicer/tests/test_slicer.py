@@ -13,6 +13,7 @@ from meds.maker import MEDS_FMT_VERSION
 from ... import __version__
 
 from ..slicer import make_meds_pizza_slices, POSITION_OFFSET, MAGZP_REF
+from ..memmappednoise import MemMappedNoiseImage
 
 
 class FakePSF(object):
@@ -108,18 +109,26 @@ def data(tmpdir_factory):
             'FZALGOR': "RICE_1",
             'FZQMETHD': "SUBTRACTIVE_DITHER_2"}}
 
+    nse = MemMappedNoiseImage(
+        seed=seed,
+        weight=weight,
+        sx=10,
+        sy=10)
+
     return {
         'config_str': yaml.dump(config),
         'config': config,
         'image': image,
         'weight': weight,
+        'noise': nse,
         'bkg': bkg,
         'seg': seg,
         'bmask': bmask,
         'meds_path': os.path.join(tmpdir, 'meds.fits'),
         'wcs': wcs,
         'wcs_header': wcs_header,
-        'nobj': ((100 - 10 - 10) // 20)**2}
+        'nobj': ((100 - 10 - 10) // 20)**2,
+        'noise_size': 10}
 
 
 # I am mocking out the psfex call. I HATE doing this, but the effort to
@@ -150,7 +159,8 @@ def test_make_meds_pizza_slices(psf_mock, data):
         psf=data['config']['psf'],
         fpack_pars=data['config']['fpack_pars'],
         seed=data['config']['seed'],
-        remove_fits_file=False)
+        remove_fits_file=False,
+        noise_size=data['noise_size'])
 
     psf_mock.assert_called_with(data['config']['psf'])
 
@@ -202,11 +212,6 @@ def test_make_meds_pizza_slices(psf_mock, data):
         for tpe in ['image', 'weight', 'seg', 'bmask', 'noise']:
             if tpe == 'image':
                 im = data[tpe] - data['bkg']
-            elif tpe == 'noise':
-                _rng = np.random.RandomState(seed=data['config']['seed'])
-                im = (
-                    _rng.normal(size=data['image'].shape) /
-                    np.sqrt(data['weight']))
             else:
                 im = data[tpe]
             for i in range(data['nobj']):
