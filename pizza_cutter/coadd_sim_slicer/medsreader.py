@@ -2,12 +2,12 @@ import numpy as np
 
 import fitsio
 from ngmix.medsreaders import NGMixMEDS
-import psfex
 import esutil as eu
 
 from .slicer import (
     _build_object_data,
     _build_image_info,
+    _parse_psf,
     IMAGE_CUTOUT_EXTNAME,
     WEIGHT_CUTOUT_EXTNAME,
     SEG_CUTOUT_EXTNAME,
@@ -87,7 +87,7 @@ class CoaddSimSliceMEDS(NGMixMEDS):
             bmask_ext=bmask_ext)
 
         # fill the PSF properties now
-        self._pex = psfex.PSFEx(psf)
+        self._pex = _parse_psf(psf=psf, wcs_dict=wcs_dict)
         for iobj in range(len(self._cat)):
             row = self._cat['orig_row'][iobj, 0]
             col = self._cat['orig_col'][iobj, 0]

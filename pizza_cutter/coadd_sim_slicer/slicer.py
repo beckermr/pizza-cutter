@@ -7,6 +7,8 @@ import fitsio
 import psfex
 import meds
 import esutil as eu
+import galsim
+
 from meds.maker import MEDS_FMT_VERSION
 from meds.util import (
     get_image_info_struct, get_meds_output_struct, validate_meds)
@@ -15,6 +17,7 @@ from esutil.wcsutil import WCS
 from .._version import __version__
 from ..files import StagedOutFile
 from .memmappednoise import MemMappedNoiseImage
+from .galsim_psf import GalSimPSF
 
 # these are constants that are etched in stone for MEDS files
 MAGZP_REF = 30.0
@@ -103,8 +106,9 @@ def make_meds_pizza_slices(
         Path to the seg map.
     seg_ext : int or str, optional
         FITS extension for the seg map.
-    psf : str
-        The path to the input PSFEX file.
+    psf : str or dict
+        The path to the input PSFEX file or a dictionary specifying the
+        GalSim object to draw as the PSF.
     fpack_pars : dict, optional
         A dictionary of fpack header keywords for compression.
     seed : int
@@ -508,6 +512,15 @@ def _build_object_data(
     return output_info
 
 
+def _parse_psf(*, psf, wcs_dict):
+    if isinstance(psf, dict):
+        return GalSimPSF(
+            psf,
+            wcs=galsim.FitsWCS(header=wcs_dict))
+    else:
+        return psfex.PSFEx(psf)
+
+
 def _read_data(
         *, image_path, bkg_path, weight_path, seg_path, bmask_path, psf):
     """Read the data.
@@ -527,4 +540,4 @@ def _read_data(
         fitsio.FITS(bkg_path) if bkg_path is not None else None,
         fitsio.FITS(seg_path) if seg_path is not None else None,
         fitsio.FITS(bmask_path),
-        psfex.PSFEx(psf))
+        _parse_psf(psf=psf, wcs_dict=wcs_dict))
