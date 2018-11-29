@@ -43,7 +43,10 @@ def _build_meds_list(*, tilename, band, sim_path, coadd_config, seed):
                     if cfg.get('bkg_path', None) is None
                     else os.path.join(sim_path, cfg['bkg_path'])),
                 bkg_ext=cfg.get('bkg_ext', None),
-                psf=os.path.join(sim_path, cfg['psf']),
+                psf=(
+                    os.path.join(sim_path, cfg['psf'])
+                    if isinstance(cfg['psf'], str)
+                    else cfg['psf']),
                 seed=seed + i))
     return mlist
 
