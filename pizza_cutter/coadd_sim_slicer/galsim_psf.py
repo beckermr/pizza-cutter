@@ -23,6 +23,8 @@ class GalSimPSF(object):
     npix : int, optional
         The number of pixels for the PSF image. This number should be big
         enough to contain the full profile.
+    seed : int, optional
+        The random seed to use for adding noise to the PSF image.
 
     Methods
     -------
@@ -37,10 +39,12 @@ class GalSimPSF(object):
     -----
     All input (row, col) are in zero-indexed, pixel-centered coordinates.
     """
-    def __init__(self, psf, wcs, method='auto', npix=33):
+    def __init__(self, psf, wcs, seed=1, method='auto', npix=33):
         self.wcs = wcs
         self.method = method
         self.npix = npix
+        self.seed = seed
+        self._rng = np.random.RandomState(seed=self.seed)
 
         if isinstance(psf, dict):
             self.psf_dict = psf
@@ -71,11 +75,14 @@ class GalSimPSF(object):
         """
         im_pos = galsim.PositionD(col+1, row+1)
         wcs = self.wcs.local(im_pos)
-        return self.psf.drawImage(
+        im = self.psf.drawImage(
             nx=self.npix,
             ny=self.npix,
             wcs=wcs,
             method=self.method).array.copy()
+        im += self._rng.normal(scale=1.0e-6, size=im.shape)
+        im /= im.sum()
+        return im
 
     def get_center(self, row, col):
         """Get the center of the PSF in the reconstruction.
