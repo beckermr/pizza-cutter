@@ -540,4 +540,4 @@ def _read_data(
         fitsio.FITS(bkg_path) if bkg_path is not None else None,
         fitsio.FITS(seg_path) if seg_path is not None else None,
         fitsio.FITS(bmask_path),
-        _parse_psf(psf=psf, wcs_dict=wcs_dict))
+        _parse_psf(psf=psf, wcs_dict=imh))
