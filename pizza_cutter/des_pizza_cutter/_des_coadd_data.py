@@ -6,7 +6,7 @@ import subprocess
 import logging
 from contextlib import redirect_stdout
 
-from . import files
+from .. import files
 
 logger = logging.getLogger(__name__)
 
