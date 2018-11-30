@@ -87,7 +87,7 @@ class CoaddSimSliceMEDS(NGMixMEDS):
             bmask_ext=bmask_ext)
 
         # fill the PSF properties now
-        self._pex = _parse_psf(psf=psf, wcs_dict=wcs_dict)
+        self._pex = _parse_psf(psf=psf, wcs_dict=imh)
         for iobj in range(len(self._cat)):
             row = self._cat['orig_row'][iobj, 0]
             col = self._cat['orig_col'][iobj, 0]
