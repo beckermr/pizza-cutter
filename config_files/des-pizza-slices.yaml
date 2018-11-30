@@ -1,0 +1,60 @@
+campaign: Y3A1_COADD
+
+# these are in pixels
+# the total "pizza slice" will be central_size + 2 * buffer_size
+central_size: 250  # size of the central region
+buffer_size: 125  # size of the buffer on each size
+
+# this should be even and bigger than any stamp returned by the
+# PSF reconstruction
+psf_box_size: 32
+
+reject_outliers: False
+symmetrize_masking: True
+coadding_weight: 'noise'
+coadding_interp: 'lanczos3'
+max_masked_fraction: 0.1
+max_unmasked_trail_fraction: 0.05
+
+# DES Y3 bit mask flags
+# "BPM":          1,  #/* set in bpm (hot/dead pixel/column)        */
+# "SATURATE":     2,  #/* saturated pixel                           */
+# "INTERP":       4,  #/* interpolated pixel                        */
+# "BADAMP":       8,  #/* Data from non-functional amplifier        */
+# "CRAY":        16,  #/* cosmic ray pixel                          */
+# "STAR":        32,  #/* bright star pixel                         */
+# "TRAIL":       64,  #/* bleed trail pixel                         */
+# "EDGEBLEED":  128,  #/* edge bleed pixel                          */
+# "SSXTALK":    256,  #/* pixel potentially effected by xtalk from  */
+#                     #/*       a super-saturated source            */
+# "EDGE":       512,  #/* pixel flag to exclude CCD glowing edges   */
+# "STREAK":    1024,  #/* pixel associated with streak from a       */
+#                     #/*       satellite, meteor, ufo...           */
+# "SUSPECT":   2048,  #/* nominally useful pixel but not perfect    */
+# Note that SUSPECT includes tape bumps
+
+se_interp_flags:
+  - 1     # BPM
+  - 2     # SATURATE
+  - 16    # CRAY
+  - 1024  # STREAK
+  - 64    # TRAIL
+
+noise_interp_flags:
+  - 4     # INTERP. Already interpolated; is this ever set?
+  - 8     # BADAMP
+  - 128   # EDGEBLEED
+  - 256   # SSXTALK
+  - 512   # EDGE
+  - 2048  # SUSPECT for y3 this includes TAPEBUMP
+
+bad_image_flags:
+  - 0
+
+# optional but these are good defaults
+fpack_pars:
+  FZQVALUE: 4
+  FZTILE: "(10240,1)"
+  FZALGOR: "RICE_1"
+  # preserve zeros, don't dither them
+  FZQMETHD: "SUBTRACTIVE_DITHER_2"

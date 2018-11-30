@@ -2,4 +2,3 @@
 # a lot and usually we need master
 git+https://github.com/esheldon/metadetect.git@master
 git+https://github.com/esheldon/ngmix.git@master
-git+https://github.com/esheldon/psc.git@master
