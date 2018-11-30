@@ -29,8 +29,9 @@ from ._constants import (
     CUTOUT_DTYPES,
     CUTOUT_DEFAULT_VALUES)
 from ..slice_utils.locate import build_slice_locations
+from ..slice_utils.measure import measure_fwhm
 from ._coadd_slices import (
-    _build_slice_inputs, _coadd_slice_inputs, measure_fwhm)
+    _build_slice_inputs, _coadd_slice_inputs)
 
 logger = logging.getLogger(__name__)
 
@@ -244,7 +245,6 @@ def _coadd_and_write_images(
             _psf_size = object_data['psf_box_size'][i]**2
             psf_data[psf_start_row:psf_start_row + _psf_size] = psf.ravel()
 
-            # TODO: Should this be in pixels?
             object_data['psf_sigma'][i, 0] = measure_fwhm(psf)
 
             # now we need to set the start row so we know where the data is
