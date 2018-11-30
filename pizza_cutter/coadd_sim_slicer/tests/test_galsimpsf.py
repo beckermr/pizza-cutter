@@ -18,7 +18,7 @@ WCS_HEADER = dict(
     cunit2='deg     ',
     crval1=321.417528,
     crval2=1.444444)
-WCS = galsim.FitsWCS(header=WCS_HEADER)
+WCS = galsim.FitsWCS(header={k.upper(): v for k, v in WCS_HEADER.items()})
 
 
 def test_galsim_psf_dict():

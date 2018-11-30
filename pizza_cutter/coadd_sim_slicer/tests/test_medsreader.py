@@ -114,7 +114,7 @@ def data(tmpdir_factory):
         'bmask': bmask,
         'meds_path': os.path.join(tmpdir, 'meds.fits'),
         'wcs': wcs,
-        'wcs_header': wcs_header,
+        'wcs_header': {k.upper(): v for k, v in wcs_header.items()},
         'nobj': ((100 - 10 - 10) // 20)**2}
 
 
@@ -246,7 +246,7 @@ def test_medsreader(psf_mock, data, pex):
         assert ii['position_offset'] == POSITION_OFFSET
         ii_wcs = json.loads(ii['wcs'][0].decode('utf=8'))
         for k, v in data['wcs_header'].items():
-            assert ii_wcs[k] == v
+            assert ii_wcs[k.lower()] == v
 
         metadata = m.get_meta()
         assert metadata['magzp_ref'] == MAGZP_REF
