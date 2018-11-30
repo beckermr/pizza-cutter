@@ -6,7 +6,7 @@ from meds.bounds import Bounds
 import psfex
 
 from ._sky_bounds import get_rough_sky_bounds
-from ..des_coadd_data import DESCoadd, DESCoaddSources
+from ._des_coadd_data import DESCoadd, DESCoaddSources
 from ._constants import MAGZP_REF, POSITION_OFFSET
 
 

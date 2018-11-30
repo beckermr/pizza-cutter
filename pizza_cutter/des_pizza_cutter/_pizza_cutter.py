@@ -28,7 +28,7 @@ from ._constants import (
     PSF_CUTOUT_EXTNAME,
     CUTOUT_DTYPES,
     CUTOUT_DEFAULT_VALUES)
-from ._slice_data import build_slice_locations
+from ..slice_utils.locate import build_slice_locations
 from ._coadd_slices import (
     _build_slice_inputs, _coadd_slice_inputs, measure_fwhm)
 

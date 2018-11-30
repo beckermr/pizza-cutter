@@ -1,7 +1,7 @@
 import os
 import pytest
 
-from ..des_coadd_data import DESCoadd, DESCoaddSources
+from .._des_coadd_data import DESCoadd, DESCoaddSources
 
 
 @pytest.mark.skipif(

@@ -1,7 +1,6 @@
 import functools
 import logging
 
-import scipy.special
 import numpy as np
 
 import galsim
@@ -12,14 +11,16 @@ from meds.bounds import Bounds
 from meds.util import radec_to_uv
 
 from ._slice_flagging import (
+    compute_unmasked_trail_fraction)
+from ..slice_utils.flag import (
     slice_full_edge_masked,
     slice_has_flags,
-    compute_masked_fraction,
-    compute_unmasked_trail_fraction)
-from ._slice_data import (
+    compute_masked_fraction)
+from ..slice_utils.interpolate import interpolate_image_and_noise
+from ..slice_utils.symmetrize import (
     symmetrize_bmask,
-    symmetrize_weight,
-    interpolate_image_and_noise)
+    symmetrize_weight)
+from ..slice_utils.measure import measure_fwhm
 
 from ._constants import BMASK_SE_INTERP, BMASK_NOISE_INTERP, BMASK_EDGE
 
@@ -127,40 +128,6 @@ def _build_gs_image(
         offset=galsim.PositionD(
             x=col_offset, y=row_offset),
         x_interpolant=coadding_interp)
-
-
-def measure_fwhm(image, smooth=0.1):
-    """Measure the image FWHM.
-
-    Parameters
-    ----------
-    image : 2-d array
-        The image to measure.
-    smooth : float
-        The smoothing scale for the erf. This should be between 0 and 1. If
-        you have noisy data, you might set this to the noise value or greater,
-        scaled by the max value in the images.  Otherwise just make sure it
-        smooths enough to avoid pixelization effects.
-
-    Returns
-    -------
-    fwhm : float
-        The FWHM in pixels.
-    """
-
-    thresh = 0.5
-    nim = image.copy()
-    maxval = image.max()
-    nim /= maxval
-
-    arg = (nim - thresh)/smooth
-
-    vals = 0.5 * (1 + scipy.special.erf(arg))
-
-    area = np.sum(vals)
-    width = 2 * np.sqrt(area / np.pi)
-
-    return width
 
 
 def _build_coadd_weight(*, coadding_weight, weight, psf):
