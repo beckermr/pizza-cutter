@@ -80,7 +80,7 @@ class GalSimPSF(object):
             ny=self.npix,
             wcs=wcs,
             method=self.method).array.copy()
-        im += self._rng.normal(scale=2e-4, size=im.shape)
+        im += self._rng.normal(scale=8e-4, size=im.shape)
         im /= im.sum()
         return im
 
