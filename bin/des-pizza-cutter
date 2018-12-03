@@ -36,7 +36,6 @@ def main(config, tilename, band, tag, output_path, log_level, seed):
     """Create a metadetection MEDS file from a DES coadd tile."""
 
     logging.basicConfig(stream=sys.stdout)
-    # , level=getattr(logging, log_level.upper()))
     logging.getLogger('pizza_cutter').setLevel(
         getattr(logging, log_level.upper()))
 
