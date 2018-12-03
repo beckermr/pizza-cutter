@@ -43,7 +43,7 @@ def data(tmpdir_factory):
     return {
         'bmask_paths': pths,
         'bmask_ext': 0,
-        'output_path': os.path.join(tmpdir, 'mskcat.fits'),
+        'output_file': os.path.join(tmpdir, 'mskcat.fits'),
         'n_per': 10,
         'seed': 42,
         'nrows': 200,
@@ -53,9 +53,9 @@ def data(tmpdir_factory):
 def test_gen_masks_from_des_y3_images(data):
     gen_masks_from_des_y3_images(**data)
 
-    assert os.path.exists(data['output_path'] + '.fz')
+    assert os.path.exists(data['output_file'] + '.fz')
 
-    with fitsio.FITS(data['output_path'] + '.fz', mode='r') as fits:
+    with fitsio.FITS(data['output_file'] + '.fz', mode='r') as fits:
         metadata = fits['metadata'].read()
         assert np.all(metadata['nrows'] == data['nrows'])
         assert np.all(metadata['ncols'] == data['ncols'])

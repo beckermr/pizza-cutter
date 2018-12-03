@@ -1,4 +1,5 @@
 import subprocess
+import logging
 
 import fitsio
 import numpy as np
@@ -6,9 +7,11 @@ import blosc
 
 from ..des_pizza_cutter._slice_flagging import compute_unmasked_trail_fraction
 
+logger = logging.getLogger(__name__)
+
 
 def gen_masks_from_des_y3_images(
-        *, bmask_paths, bmask_ext, output_path, n_per, seed, nrows, ncols):
+        *, bmask_paths, bmask_ext, output_file, n_per, seed, nrows, ncols):
     """Generate a set of bit masks from DES Y3 bit masks for image simulations.
 
     Parameters
@@ -17,7 +20,7 @@ def gen_masks_from_des_y3_images(
         A list of file paths to load bit masks from for randomly sampling.
     bmask_ext : int or str
         The FITS extension of the bit mask in each file.
-    output_path : str
+    output_file : str
         The path to output the bit mask library FITS file.
     n_per : int
         The number of randomly chosen patches of each bit mask from
@@ -65,6 +68,7 @@ def gen_masks_from_des_y3_images(
     # I am using blosc to compress them in memory.
     final_masks = []
     for bmask_path in sorted(bmask_paths):
+        logger.info('processing bmask: %s', bmask_path)
         with fitsio.FITS(bmask_path) as fits:
             bmask = fits[bmask_ext]
             for _ in range(n_per):
@@ -84,9 +88,10 @@ def gen_masks_from_des_y3_images(
                     final_masks.append(blosc.pack_array(msk))
 
     # finally we write them to disk and compress
+    logger.info('writing the data')
     msk_size = nrows * ncols
     dims = (msk_size * len(final_masks), )
-    with fitsio.FITS(output_path, clobber=True, mode='rw') as fits:
+    with fitsio.FITS(output_file, clobber=True, mode='rw') as fits:
         # create the header and make sure to write the fpack keys so that
         # fpack does the right thing
         fits.create_image_hdu(
@@ -112,8 +117,9 @@ def gen_masks_from_des_y3_images(
 
     # now we fpack - this will save a ton of space because fpacking
     # integers is very efficient
+    logger.info('fpacking the outputs')
     try:
-        cmd = 'fpack ' + output_path
+        cmd = 'fpack ' + output_file
         subprocess.check_call(cmd, shell=True)
     except Exception:
         pass
