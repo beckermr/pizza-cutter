@@ -25,6 +25,9 @@ TILENAMES = [
     "DES2125+0043",
     "DES2125+0126"]
 
+BANDS = ['g', 'r', 'i', 'z']
+SEEDS = [1, 45, 56, 78]
+
 
 logging.basicConfig(stream=sys.stdout)
 logging.getLogger('pizza_cutter').setLevel(logging.INFO)
@@ -74,8 +77,5 @@ def _gen_for_band(band, seed):
                 ncols=500)
 
 
-bands = ['g', ]  # 'r', 'i', 'z']
-seeds = [1, ]  # 45, 56, 78]
-
-for band, seed in zip(bands, seeds):
+for band, seed in zip(BANDS, SEEDS):
     _gen_for_band(band, seed)
