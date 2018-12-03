@@ -12,7 +12,19 @@ from pizza_cutter.files import expandpath
 
 MEDSCONF = 'y3a1-v02'
 CAMPAIGN = 'Y3A1_COADD'
-TILENAMES = ['DES0417-5914']
+TILENAMES = [
+    "DES0544-2249",
+    "DES2122+0001",
+    "DES2122+0043",
+    "DES2122+0126",
+    "DES2122+0209",
+    "DES2122-0041",
+    "DES2122-0124",
+    "DES2122-0207",
+    "DES2125+0001",
+    "DES2125+0043",
+    "DES2125+0126"]
+
 
 logging.basicConfig(stream=sys.stdout)
 logging.getLogger('pizza_cutter').setLevel(logging.INFO)
