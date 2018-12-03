@@ -91,10 +91,10 @@ def gen_masks_from_des_y3_images(
     logger.info('writing the data')
     msk_size = nrows * ncols
     dims = (msk_size * len(final_masks), )
+    logging.info('image uses %f GB', dims[0] * 4 / 1000 / 1000 / 1000)
     with fitsio.FITS(output_file, clobber=True, mode='rw') as fits:
         # create the header and make sure to write the fpack keys so that
         # fpack does the right thing
-        logging.info('image uses %f GB', dims[0] * 4 / 1000 / 1000 / 1000)
         fits.create_image_hdu(
             img=None,
             dtype='i4',
