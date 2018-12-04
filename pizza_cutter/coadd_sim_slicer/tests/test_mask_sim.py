@@ -52,6 +52,9 @@ def test_apply_bmask_symmetrize_and_interp(symmetrize_masking):
 
         msk = (sym_bmask & se_interp_flags) != 0
         assert np.array_equal(interp_image[msk], image[msk])
+
+        msk = (sym_bmask & se_interp_flags) != 0
+        assert not np.array_equal(interp_noise[msk], noise[msk])
     else:
         assert np.array_equal(sym_bmask, bmask)
         assert np.array_equal(sym_weight, weight)
@@ -61,3 +64,6 @@ def test_apply_bmask_symmetrize_and_interp(symmetrize_masking):
 
         msk = (sym_bmask & se_interp_flags) != 0
         assert np.array_equal(interp_image[msk], image[msk])
+
+        msk = (sym_bmask & se_interp_flags) != 0
+        assert not np.array_equal(interp_noise[msk], noise[msk])

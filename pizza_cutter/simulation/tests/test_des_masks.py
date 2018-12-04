@@ -8,7 +8,7 @@ import pytest
 from ..des_masks import gen_masks_from_des_y3_images
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture
 def data(tmpdir_factory):
     tmpdir = tmpdir_factory.getbasetemp()
 
@@ -36,7 +36,7 @@ def data(tmpdir_factory):
             # all of these should be ignored
             msk[:, :] = 32 | 8 | 4
 
-        fitsio.write(pth, msk)
+        fitsio.write(pth, msk, clobber=True)
 
         pths.append(pth)
 

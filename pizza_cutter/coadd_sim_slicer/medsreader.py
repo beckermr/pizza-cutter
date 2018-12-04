@@ -324,7 +324,7 @@ class CoaddSimSliceMEDS(NGMixMEDS):
 
         # add a cache so that we don't have to compute the imterp more than
         # once
-        return lru_cache(max_size=16)(_cached_masking_func)
+        return lru_cache(maxsize=16)(_cached_masking_func)
 
     def _get_image_and_defaults(self, type):
         if type == 'image':
