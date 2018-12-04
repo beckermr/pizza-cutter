@@ -9,7 +9,7 @@ import pytest
 import galsim
 from esutil.wcsutil import WCS
 
-from ..slicer import POSITION_OFFSET, MAGZP_REF
+from ..medsreader import POSITION_OFFSET, MAGZP_REF
 from ..medsreader import CoaddSimSliceMEDS
 from ..memmappednoise import MemMappedNoiseImage
 from ..galsim_psf import GalSimPSF
@@ -126,7 +126,7 @@ def data(tmpdir_factory):
     'pex',
     [(FakePSF(),),
      ({'type': 'Gaussian', 'fwhm': 0.9})])
-@unittest.mock.patch('pizza_cutter.coadd_sim_slicer.slicer.psfex.PSFEx')
+@unittest.mock.patch('pizza_cutter.coadd_sim_slicer.medsreader.psfex.PSFEx')
 def test_medsreader(psf_mock, data, pex):
     if isinstance(pex, dict):
         using_psfex = False
