@@ -7,7 +7,7 @@ import pytest
 from ..maskgen import BMaskGenerator
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture
 def data(tmpdir_factory):
     tmpdir = tmpdir_factory.getbasetemp()
     seed = 42

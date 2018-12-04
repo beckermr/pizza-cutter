@@ -89,7 +89,8 @@ def _grid_interp(*, image, bad_msk):
     return interp_image
 
 
-def interpolate_image_and_noise(*, image, weight, bmask, bad_flags, rng):
+def interpolate_image_and_noise(
+        *, image, weight, bmask, bad_flags, rng, noise=None):
     """Interpolate an image using the
     `scipy.interpolate.CloughTocher2DInterpolator`. An interpolated noise
     field is returned as well.
@@ -107,6 +108,9 @@ def interpolate_image_and_noise(*, image, weight, bmask, bad_flags, rng):
         `(bmask & bad_flags) != 0`.
     rng : `numpy.random.RandomState`
         An RNG instance to use.
+    noise : array-like, optional
+        Specify directly the noise field instead of using `rng` to generate
+        one.
 
     Returns
     -------
@@ -124,16 +128,18 @@ def interpolate_image_and_noise(*, image, weight, bmask, bad_flags, rng):
         if interp_image is None:
             return None, None
 
-        # fill the weight map with the median so we can draw a noise map
-        # we could apply the interpolator too?
-        interp_weight = weight.copy()
-        if np.any(interp_weight[bad_msk] == 0):
-            interp_weight[bad_msk] = np.median(interp_weight[good_msk])
+        if noise is None:
+            # fill the weight map with the median so we can draw a noise map
+            # we could apply the interpolator too?
+            interp_weight = weight.copy()
+            if np.any(interp_weight[bad_msk] == 0):
+                interp_weight[bad_msk] = np.median(interp_weight[good_msk])
 
-        # now draw a noise map and apply an interp to it
-        # this is to propagate how the interpolation correlates pixel noise
-        # so it has to be done to the noise map
-        noise = _draw_noise_image(weight=interp_weight, rng=rng)
+            # now draw a noise map and apply an interp to it
+            # this is to propagate how the interpolation correlates pixel noise
+            # so it has to be done to the noise map
+            noise = _draw_noise_image(weight=interp_weight, rng=rng)
+
         interp_noise = _grid_interp(image=noise, bad_msk=bad_msk)
         if interp_noise is None:
             return None, None
@@ -141,4 +147,6 @@ def interpolate_image_and_noise(*, image, weight, bmask, bad_flags, rng):
         return interp_image, interp_noise
     else:
         # return a copy here since the caller expects new images
-        return image.copy(), _draw_noise_image(weight=weight, rng=rng)
+        if noise is None:
+            noise = _draw_noise_image(weight=weight, rng=rng)
+        return image.copy(), noise

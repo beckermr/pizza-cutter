@@ -3,17 +3,14 @@ import unittest.mock
 import json
 
 import numpy as np
-import esutil as eu
 import fitsio
-import meds
 import yaml
 import pytest
 import galsim
 from esutil.wcsutil import WCS
-from meds.maker import MEDS_FMT_VERSION
-from ... import __version__
 
-from ..slicer import make_meds_pizza_slices, POSITION_OFFSET, MAGZP_REF
+from ..medsreader import POSITION_OFFSET, MAGZP_REF
+from ..medsreader import CoaddSimSliceMEDS
 from ..memmappednoise import MemMappedNoiseImage
 from ..galsim_psf import GalSimPSF
 
@@ -34,7 +31,20 @@ class FakePSF(object):
         return rng.normal()
 
 
-@pytest.fixture(scope='session')
+class FakeBMaskGenerator(object):
+    """A class to fake the bit mask generator"""
+    def get_bmask(self, index):
+        bmask = np.zeros((75, 75), dtype=np.int32)
+        loc = index % 10 + 5
+        bmask[loc, 20:30] = 8
+        bmask[20:30, loc] = 16
+        return bmask
+
+    def close(self):
+        pass
+
+
+@pytest.fixture
 def data(tmpdir_factory):
     tmpdir = tmpdir_factory.getbasetemp()
     seed = 42
@@ -60,24 +70,26 @@ def data(tmpdir_factory):
 
     image_path = os.path.join(tmpdir, 'img.fits')
     image_ext = 0
-    image = rng.normal(size=(coadd_size, coadd_size))
-    fitsio.write(image_path, image, header=wcs_header)
+    y, x = np.mgrid[0:coadd_size, 0:coadd_size]
+    image = (10 + x*5).astype(np.float32)
+    fitsio.write(image_path, image, header=wcs_header, clobber=True)
 
     weight_path = os.path.join(tmpdir, 'img.fits')
     weight_ext = 1
     weight = np.exp(rng.normal(size=(coadd_size, coadd_size)))
     fitsio.write(weight_path, weight)
 
+    # we set the background to a constant to test the inteprolator
     bkg_path = os.path.join(tmpdir, 'bkg.fits')
     bkg_ext = 1
-    bkg = rng.normal(size=(coadd_size, coadd_size))
-    fitsio.write(bkg_path, bkg * 0)
+    bkg = np.ones_like(image) * 9
+    fitsio.write(bkg_path, bkg, clobber=True)
     fitsio.write(bkg_path, bkg)
 
     seg_path = os.path.join(tmpdir, 'seg.fits')
     seg_ext = 2
     seg = (np.abs(rng.normal(size=(coadd_size, coadd_size))) * 10).astype('i4')
-    fitsio.write(seg_path, seg * 0 + -1)
+    fitsio.write(seg_path, seg * 0 + -1, clobber=True)
     fitsio.write(seg_path, seg * 0)
     fitsio.write(seg_path, seg)
 
@@ -85,13 +97,14 @@ def data(tmpdir_factory):
     bmask_ext = 0
     bmask = (np.abs(
         rng.normal(size=(coadd_size, coadd_size))) * 10).astype('i4')
-    fitsio.write(bmask_path, bmask)
+    fitsio.write(bmask_path, bmask, clobber=True)
 
     psf_path = os.path.join(tmpdir, 'psf.psf')
+    bmask_catalog = os.path.join(tmpdir, 'bmask.bmask')
 
     config = {
-        'central_size': 20,
-        'buffer_size': 10,
+        'central_size': 25,
+        'buffer_size': 25,
 
         'image_path': image_path,
         'image_ext': image_ext,
@@ -105,62 +118,52 @@ def data(tmpdir_factory):
         'bmask_ext': bmask_ext,
         'psf': psf_path,
         'seed': seed,
-        'fpack_pars': {
-            'FZQVALUE': 4,
-            'FZTILE': "(10240,1)",
-            'FZALGOR': "RICE_1",
-            'FZQMETHD': "SUBTRACTIVE_DITHER_2"}}
-
-    nse = MemMappedNoiseImage(
-        seed=seed,
-        weight=weight,
-        sx=10,
-        sy=10)
+        'masking_config': {
+            'symmetrize_masking': False,
+            'se_interp_flags': 8,
+            'noise_interp_flags': 16,
+            'bmask_catalog': bmask_catalog}}
 
     return {
         'config_str': yaml.dump(config),
         'config': config,
+        'noise': MemMappedNoiseImage(seed=seed, weight=weight, sx=10, sy=10),
         'image': image,
         'weight': weight,
-        'noise': nse,
         'bkg': bkg,
         'seg': seg,
         'bmask': bmask,
         'meds_path': os.path.join(tmpdir, 'meds.fits'),
         'wcs': wcs,
         'wcs_header': {k.upper(): v for k, v in wcs_header.items()},
-        'nobj': ((100 - 10 - 10) // 20)**2,
-        'noise_size': 10}
+        'nobj': ((100 - 25 - 25) // 25)**2}
 
 
 # I am mocking out the psfex call. I HATE doing this, but the effort to
 # build fake PSFEx input data is just too great to justify this test. I am only
 # looking for the data to appear in the MEDS file in the right spot. This
 # means the test functionally still tests the right thing.
-@pytest.mark.parametrize(
-    'pex',
-    [(FakePSF(),),
-     ({'type': 'Gaussian', 'fwhm': 0.9})])
-@unittest.mock.patch('pizza_cutter.coadd_sim_slicer.slicer.psfex.PSFEx')
-def test_make_meds_pizza_slices(psf_mock, data, pex):
-    if isinstance(pex, dict):
-        using_psfex = False
-        data['config']['psf'] = pex
-        data['config_str'] = yaml.dump(data['config'])
-        pex = GalSimPSF(
-            pex,
-            galsim.FitsWCS(header=data['wcs_header']))
-    else:
-        using_psfex = True
-        # return the fake PSF object that returns data
+# Ditto for the bit mask generator.
+@pytest.mark.parametrize('using_psfex', [True, False])
+@unittest.mock.patch('pizza_cutter.coadd_sim_slicer.medsreader.psfex.PSFEx')
+@unittest.mock.patch('pizza_cutter.coadd_sim_slicer.medsreader.BMaskGenerator')
+def test_medsreader_masking(bmask_mock, psf_mock, using_psfex, data):
+    if using_psfex:
         pex = FakePSF()
         psf_mock.return_value = pex
+    else:
+        gs_conf = {'type': 'Gaussian', 'fwhm': 0.9}
+        data['config']['psf'] = gs_conf
+        pex = GalSimPSF(
+            gs_conf,
+            galsim.FitsWCS(header=data['wcs_header']))
 
-    make_meds_pizza_slices(
-        config=data['config_str'],
+    bmask_gen = FakeBMaskGenerator()
+    bmask_mock.return_value = bmask_gen
+
+    kwargs = dict(
         central_size=data['config']['central_size'],
         buffer_size=data['config']['buffer_size'],
-        meds_path=data['meds_path'],
         image_path=data['config']['image_path'],
         image_ext=data['config']['image_ext'],
         weight_path=data['config']['weight_path'],
@@ -172,45 +175,44 @@ def test_make_meds_pizza_slices(psf_mock, data, pex):
         seg_path=data['config']['seg_path'],
         seg_ext=data['config']['seg_ext'],
         psf=data['config']['psf'],
-        fpack_pars=data['config']['fpack_pars'],
         seed=data['config']['seed'],
-        remove_fits_file=False,
-        noise_size=data['noise_size'])
-
-    if using_psfex:
-        psf_mock.assert_called_with(data['config']['psf'])
-    else:
-        psf_mock.assert_not_called()
+        noise_size=10,
+        masking_config=data['config']['masking_config'])
 
     # I am testing the non-fpacked file since fpacking makes the arrays
     # lose precision.
-    with meds.MEDS(data['meds_path']) as m:
+    with CoaddSimSliceMEDS(**kwargs) as m:
+        if using_psfex:
+            psf_mock.assert_called_with(data['config']['psf'])
+        else:
+            psf_mock.assert_not_called()
+
         obj = m.get_cat()
         assert len(obj) == data['nobj']
 
         for i in range(data['nobj']):
             assert obj['id'][i] == i
-            assert obj['box_size'][i] == 40
+            assert obj['box_size'][i] == 75
             assert obj['ncutout'][i] == 1
             assert obj['file_id'][i, 0] == 0
 
-            _y = i % 4
-            _x = (i - i % 4) // 4
-            assert i == _y + 4 * _x
-            orig_col = 10 + 20 * _x + 19/2
-            orig_row = 10 + 20 * _y + 19/2
+            _y = i % 2
+            _x = (i - i % 2) // 2
+            assert i == _y + 2 * _x
+            orig_col = 25 + 25 * _x + 12
+            orig_row = 25 + 25 * _y + 12
 
             ra, dec = data['wcs'].image2sky(orig_col + 1, orig_row + 1)
             assert np.allclose(obj['ra'][i], ra)
             assert np.allclose(obj['dec'][i], dec)
 
-            assert obj['start_row'][i, 0] == 40 * 40 * i
+            assert obj['start_row'][i, 0] == 75 * 75 * i
             assert obj['orig_col'][i, 0] == orig_col
             assert obj['orig_row'][i, 0] == orig_row
-            assert obj['orig_start_col'][i, 0] == orig_col - 10 - 19/2
-            assert obj['orig_start_row'][i, 0] == orig_row - 10 - 19/2
-            assert obj['cutout_col'][i, 0] == 19/2
-            assert obj['cutout_row'][i, 0] == 19/2
+            assert obj['orig_start_col'][i, 0] == orig_col - 25 - 12
+            assert obj['orig_start_row'][i, 0] == orig_row - 25 - 12
+            assert obj['cutout_col'][i, 0] == 12
+            assert obj['cutout_row'][i, 0] == 12
 
             jacob = data['wcs'].get_jacobian(orig_col + 1, orig_row + 1)
             assert obj['dudcol'][i, 0] == jacob[0]
@@ -224,8 +226,8 @@ def test_make_meds_pizza_slices(psf_mock, data, pex):
             assert np.allclose(obj['psf_cutout_row'][i, 0], cen[0])
             assert np.allclose(obj['psf_cutout_col'][i, 0], cen[1])
             assert np.allclose(obj['psf_sigma'][i, 0], sigma)
-            assert obj['psf_start_row'][i, 0] == 33 * 33 * i
-            assert obj['psf_box_size'][i] == 33
+            assert obj['psf_start_row'][i, 0] == -9999
+            assert obj['psf_box_size'][i] == -9999
 
         for tpe in ['image', 'weight', 'seg', 'bmask', 'noise']:
             if tpe == 'image':
@@ -235,13 +237,71 @@ def test_make_meds_pizza_slices(psf_mock, data, pex):
             for i in range(data['nobj']):
                 cutout = m.get_cutout(i, 0, type=tpe)
 
-                assert np.allclose(
-                    cutout,
-                    im[
+                if tpe in ['seg', 'weight']:
+                    assert np.allclose(
+                        cutout,
+                        im[
+                            obj['orig_start_row'][i, 0]:
+                            obj['orig_start_row'][i, 0] + 75,
+                            obj['orig_start_col'][i, 0]:
+                            obj['orig_start_col'][i, 0] + 75])
+                elif tpe in ['bmask']:
+                    assert np.allclose(cutout, bmask_gen.get_bmask(i))
+                elif tpe in ['image']:
+                    # check no interp
+                    iimage = im[
                         obj['orig_start_row'][i, 0]:
-                        obj['orig_start_row'][i, 0] + 40,
+                        obj['orig_start_row'][i, 0] + 75,
                         obj['orig_start_col'][i, 0]:
-                        obj['orig_start_col'][i, 0] + 40])
+                        obj['orig_start_col'][i, 0] + 75]
+                    ct = m.get_cutout_nomasking(i, 0, type='image')
+                    assert np.allclose(iimage, ct)
+
+                    # check the noise interp
+                    bmsk = bmask_gen.get_bmask(i)
+                    msk = (
+                        bmsk &
+                        data['config']['masking_config']['noise_interp_flags'])
+                    msk = msk != 0
+                    inoise = m.get_cutout_nomasking(
+                        i, 0, type='noise_for_noise_interp')
+                    assert np.allclose(cutout[msk], inoise[msk])
+
+                    # check the se interp
+                    bmsk = bmask_gen.get_bmask(i)
+                    msk = (
+                        bmsk &
+                        data['config']['masking_config']['se_interp_flags'])
+                    msk = msk != 0
+                    assert np.allclose(cutout[msk], ct[msk])
+                elif tpe in ['noise']:
+                    # check no interp
+                    iimage = im[
+                        obj['orig_start_row'][i, 0]:
+                        obj['orig_start_row'][i, 0] + 75,
+                        obj['orig_start_col'][i, 0]:
+                        obj['orig_start_col'][i, 0] + 75]
+                    ct = m.get_cutout_nomasking(i, 0, type='noise')
+                    assert np.allclose(iimage, ct)
+
+                    bmsk = bmask_gen.get_bmask(i)
+
+                    # check that the noise is different where an interpolation
+                    # was applied
+                    msk = (
+                        bmsk &
+                        data['config']['masking_config']['se_interp_flags'])
+                    msk = msk != 0
+                    inoise = m.get_cutout_nomasking(
+                        i, 0, type='noise')
+                    assert not np.allclose(cutout[msk], inoise[msk])
+                else:
+                    assert False
+
+        # make sure the caching works
+        # we should only have as many misses as objects since we called it
+        # a loop
+        assert m._cached_masking_func.cache_info().misses == data['nobj']
 
         for i in range(data['nobj']):
             cutout = m.get_cutout(i, 0, type='psf')
@@ -255,7 +315,7 @@ def test_make_meds_pizza_slices(psf_mock, data, pex):
             for tail in ['path', 'ext']:
                 col = '%s_%s' % (tag, tail)
                 if tail == 'path':
-                    val = bytes(ii[col]).decode('utf-8').strip()
+                    val = bytes(ii[col]).decode('utf-8').rstrip(' \t\r\n\0')
                 else:
                     val = ii[col][0]
                 assert val == data['config'][col]
@@ -270,23 +330,3 @@ def test_make_meds_pizza_slices(psf_mock, data, pex):
 
         metadata = m.get_meta()
         assert metadata['magzp_ref'] == MAGZP_REF
-        assert (
-            yaml.load(metadata['config'][0].decode('utf-8')) == data['config'])
-        assert (
-            metadata['numpy_version'][0].decode('utf-8').strip()
-            == np.__version__)
-        assert (
-            metadata['esutil_version'][0].decode('utf-8').strip()
-            == eu.__version__)
-        assert (
-            metadata['fitsio_version'][0].decode('utf-8').strip()
-            == fitsio.__version__)
-        assert (
-            metadata['meds_version'][0].decode('utf-8').strip()
-            == meds.__version__)
-        assert (
-            metadata['meds_fmt_version'][0].decode('utf-8').strip()
-            == MEDS_FMT_VERSION)
-        assert (
-            metadata['pizza_cutter_version'][0].decode('utf-8').strip()
-            == __version__)

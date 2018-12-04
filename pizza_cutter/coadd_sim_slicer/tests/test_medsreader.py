@@ -9,7 +9,7 @@ import pytest
 import galsim
 from esutil.wcsutil import WCS
 
-from ..slicer import POSITION_OFFSET, MAGZP_REF
+from ..medsreader import POSITION_OFFSET, MAGZP_REF
 from ..medsreader import CoaddSimSliceMEDS
 from ..memmappednoise import MemMappedNoiseImage
 from ..galsim_psf import GalSimPSF
@@ -31,7 +31,7 @@ class FakePSF(object):
         return rng.normal()
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture
 def data(tmpdir_factory):
     tmpdir = tmpdir_factory.getbasetemp()
     seed = 42
@@ -58,7 +58,7 @@ def data(tmpdir_factory):
     image_path = os.path.join(tmpdir, 'img.fits')
     image_ext = 0
     image = rng.normal(size=(coadd_size, coadd_size))
-    fitsio.write(image_path, image, header=wcs_header)
+    fitsio.write(image_path, image, header=wcs_header, clobber=True)
 
     weight_path = os.path.join(tmpdir, 'img.fits')
     weight_ext = 1
@@ -68,13 +68,13 @@ def data(tmpdir_factory):
     bkg_path = os.path.join(tmpdir, 'bkg.fits')
     bkg_ext = 1
     bkg = rng.normal(size=(coadd_size, coadd_size))
-    fitsio.write(bkg_path, bkg * 0)
+    fitsio.write(bkg_path, bkg * 0, clobber=True)
     fitsio.write(bkg_path, bkg)
 
     seg_path = os.path.join(tmpdir, 'seg.fits')
     seg_ext = 2
     seg = (np.abs(rng.normal(size=(coadd_size, coadd_size))) * 10).astype('i4')
-    fitsio.write(seg_path, seg * 0 + -1)
+    fitsio.write(seg_path, seg * 0 + -1, clobber=True)
     fitsio.write(seg_path, seg * 0)
     fitsio.write(seg_path, seg)
 
@@ -82,7 +82,7 @@ def data(tmpdir_factory):
     bmask_ext = 0
     bmask = (np.abs(
         rng.normal(size=(coadd_size, coadd_size))) * 10).astype('i4')
-    fitsio.write(bmask_path, bmask)
+    fitsio.write(bmask_path, bmask, clobber=True)
 
     psf_path = os.path.join(tmpdir, 'psf.psf')
 
@@ -122,23 +122,18 @@ def data(tmpdir_factory):
 # build fake PSFEx input data is just too great to justify this test. I am only
 # looking for the data to appear in the MEDS file in the right spot. This
 # means the test functionally still tests the right thing.
-@pytest.mark.parametrize(
-    'pex',
-    [(FakePSF(),),
-     ({'type': 'Gaussian', 'fwhm': 0.9})])
-@unittest.mock.patch('pizza_cutter.coadd_sim_slicer.slicer.psfex.PSFEx')
-def test_medsreader(psf_mock, data, pex):
-    if isinstance(pex, dict):
-        using_psfex = False
-        data['config']['psf'] = pex
-        pex = GalSimPSF(
-            pex,
-            galsim.FitsWCS(header=data['wcs_header']))
-    else:
-        using_psfex = True
-        # return the fake PSF object that returns data
+@pytest.mark.parametrize('using_psfex', [True, False])
+@unittest.mock.patch('pizza_cutter.coadd_sim_slicer.medsreader.psfex.PSFEx')
+def test_medsreader(psf_mock, data, using_psfex):
+    if using_psfex:
         pex = FakePSF()
         psf_mock.return_value = pex
+    else:
+        gs_conf = {'type': 'Gaussian', 'fwhm': 0.9}
+        data['config']['psf'] = gs_conf
+        pex = GalSimPSF(
+            gs_conf,
+            galsim.FitsWCS(header=data['wcs_header']))
 
     kwargs = dict(
         central_size=data['config']['central_size'],
