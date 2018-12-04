@@ -59,9 +59,8 @@ class BMaskGenerator(object):
         bmask : np.array
             The bit mask.
         """
-        _ind = np.random.RandomState(seed=self._seed).choice(
-            index + self._n_masks)
-        _ind = _ind % self._n_masks
+        _ind = np.random.RandomState(
+            seed=self._seed + index).choice(self._n_masks)
         start = _ind * self._npix
         msk = self._fits['msk'][start:start + self._npix].copy()
         return msk.reshape(self._nrows, self._ncols)

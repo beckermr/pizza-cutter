@@ -72,7 +72,7 @@ def test_bmaskgenerator(data):
     size = data['nrows'] * data['ncols']
     for i in inds:
         bmsk = gen.get_bmask(i)
-        _ind = np.random.RandomState(seed=seed).choice(i + data['nmasks'])
+        _ind = np.random.RandomState(seed=seed+i).choice(data['nmasks'])
         _ind = _ind % data['nmasks']
         start = _ind * size
         assert np.array_equal(
@@ -109,3 +109,9 @@ def test_bmaskgenerator_rng_seed(data):
         data['nmasks'], size=data['nmasks'], replace=False)
     for i in inds:
         assert np.array_equal(gen1.get_bmask(i), gen2.get_bmask(i))
+
+
+def test_bmaskgenerator_rng_diff(data):
+    seed = 10
+    gen = BMaskGenerator(bmask_cat=data['msk_path'], seed=seed)
+    assert not np.array_equal(gen.get_bmask(0), gen.get_bmask(11))
