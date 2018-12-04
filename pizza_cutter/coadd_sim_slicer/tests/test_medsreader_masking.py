@@ -298,6 +298,11 @@ def test_medsreader_masking(bmask_mock, psf_mock, using_psfex, data):
                 else:
                     assert False
 
+        # make sure the caching works
+        # we should only have as many misses as objects since we called it
+        # a loop
+        assert m._cached_masking_func.cache_info().misses == data['nobj']
+
         for i in range(data['nobj']):
             cutout = m.get_cutout(i, 0, type='psf')
 
