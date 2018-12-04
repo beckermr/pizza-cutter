@@ -1,22 +1,49 @@
-import numpy as np
+from functools import lru_cache
+import json
 
+import numpy as np
+import psfex
+import galsim
 import fitsio
 from ngmix.medsreaders import NGMixMEDS
 import esutil as eu
+from meds.util import get_image_info_struct, get_meds_output_struct
 
-from .slicer import (
-    _build_object_data,
-    _build_image_info,
-    _parse_psf,
-    IMAGE_CUTOUT_EXTNAME,
-    WEIGHT_CUTOUT_EXTNAME,
-    SEG_CUTOUT_EXTNAME,
-    BMASK_CUTOUT_EXTNAME,
-    NOISE_CUTOUT_EXTNAME,
-    CUTOUT_DTYPES,
-    CUTOUT_DEFAULT_VALUES,
-    MAGZP_REF)
 from .memmappednoise import MemMappedNoiseImage
+from .mask_sim import apply_bmask_symmetrize_and_interp
+from ..simulation.maskgen import BMaskGenerator
+from .galsim_psf import GalSimPSF
+
+MAGZP_REF = 30.0
+OBJECT_DATA_EXTNAME = 'object_data'
+IMAGE_INFO_EXTNAME = 'image_info'
+
+IMAGE_CUTOUT_EXTNAME = 'image_cutouts'
+WEIGHT_CUTOUT_EXTNAME = 'weight_cutouts'
+SEG_CUTOUT_EXTNAME = 'seg_cutouts'
+BMASK_CUTOUT_EXTNAME = 'bmask_cutouts'
+ORMASK_CUTOUT_EXTNAME = 'ormask_cutouts'
+NOISE_CUTOUT_EXTNAME = 'noise_cutouts'
+PSF_CUTOUT_EXTNAME = 'psf'
+CUTOUT_DTYPES = {
+    'image_cutouts': 'f4',
+    'weight_cutouts': 'f4',
+    'seg_cutouts': 'i4',
+    'bmask_cutouts': 'i4',
+    'ormask_cutouts': 'i4',
+    'noise_cutouts': 'f4',
+    'psf': 'f4'}
+CUTOUT_DEFAULT_VALUES = {
+    'image_cutouts': 0.0,
+    'weight_cutouts': 0.0,
+    'seg_cutouts': 0,
+    'bmask_cutouts': 2**30,
+    'ormask_cutouts': 2**30,
+    'noise_cutouts': 0.0,
+    'psf': 0.0}
+
+# this is always true for these sims
+POSITION_OFFSET = 1
 
 
 class CoaddSimSliceMEDS(NGMixMEDS):
@@ -48,18 +75,33 @@ class CoaddSimSliceMEDS(NGMixMEDS):
         Path to the seg map.
     seg_ext : int or str, optional
         FITS extension for the seg map.
-    psf : str
-        The path to the input PSFEX file.
+    psf : str or dict
+        The path to the input PSFEX file or a dictionary specifying the
+        GalSim object to draw as the PSF.
     seed : int
         The random seed used to make the noise field.
     noise_size : int, optional
         The size of patches for generating the noise image.
+    masking_config : dict, optional
+        A dictionary with the masking configuration parameters. The default of
+        `None` implies no masking. The masking parameters in the dictionary
+        should be:
+            'symmetrize_masking' : bool
+                Whether or not to symmetrize the bit mask and weight.
+            'se_interp_flags' : int
+                Flags for pixels in the bit mask that will be interpolated via
+                a cubic 2D- interpolant.
+            'noise_interp_flags' : int
+                Flags for pixels in the bit mask that will be interpolated
+                with noise.
+            'bmask_catalog' : str
+                The path to the FITS file with the masking catalog.
     """
     def __init__(
             self, *, central_size, buffer_size, image_path, image_ext,
             bkg_path=None, bkg_ext=None, seg_path=None, seg_ext=None,
             weight_path, weight_ext, bmask_path, bmask_ext, psf, seed,
-            noise_size=1000):
+            noise_size=1000, masking_config=None):
 
         # we need to set the slice properties here
         # they get used later to subset the images
@@ -130,11 +172,25 @@ class CoaddSimSliceMEDS(NGMixMEDS):
         self._meta = np.zeros(1, dtype=[('magzp_ref', 'f8')])
         self._meta['magzp_ref'] = MAGZP_REF
 
+        # deal with masking
+        self._masking_config = masking_config
+        if self._masking_config is not None:
+            self._noise_for_noise_interp_obj = MemMappedNoiseImage(
+                seed=seed+1,
+                weight=self._fits_objs['weight'][self._weight_ext],
+                sx=noise_size, sy=noise_size)
+            self._bmask_gen = BMaskGenerator(
+                bmask_cat=self._masking_config['bmask_catalog'],
+                seed=seed+2)
+            self._cached_masking_func = self._get_cached_masking_func()
+
     def close(self):
         """Close all of the FITS objects.
         """
         for _, f in self._fits_objs.items():
             f.close()
+        if hasattr(self, '_bmask_gen'):
+            self._bmask_gen.close()
 
     def get_psf(self, iobj, icut):
         """Get a PSF image.
@@ -166,7 +222,51 @@ class CoaddSimSliceMEDS(NGMixMEDS):
             Index of the cutout for this object.
         type: string, optional
             Cutout type. Default is 'image'. Allowed values are 'image',
-            'weight', 'seg', 'bmask', 'ormask', 'noise' or 'psf'.
+            'weight', 'seg', 'bmask', 'ormask', 'noise',
+            'noise_for_noise_interp', or 'psf'.
+
+        Returns
+        -------
+        cutout : np.array
+            The cutout image.
+        """
+
+        if type == 'psf':
+            return self.get_psf(iobj, icutout)
+
+        if self._masking_config is not None:
+            if type in ['image', 'weight', 'bmask', 'noise']:
+                (interp_image, weight,
+                 bmask, interp_noise) = self._cached_masking_func(
+                    iobj, icutout)
+                if type == 'image':
+                    return interp_image
+                elif type == 'weight':
+                    return weight
+                elif type == 'bmask':
+                    return bmask
+                else:
+                    return interp_noise
+            else:
+                return self.get_cutout_nomasking(iobj, icutout, type=type)
+
+        else:
+            return self.get_cutout_nomasking(iobj, icutout, type=type)
+
+    def get_cutout_nomasking(self, iobj, icutout, type='image'):
+        """Get a single cutout for the indicated entry and image type wthout
+        any masking.
+
+        Parameters
+        ----------
+        iobj : int
+            Index of the object.
+        icutout : int
+            Index of the cutout for this object.
+        type: string, optional
+            Cutout type. Default is 'image'. Allowed values are 'image',
+            'weight', 'seg', 'bmask', 'ormask', 'noise',
+            'noise_for_noise_interp' or 'psf'.
 
         Returns
         -------
@@ -196,6 +296,35 @@ class CoaddSimSliceMEDS(NGMixMEDS):
             subim[:, :] = read_im
 
         return subim
+
+    def _get_cached_masking_func(self):
+        """Build a cached function for appyling masking to sims."""
+
+        # using a closure-like thing here to encapsulate the ref to self
+        def _cached_masking_func(iobj, icutout):
+            assert icutout == 0
+            image = self.get_cutout_nomasking(iobj, icutout, type='image')
+            weight = self.get_cutout_nomasking(iobj, icutout, type='weight')
+            bmask = self._bmask_gen.get_bmask(iobj)
+            noise = self.get_cutout_nomasking(iobj, icutout, type='noise')
+            noise_for_noise_interp = self.get_cutout_nomasking(
+                iobj, icutout, type='noise_for_noise_interp')
+
+            res = apply_bmask_symmetrize_and_interp(
+                se_interp_flags=self._masking_config['se_interp_flags'],
+                noise_interp_flags=self._masking_config['noise_interp_flags'],
+                symmetrize_masking=self._masking_config['symmetrize_masking'],
+                noise_for_noise_interp=noise_for_noise_interp,
+                image=image,
+                weight=weight,
+                bmask=bmask,
+                noise=noise)
+
+            return res
+
+        # add a cache so that we don't have to compute the imterp more than
+        # once
+        return lru_cache(max_size=16)(_cached_masking_func)
 
     def _get_image_and_defaults(self, type):
         if type == 'image':
@@ -228,5 +357,144 @@ class CoaddSimSliceMEDS(NGMixMEDS):
                 self._noise_obj,
                 CUTOUT_DEFAULT_VALUES[NOISE_CUTOUT_EXTNAME],
                 CUTOUT_DTYPES[NOISE_CUTOUT_EXTNAME])
+        elif type == 'noise_for_noise_interp':
+            return (
+                self._noise_for_noise_interp_obj,
+                CUTOUT_DEFAULT_VALUES[NOISE_CUTOUT_EXTNAME],
+                CUTOUT_DTYPES[NOISE_CUTOUT_EXTNAME])
         else:
             raise ValueError("Image type '%s' not recognized!" % type)
+
+
+def _build_image_info(
+        *,
+        image_path, image_ext,
+        bkg_path, bkg_ext,
+        weight_path, weight_ext,
+        seg_path, seg_ext,
+        bmask_path, bmask_ext):
+    """Build the image info structure."""
+
+    imh = fitsio.read_header(image_path)
+    wcs_dict = {k.lower(): imh[k] for k in imh.keys()}
+    wcs_json = json.dumps(wcs_dict)
+    strlen = np.max([len(image_path), len(weight_path), len(bmask_path)])
+    if seg_path is not None:
+        strlen = max([strlen, len(seg_path)])
+    if bkg_path is not None:
+        strlen = max([strlen, len(bkg_path)])
+    ii = get_image_info_struct(
+        1,
+        strlen,
+        wcs_len=len(wcs_json))
+    ii['image_path'] = image_path
+    ii['image_ext'] = image_ext
+    ii['weight_path'] = weight_path
+    ii['weight_ext'] = weight_ext
+    if seg_path is not None:
+        ii['seg_path'] = seg_path
+        ii['seg_ext'] = seg_ext
+    ii['bmask_path'] = bmask_path
+    ii['bmask_ext'] = bmask_ext
+    if bkg_path is not None:
+        ii['bkg_path'] = bkg_path
+        ii['bkg_ext'] = bkg_ext
+    ii['image_id'] = 0
+    ii['image_flags'] = 0
+    ii['magzp'] = 30.0
+    ii['scale'] = 10.0**(0.4*(MAGZP_REF - ii['magzp']))
+    ii['position_offset'] = POSITION_OFFSET
+    ii['wcs'] = wcs_json
+
+    return ii
+
+
+def _build_object_data(
+        *,
+        central_size,
+        buffer_size,
+        image_width,
+        wcs):
+    """Build the internal MEDS data structure.
+
+    Information about the PSF is filled when the PSF is drawn
+    """
+    # compute the number of pizza slices
+    # - each slice is central_size + 2 * buffer_size wide
+    #   because a buffer is on each side
+    # - each pizza slice is moved over by central_size to tile the full
+    #  coadd tile
+    # - we leave a buffer on either side so that we have to tile only
+    #  im_width - 2 * buffer_size pixels
+    box_size = central_size + 2 * buffer_size
+    cen_offset = (central_size - 1) / 2.0  # zero-indexed at pixel centers
+
+    nobj = (image_width - 2 * buffer_size) / central_size
+    if int(nobj) != nobj:
+        raise ValueError(
+            "The coadd tile must be exactly tiled by the pizza slices!")
+    nobj = int(nobj)
+
+    # now make the object data and extra fields for the PSF
+    # we use an namx of 2 because if we set 1, then the fields come out with
+    # the wrong shape when we read them from fitsio
+    nmax = 2
+    psf_dtype = [
+        ('psf_box_size', 'i4'),
+        ('psf_cutout_row', 'f8', nmax),
+        ('psf_cutout_col', 'f8', nmax),
+        ('psf_sigma', 'f4', nmax),
+        ('psf_start_row', 'i8', nmax)]
+    output_info = get_meds_output_struct(
+        nobj * nobj, nmax, extra_fields=psf_dtype)
+
+    # and fill!
+    output_info['id'] = np.arange(nobj * nobj)
+    output_info['box_size'] = box_size
+    output_info['ncutout'] = 1
+    output_info['file_id'] = 0
+
+    start_row = 0
+    box_size2 = box_size * box_size
+    for icol in range(nobj):
+        for irow in range(nobj):
+            index = icol * nobj + irow
+
+            # center of the cutout
+            col_or_x = buffer_size + icol * central_size + cen_offset
+            row_or_y = buffer_size + irow * central_size + cen_offset
+
+            wcs_col = col_or_x + POSITION_OFFSET
+            wcs_row = row_or_y + POSITION_OFFSET
+
+            ra, dec = wcs.image2sky(wcs_col, wcs_row)
+            jacob = wcs.get_jacobian(wcs_col, wcs_row)
+
+            output_info['ra'][index] = ra
+            output_info['dec'][index] = dec
+            output_info['start_row'][index, 0] = start_row
+            output_info['orig_row'][index, 0] = row_or_y
+            output_info['orig_col'][index, 0] = col_or_x
+            output_info['orig_start_row'][index, 0] = (
+                row_or_y - cen_offset - buffer_size)
+            output_info['orig_start_col'][index, 0] = (
+                col_or_x - cen_offset - buffer_size)
+            output_info['cutout_row'][index, 0] = cen_offset
+            output_info['cutout_col'][index, 0] = cen_offset
+            output_info['dudcol'][index, 0] = jacob[0]
+            output_info['dudrow'][index, 0] = jacob[1]
+            output_info['dvdcol'][index, 0] = jacob[2]
+            output_info['dvdrow'][index, 0] = jacob[3]
+
+            start_row += box_size2
+
+    return output_info
+
+
+def _parse_psf(*, psf, wcs_dict):
+    if isinstance(psf, dict):
+        return GalSimPSF(
+            psf,
+            wcs=galsim.FitsWCS(header=wcs_dict))
+    else:
+        return psfex.PSFEx(psf)
