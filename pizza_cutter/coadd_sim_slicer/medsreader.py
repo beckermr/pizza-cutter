@@ -218,7 +218,7 @@ class CoaddSimSliceMEDS(NGMixMEDS):
         if type == 'bmask' and self._bmask_catalog is not None:
             # this approximately puts the masks in the right coords for the
             # coadd
-            return self._bmask_gen(iobj)[::-1, ::-1].T
+            return self._bmask_gen.get_bmask(iobj)[::-1, ::-1].T
 
         self._check_indices(iobj, icutout=icutout)
 
