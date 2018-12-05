@@ -3,6 +3,7 @@ import os
 import sys
 import logging
 import tempfile
+import functools
 
 import jinja2
 import click
@@ -11,7 +12,28 @@ import yaml
 from pizza_cutter.metadetect.run_metadetect import run_metadetect
 from ngmix.medsreaders import MultiBandNGMixMEDS
 from pizza_cutter.coadd_sim_slicer.medsreader import CoaddSimSliceMEDS
+from pizza_cutter.coadd_sim_slicer.mask_sim import (
+    interpolate_ngmix_multiband_obs)
 from pizza_cutter.files import StagedOutFile
+
+
+def _make_masking_func(coadd_config):
+    with open(coadd_config, 'r') as fp:
+        _config = fp.read()
+    cfg = yaml.load(
+        jinja2.Template(_config).render(tilename='blah1', band='blah2'))
+
+    if 'masking_config' in cfg:
+        cfg = cfg['masking_config']
+
+        mfunc = functools.partial(
+            interpolate_ngmix_multiband_obs,
+            se_interp_flags=sum(cfg['se_interp_flags']),
+            noise_interp_flags=sum(cfg['noise_interp_flags']),
+            symmetrize_masking=cfg['symmetrize_masking'])
+        return mfunc
+    else:
+        return None
 
 
 def _build_meds_list(*, tilename, band, sim_path, coadd_config, seed):
@@ -24,14 +46,9 @@ def _build_meds_list(*, tilename, band, sim_path, coadd_config, seed):
         cfg = yaml.load(
             jinja2.Template(_config).render(tilename=tilename, band=b))
         if 'masking_config' in cfg:
-            msk_cfg = dict(
-                symmetrize_masking=cfg['masking_config']['symmetrize_masking'],
-                bmask_catalog=cfg['masking_config']['bmask_catalog'],
-                se_interp_flags=sum(cfg['masking_config']['se_interp_flags']),
-                noise_interp_flags=sum(
-                    cfg['masking_config']['noise_interp_flags']))
+            bmask_catalog = cfg['masking_config']['bmask_catalog']
         else:
-            msk_cfg = None
+            bmask_catalog = None
 
         mlist.append(
             CoaddSimSliceMEDS(
@@ -58,7 +75,7 @@ def _build_meds_list(*, tilename, band, sim_path, coadd_config, seed):
                     if isinstance(cfg['psf'], str)
                     else cfg['psf']),
                 seed=seed + i,
-                masking_config=msk_cfg))
+                bmask_catalog=bmask_catalog))
     return mlist
 
 
@@ -135,7 +152,8 @@ def main(
             multiband_meds=mbmeds,
             seed=seed,
             part=part,
-            n_parts=n_parts)
+            n_parts=n_parts,
+            preprocessing_function=_make_masking_func(coadd_config))
 
     if use_tmpdir:
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -12,7 +12,7 @@ def test_apply_bmask_symmetrize_and_interp(symmetrize_masking):
     image = (10 + x*5).astype(np.float32)
     weight = np.ones_like(image)
     noise = rng.normal(size=image.shape)
-    noise_for_noise_interp = rng.normal(size=image.shape)
+    nse = np.random.RandomState(seed=seed+1).normal(size=image.shape)
 
     se_interp_flags = 8
     noise_interp_flags = 16
@@ -27,7 +27,7 @@ def test_apply_bmask_symmetrize_and_interp(symmetrize_masking):
         se_interp_flags=se_interp_flags,
         noise_interp_flags=noise_interp_flags,
         symmetrize_masking=symmetrize_masking,
-        noise_for_noise_interp=noise_for_noise_interp,
+        rng=np.random.RandomState(seed=seed+1),
         image=image,
         weight=weight.copy(),
         bmask=bmask.copy(),
@@ -48,7 +48,7 @@ def test_apply_bmask_symmetrize_and_interp(symmetrize_masking):
         assert np.all((sym_bmask[35:40, 20:25] & 8) != 0)
 
         msk = (sym_bmask & noise_interp_flags) != 0
-        assert np.allclose(interp_image[msk], noise_for_noise_interp[msk])
+        assert np.allclose(interp_image[msk], nse[msk])
 
         msk = (sym_bmask & se_interp_flags) != 0
         assert np.array_equal(interp_image[msk], image[msk])
@@ -60,7 +60,7 @@ def test_apply_bmask_symmetrize_and_interp(symmetrize_masking):
         assert np.array_equal(sym_weight, weight)
 
         msk = (sym_bmask & noise_interp_flags) != 0
-        assert np.allclose(interp_image[msk], noise_for_noise_interp[msk])
+        assert np.allclose(interp_image[msk], nse[msk])
 
         msk = (sym_bmask & se_interp_flags) != 0
         assert np.array_equal(interp_image[msk], image[msk])
