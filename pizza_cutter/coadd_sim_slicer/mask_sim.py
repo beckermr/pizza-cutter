@@ -60,7 +60,7 @@ def interpolate_ngmix_multiband_obs(
             new_obslist.append(new_obs)
         new_mbobs.append(new_obslist)
 
-    return new_obslist
+    return new_mbobs
 
 
 def apply_bmask_symmetrize_and_interp(
@@ -80,7 +80,7 @@ def apply_bmask_symmetrize_and_interp(
         If `True`, make the masks symmetric via or-ing them with themselves
         rotated by 90 degrees.
     rng : np.random.RandomState
-        RNG instance to ise for noise interpolation.
+        RNG instance to use for noise interpolation.
     image : array-like
         The image to process.
     weight : array-like
@@ -110,9 +110,12 @@ def apply_bmask_symmetrize_and_interp(
 
     # first we do the noise interp
     msk = (bmask & noise_interp_flags) != 0
+    # we always generate an image to make the RNG use more predictable
+    _nse = rng.normal(size=image.shape)
     if np.any(msk):
-        _nse = rng.normal(size=image.shape)
-        _nse *= np.sqrt(1.0 / weight)
+        zwgt_msk = weight == 0.0
+        med_wgt = np.median(weight[~zwgt_msk])
+        _nse *= np.sqrt(1.0 / (weight * (~zwgt_msk) + zwgt_msk * med_wgt))
         image[msk] = _nse[msk]
 
     # now do the cubic interp - note that this will use the noise

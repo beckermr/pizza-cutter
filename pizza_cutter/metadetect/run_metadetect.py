@@ -154,7 +154,7 @@ def run_metadetect(
             pre_dispatch='2*n_jobs',
             max_nbytes=None)(
                 joblib.delayed(_do_metadetect)(
-                    config, mbobs, seed+i, i, preprocessing_function)
+                    config, mbobs, seed+i*256, i, preprocessing_function)
                 for i, mbobs in meds_iter())
 
     # join all the outputs
