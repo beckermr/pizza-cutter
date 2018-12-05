@@ -2,13 +2,16 @@ import os
 import json
 import time
 import datetime
-import joblib
+import logging
 
+import joblib
 import numpy as np
 import esutil as eu
 import fitsio
 
 from metadetect.metadetect import do_metadetect
+
+logger = logging.getLogger(__name__)
 
 
 def _make_output_array(
@@ -63,9 +66,12 @@ def _post_process_results(*, outputs, obj_data, image_info):
     return output, dt
 
 
-def _do_metadetect(config, mbobs, seed, i):
+def _do_metadetect(config, mbobs, seed, i, preprocessing_function):
     _t0 = time.time()
     rng = np.random.RandomState(seed=seed)
+    if preprocessing_function is not None:
+        logger.debug("preprocessing multiband obslist %d", i)
+        mbobs = preprocessing_function(mbobs=mbobs, rng=rng)
     res = do_metadetect(config, mbobs, rng)
     return res, i, time.time() - _t0
 
@@ -107,7 +113,8 @@ def run_metadetect(
         output_file,
         seed,
         part=1,
-        n_parts=1):
+        n_parts=1,
+        preprocessing_function=None):
     """Run metadetect on a "pizza slice" MEDS file and write the outputs to
     disk.
 
@@ -123,6 +130,16 @@ def run_metadetect(
         The part of the file to process. Starts at 1 and runs to n_parts.
     n_parts : int, optional
         The number of parts to split the file into.
+    preprocessing_function : function, optional
+        An optional function to preprocessing the multiband observation
+        lists before running metadetect. The function signature should
+        be:
+            ```
+            def func(*, mbobs, rng):
+                ...
+                return new_mbobs
+            ```
+        The default of `None` does no preprocessing.
     """
     t0 = time.time()
 
@@ -136,8 +153,9 @@ def run_metadetect(
             n_jobs=int(os.environ.get('OMP_NUM_THREADS', 1)),
             pre_dispatch='2*n_jobs',
             max_nbytes=None)(
-        joblib.delayed(_do_metadetect)(config, mbobs, seed+i, i)
-        for i, mbobs in meds_iter())
+                joblib.delayed(_do_metadetect)(
+                    config, mbobs, seed+i*256, i, preprocessing_function)
+                for i, mbobs in meds_iter())
 
     # join all the outputs
     output, cpu_time = _post_process_results(

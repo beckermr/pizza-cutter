@@ -1,13 +1,71 @@
 import numpy as np
+import copy
 from ..slice_utils.symmetrize import (
     symmetrize_bmask,
     symmetrize_weight)
 from ..slice_utils.interpolate import interpolate_image_and_noise
+from ngmix.observation import ObsList, MultiBandObsList
+
+
+def interpolate_ngmix_multiband_obs(
+        *, mbobs, rng, se_interp_flags,
+        noise_interp_flags, symmetrize_masking):
+    """Interpolate an ngmix multiband observation over bit masked and
+    zero weight pixels.
+
+    Parameters
+    ----------
+    mbobs : `ngmix.observation.MultiBandObsList`
+        The input multiband observation to be interpolated.
+    rng : `np.random.RandomState`
+        An RNG to use for the noise interpolation.
+    se_interp_flags : int
+        Flags for pixels in the bit mask that will be interpolated via
+        a cubic 2D- interpolant.
+    noise_interp_flags : int
+        Flags for pixels in the bit mask that will be interpolated with noise.
+    symmetrize_masking : bool
+        If `True`, make the masks symmetric via or-ing them with themselves
+        rotated by 90 degrees.
+
+    Returns
+    -------
+    interp_mbobs : `ngmix.observation.MultiBandObsList`
+        The interpolated multiband observation.
+    """
+    new_mbobs = MultiBandObsList()
+    new_mbobs.meta = copy.deepcopy(mbobs.meta)  # safer?
+    for obslist in mbobs:
+        new_obslist = ObsList()
+        new_obslist.meta = copy.deepcopy(obslist.meta)  # safer?
+
+        for obs in obslist:
+            (interp_image, sym_weight,
+             sym_bmask, interp_noise) = apply_bmask_symmetrize_and_interp(
+                se_interp_flags=se_interp_flags,
+                noise_interp_flags=noise_interp_flags,
+                symmetrize_masking=symmetrize_masking,
+                rng=rng,
+                image=obs.image.copy(),
+                weight=obs.weight.copy(),
+                bmask=obs.bmask.copy(),
+                noise=obs.noise.copy())
+
+            new_obs = obs.copy()
+            new_obs.image = interp_image
+            new_obs.weight = sym_weight
+            new_obs.bmask = sym_bmask
+            new_obs.noise = interp_noise
+
+            new_obslist.append(new_obs)
+        new_mbobs.append(new_obslist)
+
+    return new_mbobs
 
 
 def apply_bmask_symmetrize_and_interp(
         *, se_interp_flags, noise_interp_flags, symmetrize_masking,
-        noise_for_noise_interp, image, weight, bmask, noise):
+        rng, image, weight, bmask, noise):
     """Mask a coadd sim in a way that approximates what is done with the
     real data.
 
@@ -21,8 +79,8 @@ def apply_bmask_symmetrize_and_interp(
     symmetrize_masking : bool
         If `True`, make the masks symmetric via or-ing them with themselves
         rotated by 90 degrees.
-    noise_for_noise_interp : array-like
-        An array of noise to be used for the noise interpolation.
+    rng : np.random.RandomState
+        RNG instance to use for noise interpolation.
     image : array-like
         The image to process.
     weight : array-like
@@ -52,8 +110,13 @@ def apply_bmask_symmetrize_and_interp(
 
     # first we do the noise interp
     msk = (bmask & noise_interp_flags) != 0
+    # we always generate an image to make the RNG use more predictable
+    _nse = rng.normal(size=image.shape)
     if np.any(msk):
-        image[msk] = noise_for_noise_interp[msk]
+        zwgt_msk = weight == 0.0
+        med_wgt = np.median(weight[~zwgt_msk])
+        _nse *= np.sqrt(1.0 / (weight * (~zwgt_msk) + zwgt_msk * med_wgt))
+        image[msk] = _nse[msk]
 
     # now do the cubic interp - note that this will use the noise
     # inteprolated values

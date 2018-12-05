@@ -1,4 +1,3 @@
-from functools import lru_cache
 import json
 
 import numpy as np
@@ -10,7 +9,6 @@ import esutil as eu
 from meds.util import get_image_info_struct, get_meds_output_struct
 
 from .memmappednoise import MemMappedNoiseImage
-from .mask_sim import apply_bmask_symmetrize_and_interp
 from ..simulation.maskgen import BMaskGenerator
 from .galsim_psf import GalSimPSF
 
@@ -82,26 +80,16 @@ class CoaddSimSliceMEDS(NGMixMEDS):
         The random seed used to make the noise field.
     noise_size : int, optional
         The size of patches for generating the noise image.
-    masking_config : dict, optional
-        A dictionary with the masking configuration parameters. The default of
-        `None` implies no masking. The masking parameters in the dictionary
-        should be:
-            'symmetrize_masking' : bool
-                Whether or not to symmetrize the bit mask and weight.
-            'se_interp_flags' : int
-                Flags for pixels in the bit mask that will be interpolated via
-                a cubic 2D- interpolant.
-            'noise_interp_flags' : int
-                Flags for pixels in the bit mask that will be interpolated
-                with noise.
-            'bmask_catalog' : str
-                The path to the FITS file with the masking catalog.
+    bmask_catalog : str, optional
+        The path to the FITS file with the bit mask catalog for applying
+        random bit masks. If `None`, the bit mask from the MEDS file is used
+        instead.
     """
     def __init__(
             self, *, central_size, buffer_size, image_path, image_ext,
             bkg_path=None, bkg_ext=None, seg_path=None, seg_ext=None,
             weight_path, weight_ext, bmask_path, bmask_ext, psf, seed,
-            noise_size=1000, masking_config=None):
+            noise_size=1000, bmask_catalog=None):
 
         # we need to set the slice properties here
         # they get used later to subset the images
@@ -173,16 +161,10 @@ class CoaddSimSliceMEDS(NGMixMEDS):
         self._meta['magzp_ref'] = MAGZP_REF
 
         # deal with masking
-        self._masking_config = masking_config
-        if self._masking_config is not None:
-            self._noise_for_noise_interp_obj = MemMappedNoiseImage(
-                seed=seed+1,
-                weight=self._fits_objs['weight'][self._weight_ext],
-                sx=noise_size, sy=noise_size)
+        self._bmask_catalog = bmask_catalog
+        if self._bmask_catalog is not None:
             self._bmask_gen = BMaskGenerator(
-                bmask_cat=self._masking_config['bmask_catalog'],
-                seed=seed+2)
-            self._cached_masking_func = self._get_cached_masking_func()
+                bmask_cat=self._bmask_catalog, seed=seed+2)
 
     def close(self):
         """Close all of the FITS objects.
@@ -222,8 +204,7 @@ class CoaddSimSliceMEDS(NGMixMEDS):
             Index of the cutout for this object.
         type: string, optional
             Cutout type. Default is 'image'. Allowed values are 'image',
-            'weight', 'seg', 'bmask', 'ormask', 'noise',
-            'noise_for_noise_interp', or 'psf'.
+            'weight', 'seg', 'bmask', 'ormask', 'noise', or 'psf'.
 
         Returns
         -------
@@ -234,48 +215,10 @@ class CoaddSimSliceMEDS(NGMixMEDS):
         if type == 'psf':
             return self.get_psf(iobj, icutout)
 
-        if self._masking_config is not None:
-            if type in ['image', 'weight', 'bmask', 'noise']:
-                (interp_image, weight,
-                 bmask, interp_noise) = self._cached_masking_func(
-                    iobj, icutout)
-                if type == 'image':
-                    return interp_image
-                elif type == 'weight':
-                    return weight
-                elif type == 'bmask':
-                    return bmask
-                else:
-                    return interp_noise
-            else:
-                return self.get_cutout_nomasking(iobj, icutout, type=type)
-
-        else:
-            return self.get_cutout_nomasking(iobj, icutout, type=type)
-
-    def get_cutout_nomasking(self, iobj, icutout, type='image'):
-        """Get a single cutout for the indicated entry and image type wthout
-        any masking.
-
-        Parameters
-        ----------
-        iobj : int
-            Index of the object.
-        icutout : int
-            Index of the cutout for this object.
-        type: string, optional
-            Cutout type. Default is 'image'. Allowed values are 'image',
-            'weight', 'seg', 'bmask', 'ormask', 'noise',
-            'noise_for_noise_interp' or 'psf'.
-
-        Returns
-        -------
-        cutout : np.array
-            The cutout image.
-        """
-
-        if type == 'psf':
-            return self.get_psf(iobj, icutout)
+        if type == 'bmask' and self._bmask_catalog is not None:
+            # this approximately puts the masks in the right coords for the
+            # coadd
+            return self._bmask_gen(iobj)[::-1, ::-1].T
 
         self._check_indices(iobj, icutout=icutout)
 
@@ -296,35 +239,6 @@ class CoaddSimSliceMEDS(NGMixMEDS):
             subim[:, :] = read_im
 
         return subim
-
-    def _get_cached_masking_func(self):
-        """Build a cached function for appyling masking to sims."""
-
-        # using a closure-like thing here to encapsulate the ref to self
-        def _cached_masking_func(iobj, icutout):
-            assert icutout == 0
-            image = self.get_cutout_nomasking(iobj, icutout, type='image')
-            weight = self.get_cutout_nomasking(iobj, icutout, type='weight')
-            bmask = self._bmask_gen.get_bmask(iobj)
-            noise = self.get_cutout_nomasking(iobj, icutout, type='noise')
-            noise_for_noise_interp = self.get_cutout_nomasking(
-                iobj, icutout, type='noise_for_noise_interp')
-
-            res = apply_bmask_symmetrize_and_interp(
-                se_interp_flags=self._masking_config['se_interp_flags'],
-                noise_interp_flags=self._masking_config['noise_interp_flags'],
-                symmetrize_masking=self._masking_config['symmetrize_masking'],
-                noise_for_noise_interp=noise_for_noise_interp,
-                image=image,
-                weight=weight,
-                bmask=bmask,
-                noise=noise)
-
-            return res
-
-        # add a cache so that we don't have to compute the imterp more than
-        # once
-        return lru_cache(maxsize=16)(_cached_masking_func)
 
     def _get_image_and_defaults(self, type):
         if type == 'image':
