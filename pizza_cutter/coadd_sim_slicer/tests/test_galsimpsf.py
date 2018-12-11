@@ -32,7 +32,7 @@ def test_galsim_psf_dict():
 
     # we have to convert to pixels
     ps = np.sqrt(WCS.pixelArea(image_pos=galsim.PositionD(row+1, col+1)))
-    assert np.allclose(gspsf.get_sigma(row, col), 0.9 / ps)
+    assert np.allclose(gspsf.get_sigma(row, col), 0.9 / ps / 2.35482004503)
 
     img = gspsf.get_rec(row, col)
     assert img.shape == (27, 27)
@@ -52,7 +52,7 @@ def test_galsim_psf_object():
 
     # we have to convert to pixels
     ps = np.sqrt(WCS.pixelArea(image_pos=galsim.PositionD(row+1, col+1)))
-    assert np.allclose(gspsf.get_sigma(row, col), 0.9 / ps)
+    assert np.allclose(gspsf.get_sigma(row, col), 0.9 / ps / 2.35482004503)
 
     img = gspsf.get_rec(row, col)
     assert img.shape == (27, 27)
