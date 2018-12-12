@@ -407,10 +407,11 @@ def _build_object_data(
     return output_info
 
 
-def _parse_psf(*, psf, wcs_dict):
+def _parse_psf(*, psf, wcs_dict, eval_locals=None):
     if isinstance(psf, dict):
         return GalSimPSF(
             psf,
-            wcs=galsim.FitsWCS(header=wcs_dict))
+            wcs=galsim.FitsWCS(header=wcs_dict),
+            eval_locals=eval_locals)
     else:
         return GalSimPSFEx(psf)
