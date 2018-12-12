@@ -181,7 +181,7 @@ class GalSimPSFEx(object):
             nx=self.npix,
             ny=self.npix,
             scale=1,
-            method='nopixel').array.copy()
+            method='nopixel').array
         im /= im.sum()
         return im
 
