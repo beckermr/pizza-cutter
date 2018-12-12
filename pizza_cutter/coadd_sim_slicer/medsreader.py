@@ -118,7 +118,9 @@ class CoaddSimSliceMEDS(NGMixMEDS):
         # fill the PSF properties now
         eval_locals = {
             'row_cen': (wcs.get_naxis()[0] - 1) / 2,
-            'col_cen': (wcs.get_naxis()[1] - 1) / 2}
+            'col_cen': (wcs.get_naxis()[1] - 1) / 2,
+            'nrows': wcs.get_naxis()[0],
+            'ncols': wcs.get_naxis()[1]}
         self._pex = _parse_psf(psf=psf, wcs_dict=imh, eval_locals=eval_locals)
         for iobj in range(len(self._cat)):
             row = self._cat['orig_row'][iobj, 0]
