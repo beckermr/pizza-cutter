@@ -180,7 +180,8 @@ class GalSimPSFEx(object):
         im = self._psf_obj.getPSF(im_pos).drawImage(
             nx=self.npix,
             ny=self.npix,
-            scale=1).array
+            scale=1,
+            method='nopixel').array.copy()
         im /= im.sum()
         return im
 
