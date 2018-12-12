@@ -73,7 +73,7 @@ class GalSimPSF(object):
         for k in dct:
             if k == 'type':
                 continue
-            elif dct[k][0] == '$':
+            elif isinstance(dct[k], str) and dct[k][0] == '$':
                 dct[k] = eval(dct[k][1:], globals(), eval_locals)
         _psf, safe = galsim.config.BuildGSObject({'blah': dct}, 'blah')
         return _psf
