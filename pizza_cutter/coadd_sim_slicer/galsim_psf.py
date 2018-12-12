@@ -29,6 +29,9 @@ class GalSimPSF(object):
         enough to contain the full profile.
     seed : int, optional
         The random seed to use for adding noise to the PSF image.
+    eval_locals : dict, optional
+        An extra dictionary of local information to be used by `eval` when
+        building PSFs from galsim eval-like strings.
 
     Methods
     -------
@@ -43,22 +46,37 @@ class GalSimPSF(object):
     -----
     All input (row, col) are in zero-indexed, pixel-centered coordinates.
     """
-    def __init__(self, psf, wcs, seed=1, method='auto', npix=33):
+    def __init__(self, psf, wcs, seed=1, method='auto', npix=33,
+                 eval_locals=None):
         self.wcs = wcs
         self.method = method
         self.npix = npix
         self.seed = seed
         self._rng = np.random.RandomState(seed=self.seed)
+        self.eval_locals = eval_locals
 
         if isinstance(psf, dict):
             self.psf_dict = psf
-            _psf, safe = galsim.config.BuildGSObject(
-                {'blah': copy.deepcopy(self.psf_dict)}, 'blah')
-            if not safe:
-                raise RuntimeError("The galsim object is not safe to reuse!")
-            self.psf = _psf
         else:
             self.psf = psf
+
+    def _get_psf(self, row, col):
+        if self.eval_locals is None:
+            eval_locals = locals()
+        else:
+            eval_locals = copy.deepcopy(self.eval_locals)
+            eval_locals['row'] = row
+            eval_locals['col'] = col
+
+        dct = copy.deepcopy(self.psf_dict)
+        # hacking in some galsim eval stuff here...
+        for k in dct:
+            if k == 'type':
+                continue
+            elif dct[k][0] == '$':
+                dct[k] = eval(dct[k][1:], globals(), eval_locals)
+        _psf, safe = galsim.config.BuildGSObject({'blah': dct}, 'blah')
+        return _psf
 
     def get_rec(self, row, col):
         """Get the PSF reconstruction at a point.
@@ -79,7 +97,13 @@ class GalSimPSF(object):
         """
         im_pos = galsim.PositionD(col+1, row+1)
         wcs = self.wcs.local(im_pos)
-        im = self.psf.drawImage(
+
+        if not hasattr(self, 'psf'):
+            psf = self._get_psf(row, col)
+        else:
+            psf = self.psf
+
+        im = psf.drawImage(
             nx=self.npix,
             ny=self.npix,
             wcs=wcs,
@@ -127,7 +151,11 @@ class GalSimPSF(object):
         """
         ps = np.sqrt(self.wcs.pixelArea(
             image_pos=galsim.PositionD(col+1, row+1)))
-        return self.psf.fwhm / ps / 2.35482004503
+        if not hasattr(self, 'psf'):
+            psf = self._get_psf(row, col)
+        else:
+            psf = self.psf
+        return psf.fwhm / ps / 2.35482004503
 
 
 class GalSimPSFEx(object):
