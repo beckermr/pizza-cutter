@@ -1,7 +1,6 @@
 import json
 
 import numpy as np
-import psfex
 import galsim
 import fitsio
 from ngmix.medsreaders import NGMixMEDS
@@ -10,7 +9,7 @@ from meds.util import get_image_info_struct, get_meds_output_struct
 
 from .memmappednoise import MemMappedNoiseImage
 from ..simulation.maskgen import BMaskGenerator
-from .galsim_psf import GalSimPSF
+from .galsim_psf import GalSimPSF, GalSimPSFEx
 
 MAGZP_REF = 30.0
 OBJECT_DATA_EXTNAME = 'object_data'
@@ -411,4 +410,4 @@ def _parse_psf(*, psf, wcs_dict):
             psf,
             wcs=galsim.FitsWCS(header=wcs_dict))
     else:
-        return psfex.PSFEx(psf)
+        return GalSimPSFEx(psf)
