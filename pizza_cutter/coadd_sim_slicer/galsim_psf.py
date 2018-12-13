@@ -155,7 +155,11 @@ class GalSimPSF(object):
             psf = self._get_psf(row, col)
         else:
             psf = self.psf
-        return psf.fwhm / ps / 2.35482004503
+
+        if not hasattr(psf, 'fwhm'):
+            return measure_fwhm(self.get_rec(row, col)) / 2.35482004503
+        else:
+            return psf.fwhm / ps / 2.35482004503
 
 
 class GalSimPSFEx(object):
