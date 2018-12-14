@@ -59,3 +59,33 @@ def test_galsim_psf_object():
     assert np.allclose(img.sum(), 1.0)
     loc = np.unravel_index(np.argmax(img), (27, 27))
     assert np.array_equal(loc, [13, 13])
+
+
+def test_galsim_psf_dict_eval():
+    psf_dict = {
+        'type': 'Gaussian',
+        'fwhm':
+            ('$0.9 + '
+             '0.5 * np.sqrt((row - row_cen)**2 + (col - col_cen)**2) / 50')}
+    cen = (100 - 1) / 2
+    gspsf = GalSimPSF(
+        psf_dict,
+        WCS,
+        npix=27,
+        eval_locals={'row_cen': cen, 'col_cen': cen})
+    row = 23.0
+    col = 57.0
+
+    # the center is (27 - 1) / 2
+    assert np.array_equal(gspsf.get_center(row, col), [13, 13])
+
+    # we have to convert to pixels
+    ps = np.sqrt(WCS.pixelArea(image_pos=galsim.PositionD(row+1, col+1)))
+    fwhm = 0.9 + 0.5 * np.sqrt((row - cen)**2 + (col - cen)**2) / 50
+    assert np.allclose(gspsf.get_sigma(row, col), fwhm / ps / 2.35482004503)
+
+    img = gspsf.get_rec(row, col)
+    assert img.shape == (27, 27)
+    assert np.allclose(img.sum(), 1.0)
+    loc = np.unravel_index(np.argmax(img), (27, 27))
+    assert np.array_equal(loc, [13, 13])
