@@ -190,7 +190,15 @@ class GalSimPSFEx(object):
     def __init__(self, psf, npix=33):
         self.npix = npix
         self.psf = psf
-        self._psf_obj = galsim.des.des_psfex.DES_PSFEx(psf)
+        if psf is not None:
+            self._psf_obj = galsim.des.des_psfex.DES_PSFEx(psf)
+
+    def copy(self):
+        new = GalSimPSFEx(None, npix=self.npix)
+        new.psf = self.psf
+        # trying a deep copy here to avoid refs to the orig meds file
+        new._psf_obj = copy.deepcopy(self._psf_obj)
+        return new
 
     def get_rec(self, row, col):
         """Get the PSF reconstruction at a point.
