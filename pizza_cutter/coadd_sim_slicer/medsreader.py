@@ -1,4 +1,5 @@
 import json
+import copy
 
 import numpy as np
 import galsim
@@ -101,6 +102,7 @@ class CoaddSimSliceMEDS(NGMixMEDS):
             image_width=wcs.get_naxis()[0],
             wcs=wcs)
         self._wcs = wcs
+        self._wcs_dict = wcs_dict
 
         # set the image info for compat with MEDS interface
         self._image_info = _build_image_info(
@@ -170,6 +172,72 @@ class CoaddSimSliceMEDS(NGMixMEDS):
             self._bmask_gen = BMaskGenerator(
                 bmask_cat=self._bmask_catalog, seed=seed+2)
 
+    def get_psf_rec_func(self, iobj, icutout):
+        """Get a function that returns the PSF image at a given row, col
+        in each cutout.
+
+        Parameters
+        ----------
+        iobj : int
+            Index of the object.
+        icutout : int
+            Index of the cutout for this object.
+
+        Returns
+        -------
+        func : function
+            A function with call signature `func(row, col)` that returns an
+            image of the PSF at the given location within the cutout.
+        """
+
+        row_start = copy.copy(self._cat['orig_start_row'][iobj, icutout])
+        col_start = copy.copy(self._cat['orig_start_col'][iobj, icutout])
+        try:
+            _pex = self._pex.copy()
+        except Exception:
+            _pex = copy.deepcopy(self._pex)
+
+        def _func(row, col):
+            return _pex.get_rec(row + row_start, col + col_start)
+
+        return _func
+
+    def get_wcs_jacobian_func(self, iobj, icutout):
+        """Get a function that returns the WCS Jacobian as a dictionary
+        at each point in a cutout.
+
+        Parameters
+        ----------
+        iobj : int
+            Index of the object.
+        icutout : int
+            Index of the cutout for this object.
+
+        Returns
+        -------
+        func : function
+            A function with call signature `func(row, col)` that returns a
+            dictionary containing the WCS Jacobian at the given input location.
+        """
+
+        row_start = copy.copy(self._cat['orig_start_row'][iobj, icutout])
+        col_start = copy.copy(self._cat['orig_start_col'][iobj, icutout])
+
+        wcs = eu.wcsutil.WCS(self._wcs_dict)
+
+        def _func(row, col):
+            jacob = wcs.get_jacobian(
+                col + col_start + POSITION_OFFSET,
+                row + row_start + POSITION_OFFSET)
+            out = {}
+            out['dudcol'] = jacob[0]
+            out['dudrow'] = jacob[1]
+            out['dvdcol'] = jacob[2]
+            out['dvdrow'] = jacob[3]
+            return out
+
+        return _func
+
     def close(self):
         """Close all of the FITS objects.
         """
@@ -178,7 +246,7 @@ class CoaddSimSliceMEDS(NGMixMEDS):
         if hasattr(self, '_bmask_gen'):
             self._bmask_gen.close()
 
-    def get_psf(self, iobj, icut):
+    def get_psf(self, iobj, icutout):
         """Get a PSF image.
 
         Parameters
@@ -193,8 +261,8 @@ class CoaddSimSliceMEDS(NGMixMEDS):
         pim : np.array
             An image of the PSF.
         """
-        row = self._cat['orig_row'][iobj, icut]
-        col = self._cat['orig_col'][iobj, icut]
+        row = self._cat['orig_row'][iobj, icutout]
+        col = self._cat['orig_col'][iobj, icutout]
         return self._pex.get_rec(row, col)
 
     def get_cutout(self, iobj, icutout, type='image'):

@@ -10,7 +10,7 @@ import click
 import yaml
 
 from pizza_cutter.metadetect.run_metadetect import run_metadetect
-from ngmix.medsreaders import MultiBandNGMixMEDS
+from pizza_cutter.metadetect.medsreaders import MultiBandNGMixMEDS
 from pizza_cutter.coadd_sim_slicer.medsreader import CoaddSimSliceMEDS
 from pizza_cutter.coadd_sim_slicer.mask_sim import (
     interpolate_ngmix_multiband_obs)
@@ -115,9 +115,13 @@ def _build_meds_list(*, tilename, band, sim_path, coadd_config, seed):
 @click.option(
     '--use-tmpdir', is_flag=True,
     help='use a temporary directory to stage data')
+@click.option(
+    '--use-local-psf-and-wcs/--no-use-local-psf-and-wcs', default=True,
+    help='use the local PSF and WCS Jacobian at each detection')
 def main(
         metadetect_config, coadd_config, output_path, sim_path,
-        tilename, band, tag, seed, log_level, part, use_tmpdir):
+        tilename, band, tag, seed, log_level, part, use_tmpdir,
+        use_local_psf_and_wcs):
     """Run metdetect on MEDS_FILES."""
     with open(metadetect_config, 'r') as fp:
         _metadetect_config = yaml.load(fp.read())
@@ -153,7 +157,8 @@ def main(
             seed=seed,
             part=part,
             n_parts=n_parts,
-            preprocessing_function=_make_masking_func(coadd_config))
+            preprocessing_function=_make_masking_func(coadd_config),
+            use_local_psf_and_wcs=use_local_psf_and_wcs)
 
     if use_tmpdir:
         with tempfile.TemporaryDirectory() as tmpdir:

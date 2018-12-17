@@ -10,6 +10,7 @@ import esutil as eu
 import fitsio
 
 from metadetect.metadetect import do_metadetect
+from metadetect.metadetect_and_cal import do_metadetect_and_cal
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,21 @@ def _post_process_results(*, outputs, obj_data, image_info):
     return output, dt
 
 
+def _do_metadetect_and_cal(
+        config, mbobs, seed, i, preprocessing_function,
+        psf_rec_funcs, wcs_jacobian_func):
+    _t0 = time.time()
+    rng = np.random.RandomState(seed=seed)
+    if preprocessing_function is not None:
+        logger.debug("preprocessing multiband obslist %d", i)
+        mbobs = preprocessing_function(mbobs=mbobs, rng=rng)
+    res = do_metadetect_and_cal(
+        config, mbobs, rng,
+        wcs_jacobian_func=wcs_jacobian_func,
+        psf_rec_funcs=psf_rec_funcs)
+    return res, i, time.time() - _t0
+
+
 def _do_metadetect(config, mbobs, seed, i, preprocessing_function):
     _t0 = time.time()
     rng = np.random.RandomState(seed=seed)
@@ -87,7 +103,7 @@ def _get_part_ranges(part, n_parts, size):
     return start[part-1], n_per[part-1]
 
 
-def _make_meds_iterator(mbmeds, start, num):
+def _make_meds_iterator(mbmeds, start, num, return_local_psf_and_wcs=False):
     """This function returns a function which is used as an iterator.
 
     Closure closure blah blah blah.
@@ -101,7 +117,12 @@ def _make_meds_iterator(mbmeds, start, num):
     def _func():
         for i in range(start, start+num):
             mbobs = mbmeds.get_mbobs(i)
-            yield i, mbobs
+            if return_local_psf_and_wcs:
+                psf_rec_funcs = mbmeds.get_psf_rec_funcs(i)
+                wcs_jacobian_func = mbmeds.get_wcs_jacobian_func(i)
+                yield i, mbobs, psf_rec_funcs, wcs_jacobian_func
+            else:
+                yield i, mbobs
 
     return _func
 
@@ -114,7 +135,8 @@ def run_metadetect(
         seed,
         part=1,
         n_parts=1,
-        preprocessing_function=None):
+        preprocessing_function=None,
+        use_local_psf_and_wcs=True):
     """Run metadetect on a "pizza slice" MEDS file and write the outputs to
     disk.
 
@@ -140,6 +162,11 @@ def run_metadetect(
                 return new_mbobs
             ```
         The default of `None` does no preprocessing.
+    use_local_psf_and_wcs : bool, optional
+        The default of `True` will use the local PSF and WCS Jacobian at each
+        detection for shear measurements. If `False`, the PSF and Jacobian used
+        for the metadetection step will be used at each detection for shear
+        measurements.
     """
     t0 = time.time()
 
@@ -147,15 +174,33 @@ def run_metadetect(
     start, num = _get_part_ranges(part, n_parts, multiband_meds.size)
     print('# of slices: %d' % num, flush=True)
     print('slice range: [%d, %d)' % (start, start+num), flush=True)
-    meds_iter = _make_meds_iterator(multiband_meds, start, num)
-    outputs = joblib.Parallel(
-            verbose=10,
-            n_jobs=int(os.environ.get('OMP_NUM_THREADS', 1)),
-            pre_dispatch='2*n_jobs',
-            max_nbytes=None)(
-                joblib.delayed(_do_metadetect)(
-                    config, mbobs, seed+i*256, i, preprocessing_function)
-                for i, mbobs in meds_iter())
+    if use_local_psf_and_wcs:
+        meds_iter = _make_meds_iterator(
+            multiband_meds, start, num,
+            return_local_psf_and_wcs=use_local_psf_and_wcs)
+        outputs = joblib.Parallel(
+                verbose=10,
+                n_jobs=int(os.environ.get('OMP_NUM_THREADS', 1)),
+                pre_dispatch='2*n_jobs',
+                max_nbytes=None)(
+                    joblib.delayed(_do_metadetect_and_cal)(
+                        config, mbobs, seed+i*256, i,
+                        preprocessing_function,
+                        psf_rec_funcs,
+                        wcs_jacobian_func)
+                    for i, mbobs, psf_rec_funcs, wcs_jacobian_func
+                    in meds_iter())
+
+    else:
+        meds_iter = _make_meds_iterator(multiband_meds, start, num)
+        outputs = joblib.Parallel(
+                verbose=10,
+                n_jobs=int(os.environ.get('OMP_NUM_THREADS', 1)),
+                pre_dispatch='2*n_jobs',
+                max_nbytes=None)(
+                    joblib.delayed(_do_metadetect)(
+                        config, mbobs, seed+i*256, i, preprocessing_function)
+                    for i, mbobs in meds_iter())
 
     # join all the outputs
     output, cpu_time = _post_process_results(
