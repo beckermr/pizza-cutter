@@ -468,8 +468,8 @@ def _build_object_data(
                 row_or_y - cen_offset - buffer_size)
             output_info['orig_start_col'][index, 0] = (
                 col_or_x - cen_offset - buffer_size)
-            output_info['cutout_row'][index, 0] = cen_offset
-            output_info['cutout_col'][index, 0] = cen_offset
+            output_info['cutout_row'][index, 0] = cen_offset + buffer_size
+            output_info['cutout_col'][index, 0] = cen_offset + buffer_size
             output_info['dudcol'][index, 0] = jacob[0]
             output_info['dudrow'][index, 0] = jacob[1]
             output_info['dvdcol'][index, 0] = jacob[2]
