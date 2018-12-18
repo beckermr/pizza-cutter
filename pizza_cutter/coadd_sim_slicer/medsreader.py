@@ -91,6 +91,9 @@ class CoaddSimSliceMEDS(NGMixMEDS):
             weight_path, weight_ext, bmask_path, bmask_ext, psf, seed,
             noise_size=1000, bmask_catalog=None):
 
+        self.buffer_size = buffer_size
+        self.central_size = central_size
+
         # we need to set the slice properties here
         # they get used later to subset the images
         imh = fitsio.read_header(image_path)
