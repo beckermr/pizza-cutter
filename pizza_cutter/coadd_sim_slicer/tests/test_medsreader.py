@@ -184,8 +184,8 @@ def test_medsreader(psf_mock, data, using_psfex):
             assert obj['orig_row'][i, 0] == orig_row
             assert obj['orig_start_col'][i, 0] == orig_col - 10 - 19/2
             assert obj['orig_start_row'][i, 0] == orig_row - 10 - 19/2
-            assert obj['cutout_col'][i, 0] == 19/2
-            assert obj['cutout_row'][i, 0] == 19/2
+            assert obj['cutout_col'][i, 0] == 19/2 + 10
+            assert obj['cutout_row'][i, 0] == 19/2 + 10
 
             jacob = data['wcs'].get_jacobian(orig_col + 1, orig_row + 1)
             assert obj['dudcol'][i, 0] == jacob[0]
