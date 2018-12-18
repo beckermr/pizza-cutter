@@ -175,6 +175,7 @@ def run_metadetect(
     print('# of slices: %d' % num, flush=True)
     print('slice range: [%d, %d)' % (start, start+num), flush=True)
     if use_local_psf_and_wcs:
+        print('using local PSF and WCS jacobian', flush=True)
         meds_iter = _make_meds_iterator(
             multiband_meds, start, num,
             return_local_psf_and_wcs=use_local_psf_and_wcs)
