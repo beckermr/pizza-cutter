@@ -46,12 +46,6 @@ def _make_output_filename(meds_fname, part):
     help='python logging level')
 def main(meds_files, config, output_path, seed, use_tmpdir, part, log_level):
     """Run metdetect on MEDS_FILES."""
-
-    # FIXME: leave this here to make sure I don't forget
-    assert False, (
-        "You need to implememnt the functions to get the "
-        "local PSF and Jacobian!")
-
     with open(config, 'r') as fp:
         _config = yaml.load(fp.read())
 

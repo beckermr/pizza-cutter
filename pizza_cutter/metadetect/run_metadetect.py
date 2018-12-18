@@ -10,7 +10,6 @@ import esutil as eu
 import fitsio
 
 from metadetect.metadetect import do_metadetect
-from metadetect.metadetect_and_cal import do_metadetect_and_cal
 
 logger = logging.getLogger(__name__)
 
@@ -18,22 +17,13 @@ logger = logging.getLogger(__name__)
 def _make_output_array(
         *,
         data, obj_id, mcal_step,
-        orig_start_row, orig_start_col, position_offset, wcs,
-        buffer_size, image_size):
+        orig_start_row, orig_start_col, position_offset, wcs):
     arr = eu.numpy_util.add_fields(
                 data,
                 [('id', 'i8'), ('mcal_step', 'S7'),
-                 ('ra', 'f8'), ('dec', 'f8'),
-                 ('slice_flags', 'i4')])
+                 ('ra', 'f8'), ('dec', 'f8')])
     arr['id'] = obj_id
     arr['mcal_step'] = mcal_step
-
-    msk = (
-        (arr['sx_row'] >= buffer_size) &
-        (arr['sx_row'] < image_size - buffer_size) &
-        (arr['sx_col'] >= buffer_size) &
-        (arr['sx_col'] < image_size - buffer_size))
-    arr['slice_flags'][~msk] = 1
 
     row = arr['sx_row'] + orig_start_row + position_offset
     col = arr['sx_col'] + orig_start_col + position_offset
@@ -44,8 +34,7 @@ def _make_output_array(
     return arr
 
 
-def _post_process_results(
-        *, outputs, obj_data, image_info, buffer_size, image_size):
+def _post_process_results(*, outputs, obj_data, image_info):
     # post process results
     wcs = eu.wcsutil.WCS(
         json.loads(image_info['wcs'][obj_data['file_id'][0, 0]]))
@@ -69,30 +58,12 @@ def _post_process_results(
                     orig_start_col=obj_data['orig_start_col'][i, 0],
                     orig_start_row=obj_data['orig_start_row'][i, 0],
                     wcs=wcs,
-                    position_offset=position_offset,
-                    buffer_size=buffer_size,
-                    image_size=image_size))
+                    position_offset=position_offset))
 
     # concatenate once since generally more efficient
     output = np.concatenate(output)
 
     return output, dt
-
-
-def _do_metadetect_and_cal(
-        config, mbobs, seed, i, preprocessing_function,
-        psf_rec_funcs, wcs_jacobian_func, buffer_size):
-    _t0 = time.time()
-    rng = np.random.RandomState(seed=seed)
-    if preprocessing_function is not None:
-        logger.debug("preprocessing multiband obslist %d", i)
-        mbobs = preprocessing_function(mbobs=mbobs, rng=rng)
-    res = do_metadetect_and_cal(
-        config, mbobs, rng,
-        wcs_jacobian_func=wcs_jacobian_func,
-        psf_rec_funcs=psf_rec_funcs,
-        buffer_size=buffer_size)
-    return res, i, time.time() - _t0
 
 
 def _do_metadetect(config, mbobs, seed, i, preprocessing_function):
@@ -116,7 +87,7 @@ def _get_part_ranges(part, n_parts, size):
     return start[part-1], n_per[part-1]
 
 
-def _make_meds_iterator(mbmeds, start, num, return_local_psf_and_wcs=False):
+def _make_meds_iterator(mbmeds, start, num):
     """This function returns a function which is used as an iterator.
 
     Closure closure blah blah blah.
@@ -130,12 +101,7 @@ def _make_meds_iterator(mbmeds, start, num, return_local_psf_and_wcs=False):
     def _func():
         for i in range(start, start+num):
             mbobs = mbmeds.get_mbobs(i)
-            if return_local_psf_and_wcs:
-                psf_rec_funcs = mbmeds.get_psf_rec_funcs(i)
-                wcs_jacobian_func = mbmeds.get_wcs_jacobian_func(i)
-                yield i, mbobs, psf_rec_funcs, wcs_jacobian_func
-            else:
-                yield i, mbobs
+            yield i, mbobs
 
     return _func
 
@@ -145,12 +111,10 @@ def run_metadetect(
         config,
         multiband_meds,
         output_file,
-        buffer_size,
         seed,
         part=1,
         n_parts=1,
-        preprocessing_function=None,
-        use_local_psf_and_wcs=True):
+        preprocessing_function=None):
     """Run metadetect on a "pizza slice" MEDS file and write the outputs to
     disk.
 
@@ -162,10 +126,6 @@ def run_metadetect(
         A multiband MEDS data structure.
     output_file : str
         The file to which to write the outputs.
-    buffer_size : int
-        The size of the buffer region in coadd pixels.
-    seed : int
-        The random seed to use for the run.
     part : int, optional
         The part of the file to process. Starts at 1 and runs to n_parts.
     n_parts : int, optional
@@ -180,11 +140,6 @@ def run_metadetect(
                 return new_mbobs
             ```
         The default of `None` does no preprocessing.
-    use_local_psf_and_wcs : bool, optional
-        The default of `True` will use the local PSF and WCS Jacobian at each
-        detection for shear measurements. If `False`, the PSF and Jacobian used
-        for the metadetection step will be used at each detection for shear
-        measurements.
     """
     t0 = time.time()
 
@@ -192,43 +147,21 @@ def run_metadetect(
     start, num = _get_part_ranges(part, n_parts, multiband_meds.size)
     print('# of slices: %d' % num, flush=True)
     print('slice range: [%d, %d)' % (start, start+num), flush=True)
-    if use_local_psf_and_wcs:
-        print('using local PSF and WCS jacobian', flush=True)
-        meds_iter = _make_meds_iterator(
-            multiband_meds, start, num,
-            return_local_psf_and_wcs=use_local_psf_and_wcs)
-        outputs = joblib.Parallel(
-                verbose=10,
-                n_jobs=int(os.environ.get('OMP_NUM_THREADS', 1)),
-                pre_dispatch='2*n_jobs',
-                max_nbytes=None)(
-                    joblib.delayed(_do_metadetect_and_cal)(
-                        config, mbobs, seed+i*256, i,
-                        preprocessing_function,
-                        psf_rec_funcs,
-                        wcs_jacobian_func,
-                        buffer_size)
-                    for i, mbobs, psf_rec_funcs, wcs_jacobian_func
-                    in meds_iter())
-
-    else:
-        meds_iter = _make_meds_iterator(multiband_meds, start, num)
-        outputs = joblib.Parallel(
-                verbose=10,
-                n_jobs=int(os.environ.get('OMP_NUM_THREADS', 1)),
-                pre_dispatch='2*n_jobs',
-                max_nbytes=None)(
-                    joblib.delayed(_do_metadetect)(
-                        config, mbobs, seed+i*256, i, preprocessing_function)
-                    for i, mbobs in meds_iter())
+    meds_iter = _make_meds_iterator(multiband_meds, start, num)
+    outputs = joblib.Parallel(
+            verbose=10,
+            n_jobs=int(os.environ.get('OMP_NUM_THREADS', 1)),
+            pre_dispatch='2*n_jobs',
+            max_nbytes=None)(
+                joblib.delayed(_do_metadetect)(
+                    config, mbobs, seed+i*256, i, preprocessing_function)
+                for i, mbobs in meds_iter())
 
     # join all the outputs
     output, cpu_time = _post_process_results(
         outputs=outputs,
         obj_data=multiband_meds.mlist[0].get_cat(),
-        image_info=multiband_meds.mlist[0].get_image_info(),
-        buffer_size=buffer_size,
-        image_size=multiband_meds.get_mbobs(0)[0][0].image.shape[0])
+        image_info=multiband_meds.mlist[0].get_image_info())
 
     # report and do i/o
     wall_time = time.time() - t0
