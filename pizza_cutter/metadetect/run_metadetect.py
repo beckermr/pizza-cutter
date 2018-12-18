@@ -18,13 +18,22 @@ logger = logging.getLogger(__name__)
 def _make_output_array(
         *,
         data, obj_id, mcal_step,
-        orig_start_row, orig_start_col, position_offset, wcs):
+        orig_start_row, orig_start_col, position_offset, wcs,
+        buffer_size, image_size):
     arr = eu.numpy_util.add_fields(
                 data,
                 [('id', 'i8'), ('mcal_step', 'S7'),
-                 ('ra', 'f8'), ('dec', 'f8')])
+                 ('ra', 'f8'), ('dec', 'f8'),
+                 ('slice_flags', 'i4')])
     arr['id'] = obj_id
     arr['mcal_step'] = mcal_step
+
+    msk = (
+        (arr['sx_row'] >= buffer_size) &
+        (arr['sx_row'] < image_size - buffer_size) &
+        (arr['sx_col'] >= buffer_size) &
+        (arr['sx_col'] < image_size - buffer_size))
+    arr['slice_flags'][~msk] = 1
 
     row = arr['sx_row'] + orig_start_row + position_offset
     col = arr['sx_col'] + orig_start_col + position_offset
@@ -35,7 +44,8 @@ def _make_output_array(
     return arr
 
 
-def _post_process_results(*, outputs, obj_data, image_info):
+def _post_process_results(
+        *, outputs, obj_data, image_info, buffer_size, image_size):
     # post process results
     wcs = eu.wcsutil.WCS(
         json.loads(image_info['wcs'][obj_data['file_id'][0, 0]]))
@@ -59,7 +69,9 @@ def _post_process_results(*, outputs, obj_data, image_info):
                     orig_start_col=obj_data['orig_start_col'][i, 0],
                     orig_start_row=obj_data['orig_start_row'][i, 0],
                     wcs=wcs,
-                    position_offset=position_offset))
+                    position_offset=position_offset,
+                    buffer_size=buffer_size,
+                    image_size=image_size))
 
     # concatenate once since generally more efficient
     output = np.concatenate(output)
@@ -69,7 +81,7 @@ def _post_process_results(*, outputs, obj_data, image_info):
 
 def _do_metadetect_and_cal(
         config, mbobs, seed, i, preprocessing_function,
-        psf_rec_funcs, wcs_jacobian_func):
+        psf_rec_funcs, wcs_jacobian_func, buffer_size):
     _t0 = time.time()
     rng = np.random.RandomState(seed=seed)
     if preprocessing_function is not None:
@@ -78,7 +90,8 @@ def _do_metadetect_and_cal(
     res = do_metadetect_and_cal(
         config, mbobs, rng,
         wcs_jacobian_func=wcs_jacobian_func,
-        psf_rec_funcs=psf_rec_funcs)
+        psf_rec_funcs=psf_rec_funcs,
+        buffer_size=buffer_size)
     return res, i, time.time() - _t0
 
 
@@ -132,6 +145,7 @@ def run_metadetect(
         config,
         multiband_meds,
         output_file,
+        buffer_size,
         seed,
         part=1,
         n_parts=1,
@@ -148,6 +162,10 @@ def run_metadetect(
         A multiband MEDS data structure.
     output_file : str
         The file to which to write the outputs.
+    buffer_size : int
+        The size of the buffer region in coadd pixels.
+    seed : int
+        The random seed to use for the run.
     part : int, optional
         The part of the file to process. Starts at 1 and runs to n_parts.
     n_parts : int, optional
@@ -188,7 +206,8 @@ def run_metadetect(
                         config, mbobs, seed+i*256, i,
                         preprocessing_function,
                         psf_rec_funcs,
-                        wcs_jacobian_func)
+                        wcs_jacobian_func,
+                        buffer_size)
                     for i, mbobs, psf_rec_funcs, wcs_jacobian_func
                     in meds_iter())
 
@@ -207,7 +226,9 @@ def run_metadetect(
     output, cpu_time = _post_process_results(
         outputs=outputs,
         obj_data=multiband_meds.mlist[0].get_cat(),
-        image_info=multiband_meds.mlist[0].get_image_info())
+        image_info=multiband_meds.mlist[0].get_image_info(),
+        buffer_size=buffer_size,
+        image_size=multiband_meds.get_mbobs(0)[0][0].image.shape[0])
 
     # report and do i/o
     wall_time = time.time() - t0

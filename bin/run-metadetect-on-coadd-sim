@@ -158,7 +158,8 @@ def main(
             part=part,
             n_parts=n_parts,
             preprocessing_function=_make_masking_func(coadd_config),
-            use_local_psf_and_wcs=use_local_psf_and_wcs)
+            use_local_psf_and_wcs=use_local_psf_and_wcs,
+            buffer_size=mlist[0].buffer_size)
 
     if use_tmpdir:
         with tempfile.TemporaryDirectory() as tmpdir:
