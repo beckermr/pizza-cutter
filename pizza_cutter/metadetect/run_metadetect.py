@@ -94,6 +94,8 @@ def _do_metadetect_and_cal(
     if preprocessing_function is not None:
         logger.debug("preprocessing multiband obslist %d", i)
         mbobs = preprocessing_function(mbobs=mbobs, rng=rng)
+    print('FIXME: setting buffer_size to None!', flush=True)
+    buffer_size = None
     res = do_metadetect_and_cal(
         config, mbobs, rng,
         wcs_jacobian_func=wcs_jacobian_func,
@@ -140,6 +142,13 @@ def _make_meds_iterator(mbmeds, start, num, return_local_psf_and_wcs=False):
             if return_local_psf_and_wcs:
                 psf_rec_funcs = mbmeds.get_psf_rec_funcs(i)
                 wcs_jacobian_func = mbmeds.get_wcs_jacobian_func(i)
+
+                print("FIXME: setting psf rec funcs to None", flush=True)
+                psf_rec_funcs = None
+
+                print("FIXME: setting wcs jacobian func to None", flush=True)
+                wcs_jacobian_func = None
+
                 yield i, mbobs, psf_rec_funcs, wcs_jacobian_func
             else:
                 yield i, mbobs
