@@ -24,15 +24,16 @@ def _make_output_array(
                 data,
                 [('id', 'i8'), ('mcal_step', 'S7'),
                  ('ra', 'f8'), ('dec', 'f8'),
+                 ('mcal_ra', 'f8'), ('mcal_dec', 'f8'),
                  ('slice_flags', 'i4')])
     arr['id'] = obj_id
     arr['mcal_step'] = mcal_step
 
     msk = (
-        (arr['sx_row'] >= buffer_size) &
-        (arr['sx_row'] < image_size - buffer_size) &
-        (arr['sx_col'] >= buffer_size) &
-        (arr['sx_col'] < image_size - buffer_size))
+        (arr['mcal_sx_row'] >= buffer_size) &
+        (arr['mcal_sx_row'] < image_size - buffer_size) &
+        (arr['mcal_sx_col'] >= buffer_size) &
+        (arr['mcal_sx_col'] < image_size - buffer_size))
     arr['slice_flags'][~msk] = 1
 
     row = arr['sx_row'] + orig_start_row + position_offset
@@ -40,6 +41,12 @@ def _make_output_array(
     ra, dec = wcs.image2sky(x=col, y=row)
     arr['ra'] = ra
     arr['dec'] = dec
+
+    row = arr['mcal_sx_row'] + orig_start_row + position_offset
+    col = arr['mcal_sx_col'] + orig_start_col + position_offset
+    ra, dec = wcs.image2sky(x=col, y=row)
+    arr['mcal_ra'] = ra
+    arr['mcal_dec'] = dec
 
     return arr
 
