@@ -58,4 +58,4 @@ class MultiBandNGMixMEDS(_MultiBandNGMixMEDS):
             A list of functions with call signatures `func(row, col)` that
             return an image of the PSF at the given location for each band.
         """
-        return [m.get_psf_rec_funcs(iobj, 0) for m in self.mlist]
+        return [m.get_psf_rec_func(iobj, 0) for m in self.mlist]
