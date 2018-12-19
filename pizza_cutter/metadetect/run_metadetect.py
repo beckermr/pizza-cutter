@@ -49,11 +49,15 @@ def _make_output_array(
     arr['ra'] = ra
     arr['dec'] = dec
 
-    row = arr['mcal_sx_row'] + orig_start_row + position_offset
-    col = arr['mcal_sx_col'] + orig_start_col + position_offset
-    ra, dec = wcs.image2sky(x=col, y=row)
-    arr['mcal_ra'] = ra
-    arr['mcal_dec'] = dec
+    if 'mcal_sx_col' in arr.dtype.names:
+        row = arr['mcal_sx_row'] + orig_start_row + position_offset
+        col = arr['mcal_sx_col'] + orig_start_col + position_offset
+        ra, dec = wcs.image2sky(x=col, y=row)
+        arr['mcal_ra'] = ra
+        arr['mcal_dec'] = dec
+    else:
+        arr['mcal_ra'] = arr['ra']
+        arr['mcal_dec'] = arr['dec']
 
     return arr
 
