@@ -105,8 +105,6 @@ def _do_metadetect_and_cal(
     if preprocessing_function is not None:
         logger.debug("preprocessing multiband obslist %d", i)
         mbobs = preprocessing_function(mbobs=mbobs, rng=rng)
-    # print('FIXME: setting buffer_size to None!', flush=True)
-    buffer_size = None
     res = do_metadetect_and_cal(
         config, mbobs, rng,
         wcs_jacobian_func=wcs_jacobian_func,
