@@ -29,18 +29,11 @@ def _make_output_array(
     arr['id'] = obj_id
     arr['mcal_step'] = mcal_step
 
-    if 'mcal_sx_col' in arr.dtype.names:
-        msk = (
-            (arr['mcal_sx_row'] >= buffer_size) &
-            (arr['mcal_sx_row'] < image_size - buffer_size) &
-            (arr['mcal_sx_col'] >= buffer_size) &
-            (arr['mcal_sx_col'] < image_size - buffer_size))
-    else:
-        msk = (
-            (arr['sx_row'] >= buffer_size) &
-            (arr['sx_row'] < image_size - buffer_size) &
-            (arr['sx_col'] >= buffer_size) &
-            (arr['sx_col'] < image_size - buffer_size))
+    msk = (
+        (arr['mcal_sx_row'] >= buffer_size) &
+        (arr['mcal_sx_row'] < image_size - buffer_size) &
+        (arr['mcal_sx_col'] >= buffer_size) &
+        (arr['mcal_sx_col'] < image_size - buffer_size))
     arr['slice_flags'][~msk] = 1
 
     row = arr['sx_row'] + orig_start_row + position_offset
@@ -49,15 +42,11 @@ def _make_output_array(
     arr['ra'] = ra
     arr['dec'] = dec
 
-    if 'mcal_sx_col' in arr.dtype.names:
-        row = arr['mcal_sx_row'] + orig_start_row + position_offset
-        col = arr['mcal_sx_col'] + orig_start_col + position_offset
-        ra, dec = wcs.image2sky(x=col, y=row)
-        arr['mcal_ra'] = ra
-        arr['mcal_dec'] = dec
-    else:
-        arr['mcal_ra'] = arr['ra']
-        arr['mcal_dec'] = arr['dec']
+    row = arr['mcal_sx_row'] + orig_start_row + position_offset
+    col = arr['mcal_sx_col'] + orig_start_col + position_offset
+    ra, dec = wcs.image2sky(x=col, y=row)
+    arr['mcal_ra'] = ra
+    arr['mcal_dec'] = dec
 
     return arr
 
