@@ -99,9 +99,8 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
         sources=coadd_srcs)
 
     info = coadd.get_info()
-
     info['wcs'] = eu.wcsutil.WCS(
-        fitsio.read_header(info['image_path'], ext='sci'))
+        _munge_fits_header(fitsio.read_header(info['image_path'], ext='sci')))
     info['galsim_wcs'] = galsim.FitsWCS(info['image_path'])
     info['position_offset'] = POSITION_OFFSET
 
@@ -128,7 +127,8 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
 
         # wcs info
         ii['wcs'] = eu.wcsutil.WCS(
-            fitsio.read_header(ii['image_path'], ext='sci'))
+            _munge_fits_header(
+                fitsio.read_header(ii['image_path'], ext='sci')))
         ii['galsim_wcs'] = galsim.FitsWCS(ii['image_path'])
         ii['position_offset'] = POSITION_OFFSET
 
@@ -149,3 +149,13 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
         ii['scale'] = 10.0**(0.4*(MAGZP_REF - ii['magzp']))
 
     return info, coadd
+
+
+def _munge_fits_header(hdr):
+    dct = {}
+    for k in hdr.keys():
+        try:
+            dct[k.lower()] = hdr[k]
+        except Exception:
+            pass
+    return dct
