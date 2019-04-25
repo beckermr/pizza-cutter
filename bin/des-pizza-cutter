@@ -69,9 +69,6 @@ def main(config, tilename, band, tag, output_path, log_level, seed):
         campaign=cfg['campaign'],
         medsconf=sname)
 
-    print('downloading files...', flush=True)
-    coadd.download()
-
     make_des_pizza_slices(
         config=_config,
         central_size=cfg['central_size'],

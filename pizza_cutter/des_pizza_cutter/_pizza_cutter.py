@@ -98,6 +98,8 @@ def make_des_pizza_slices(
         wcs=info['wcs'],
         position_offset=info['position_offset'])
 
+    eu.ostools.makedirs_fromfile(meds_path)
+
     with fitsio.FITS(meds_path, 'rw', clobber=True) as fits:
         _coadd_and_write_images(
             fits=fits,
