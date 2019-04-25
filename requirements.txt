@@ -1,6 +1,6 @@
 numpy
 scipy
-galsim==2.0.7
+galsim
 fitsio
 pyyaml
 numba
