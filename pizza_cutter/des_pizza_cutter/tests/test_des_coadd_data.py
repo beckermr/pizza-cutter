@@ -1,7 +1,7 @@
 import os
 import pytest
 
-from .._des_coadd_data import DESCoadd, DESCoaddSources
+import desmeds
 
 
 @pytest.mark.skipif(
@@ -13,7 +13,7 @@ def test_descoadd(tmpdir):
         tilename = 'DES0113-4331'
         os.environ['MEDS_DIR'] = str(tmpdir)
         medsconf = 'test_des_coadd_data'
-        coadd = DESCoadd(
+        coadd = desmeds.coaddsrc.Coadd(
             medsconf=medsconf, tilename=tilename, band=band,
             campaign='Y3A1_COADD')
         info = coadd.get_info()
@@ -56,12 +56,11 @@ def test_descoaddsources(tmpdir):
         tilename = 'DES0113-4331'
         os.environ['MEDS_DIR'] = str(tmpdir)
         medsconf = 'test_des_coadd_data'
-        coaddsrcs = DESCoaddSources(
+        coaddsrcs = desmeds.coaddsrc.CoaddSrc(
             medsconf=medsconf, tilename=tilename, band=band,
             campaign='Y3A1_COADD')
         info = coaddsrcs.get_info()
 
-        assert coaddsrcs.finalcut_campaign == 'Y3A1_FINALCUT'
         assert len(info) == 69
         assert all(i['tilename'] == tilename for i in info)
         assert all(i['band'] == band for i in info)
@@ -80,10 +79,10 @@ def test_descoadd_and_descoaddsources(tmpdir):
         tilename = 'DES0113-4331'
         os.environ['MEDS_DIR'] = str(tmpdir)
         medsconf = 'test_des_coadd_data'
-        coaddsrcs = DESCoaddSources(
+        coaddsrcs = desmeds.coaddsrc.CoaddSrc(
             medsconf=medsconf, tilename=tilename, band=band,
             campaign='Y3A1_COADD')
-        coadd = DESCoadd(
+        coadd = desmeds.coaddsrc.Coadd(
             medsconf=medsconf, tilename=tilename, band=band,
             campaign='Y3A1_COADD', sources=coaddsrcs)
 
@@ -94,12 +93,12 @@ def test_descoadd_and_descoaddsources(tmpdir):
         coadd.download()
         files = [
             os.path.join(d, f)
-            for d, _, fs in os.walk(coadd.source_dir)
+            for d, _, fs in os.walk(coadd['source_dir'])
             for f in fs]
         assert len(files) > 1
 
         coadd.clean()
-        assert not os.path.exists(coadd.source_dir)
+        assert not os.path.exists(coadd['source_dir'])
     except Exception:
         os.environ.pop('MEDS_DIR', None)
         raise

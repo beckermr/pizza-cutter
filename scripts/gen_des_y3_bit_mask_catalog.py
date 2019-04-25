@@ -6,8 +6,7 @@ import logging
 
 from pizza_cutter.files import StagedOutFile
 from pizza_cutter.simulation.des_masks import gen_masks_from_des_y3_images
-from pizza_cutter.des_pizza_cutter._des_coadd_data import (
-    DESCoadd, DESCoaddSources)
+import desmeds
 from pizza_cutter.files import expandpath
 
 MEDSCONF = 'y3a1-v02'
@@ -37,12 +36,12 @@ def _gen_for_band(band, seed):
 
     bmask_paths = []
     for tilename in TILENAMES:
-        se_srcs = DESCoaddSources(
+        se_srcs = desmeds.coaddsrc.CoaddSrc(
             medsconf=MEDSCONF,
             campaign=CAMPAIGN,
             tilename=tilename,
             band=band)
-        coadd = DESCoadd(
+        coadd = desmeds.coaddsrc.Coadd(
             medsconf=MEDSCONF,
             campaign=CAMPAIGN,
             tilename=tilename,
