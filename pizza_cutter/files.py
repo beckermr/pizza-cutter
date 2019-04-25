@@ -26,9 +26,9 @@ def get_meds_dir(medsconf, tilename):
 
     parameters
     ----------
-    medsconf: string
+    medsconf : str
         A name for the meds version or config.  e.g. 'y3a1-v02'
-    tilename: string
+    tilename : str
         e.g. 'DES0417-5914'
     """
     bdir = get_meds_base()
@@ -40,9 +40,9 @@ def get_source_dir(medsconf, tilename, band):
 
     Parameters
     ----------
-    medsconf: string
+    medsconf : str
         A name for the meds version or config.  e.g. 'y3a1-v02'
-    tilename: string
+    tilename : str
         e.g. 'DES0417-5914'
 
     Returns
@@ -252,7 +252,7 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     campaign: string
+#     campaign: str
 #         e.g. 'Y3A1_COADD'
 #     """
 #     dir=get_list_dir()
@@ -267,7 +267,7 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     campaign: string
+#     campaign: str
 #         e.g. 'Y3A1_COADD'
 #     """
 #     dir=get_list_dir()
@@ -282,7 +282,7 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     campaign: string
+#     campaign: str
 #         e.g. 'Y3A1_COADD'
 #     """
 #     dir=get_list_dir()
@@ -300,7 +300,7 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         Identifier for the meds config, e.g. "013"
 #     """
 #     dir=get_config_dir()
@@ -313,7 +313,7 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     tileset: string
+#     tileset: str
 #         Identifier for the tileset, e.g. "y3-test01" or the
 #         full path
 #     """
@@ -330,7 +330,7 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         Identifier for the meds config, e.g. "013"
 #     """
 #
@@ -356,7 +356,7 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     tileset: string
+#     tileset: str
 #         Identifier for the tileset, e.g. "y3-test01" or the
 #         full path
 #     """
@@ -381,7 +381,7 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     testbed: string
+#     testbed: str
 #         Identifier for the testbed, e.g. "sva1-2"
 #     """
 #     dir=get_config_dir()
@@ -396,7 +396,7 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     testbed: string
+#     testbed: str
 #         Identifier for the testbed, e.g. "sva1-2"
 #     """
 #
@@ -420,9 +420,9 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config.  e.g. 'y3a1-v02'
-#     tilename: string
+#     tilename: str
 #         e.g. 'DES0417-5914'
 #     """
 #
@@ -435,11 +435,11 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config.  e.g. 'y3a1-v02'
-#     tilename: string
+#     tilename: str
 #         e.g. 'DES0417-5914'
-#     band: string
+#     band: str
 #         e.g. 'r'
 #     """
 #
@@ -453,11 +453,11 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config.  e.g. 'y3a1-v02'
-#     tilename: string
+#     tilename: str
 #         e.g. 'DES0417-5914'
-#     band: string
+#     band: str
 #         e.g. 'r'
 #     """
 #
@@ -471,12 +471,12 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config.  e.g. '013'
 #         or 'y1a1-v01'
-#     tilename: string
+#     tilename: str
 #         e.g. 'DES0417-5914'
-#     band: string
+#     band: str
 #         e.g. 'i'
 #     """
 #
@@ -491,7 +491,7 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config.  e.g. '013'
 #         or 'y1a1-v01'
 #     """
@@ -510,12 +510,12 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config.  e.g. '013'
 #         or 'y3a1-v01'
-#     tilename: string
+#     tilename: str
 #         e.g. 'DES0417-5914'
-#     band: string
+#     band: str
 #         e.g. 'i'
 #     """
 #
@@ -532,12 +532,12 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config.  e.g. '013'
 #         or 'y3a1-v01'
-#     tilename: string
+#     tilename: str
 #         e.g. 'DES0417-5914'
-#     band: string
+#     band: str
 #         e.g. 'i'
 #     """
 #
@@ -558,12 +558,12 @@ class StagedOutFile(object):
 #     psf map file for piff
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config.  e.g. '013'
 #         or 'y3a1-v01'
-#     tilename: string
+#     tilename: str
 #         e.g. 'DES0417-5914'
-#     band: string
+#     band: str
 #         e.g. 'i'
 #     """
 #
@@ -584,12 +584,12 @@ class StagedOutFile(object):
 #     psf map file for piff
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config.  e.g. '013'
 #         or 'y3a1-v01'
-#     tilename: string
+#     tilename: str
 #         e.g. 'DES0417-5914'
-#     band: string
+#     band: str
 #         e.g. 'i'
 #     """
 #     base_dir=os.environ['PIFF_MAP_DIR']
@@ -627,12 +627,12 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config.  e.g. '013'
 #         or 'y3a1-v01'
-#     tilename: string
+#     tilename: str
 #         e.g. 'DES0417-5914'
-#     filalcut_file: string
+#     filalcut_file: str
 #         name of original finalcut file
 #     """
 #
@@ -653,12 +653,12 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config.  e.g. '013'
 #         or 'y1a1-v01'
-#     tilename: string
+#     tilename: str
 #         e.g. 'DES0417-5914'
-#     band: string
+#     band: str
 #         e.g. 'i'
 #     """
 #
@@ -676,12 +676,12 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config.  e.g. '013'
 #         or 'y1a1-v01'
-#     tilename: string
+#     tilename: str
 #         e.g. 'DES0417-5914'
-#     band: string
+#     band: str
 #         e.g. 'i'
 #     """
 #
@@ -699,12 +699,12 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config.  e.g. '013'
 #         or 'y1a1-v01'
-#     tilename: string
+#     tilename: str
 #         e.g. 'DES0417-5914'
-#     band: string
+#     band: str
 #         e.g. 'i'
 #     """
 #
@@ -723,12 +723,12 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config.  e.g. '013'
 #         or 'y1a1-v01'
-#     tilename: string
+#     tilename: str
 #         e.g. 'DES0417-5914'
-#     band: string
+#     band: str
 #         e.g. 'i'
 #     """
 #
@@ -746,12 +746,12 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config.  e.g. '013'
 #         or 'y1a1-v01'
-#     tilename: string
+#     tilename: str
 #         e.g. 'DES0417-5914'
-#     band: string
+#     band: str
 #         e.g. 'i'
 #     """
 #
@@ -769,12 +769,12 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config.  e.g. '013'
 #         or 'y1a1-v01'
-#     coadd_run: string
+#     coadd_run: str
 #         For SV and Y1, e.g. '20130828000021_DES0417-5914'
-#     band: string
+#     band: str
 #         e.g. 'i'
 #     """
 #
@@ -796,16 +796,16 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config.  e.g. '013'
 #         or 'y1a1-v01'
-#     tilename: string
+#     tilename: str
 #         e.g. 'DES0417-5914'
-#     band: string
+#     band: str
 #         e.g. 'i'
-#     type: string
+#     type : str
 #         e.g. 'meds' 'meds-stats' etc.
-#     ext: string
+#     ext: str
 #         extension, e.g. 'fits.fz' 'yaml' etc.
 #     """
 #
@@ -833,11 +833,11 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config, e.g. 'y3a1-v02'
-#     tilename: string
+#     tilename: str
 #         e.g. 'DES0417-5914'
-#     band: string
+#     band: str
 #         e.g. 'i'
 #     """
 #
@@ -854,12 +854,12 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config.  e.g. '013'
 #         or 'y3a1-v01'
-#     tilename: string
+#     tilename: str
 #         e.g. 'DES0417-5914'
-#     band: string
+#     band: str
 #         e.g. 'i'
 #     """
 #
@@ -879,12 +879,12 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config.  e.g. '013'
 #         or 'y1a1-v01'
-#     tilename: string
+#     tilename: str
 #         e.g. 'DES0417-5914'
-#     band: string
+#     band: str
 #         e.g. 'i'
 #     """
 #
@@ -901,12 +901,12 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config.  e.g. '013'
 #         or 'y1a1-v01'
-#     tilename: string
+#     tilename: str
 #         e.g. 'DES0417-5914'
-#     band: string
+#     band: str
 #         e.g. 'i'
 #     """
 #
@@ -922,13 +922,13 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     tilename: string
+#     tilename: str
 #         e.g. 'DES0417-5914'
-#     band: string
+#     band: str
 #         e.g. 'i'
-#     type: string
+#     type: str
 #         any string
-#     ext: string
+#     ext: str
 #         extension, e.g. 'sh' 'yaml'
 #     """
 #     dir=get_meds_script_dir(medsconf)
@@ -949,9 +949,9 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     fname: string
+#     fname: str
 #         original file location
-#     tmpdir: string, optional
+#     tmpdir: str, optional
 #         If not sent, no staging is done.
 #
 #     examples
@@ -1037,9 +1037,9 @@ class StagedOutFile(object):
 #     path is used
 #     parameters
 #     ----------
-#     fname: string
+#     fname: str
 #         Final destination path for file
-#     tmpdir: string, optional
+#     tmpdir: str, optional
 #         If not sent, or None, the final path is used and no staging
 #         is performed
 #     must_exist: bool, optional
@@ -1134,7 +1134,7 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     fname: string
+#     fname: str
 #         The full path for file
 #
 #     examples
@@ -1233,12 +1233,12 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config.  e.g. '013'
 #         or 'y3a1-v02'
-#     tilename: string
+#     tilename: str
 #         e.g. 'DES0417-5914'
-#     band: string
+#     band: str
 #         e.g. 'i'
 #     """
 #
@@ -1261,12 +1261,12 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config.  e.g. '013'
 #         or 'y3a1-v02'
-#     tilename: string
+#     tilename: str
 #         e.g. 'DES0417-5914'
-#     band: string
+#     band: str
 #         e.g. 'i'
 #     """
 #
@@ -1290,12 +1290,12 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config.  e.g. '013'
 #         or 'y3a1-v02'
-#     tilename: string
+#     tilename: str
 #         e.g. 'DES0417-5914'
-#     band: string
+#     band: str
 #         e.g. 'i'
 #     """
 #
@@ -1318,12 +1318,12 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config.  e.g. '013'
 #         or 'y3a1-v02'
-#     tilename: string
+#     tilename: str
 #         e.g. 'DES0417-5914'
-#     band: string
+#     band: str
 #         e.g. 'i'
 #     """
 #
@@ -1347,12 +1347,12 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config.  e.g. '013'
 #         or 'y3a1-v02'
-#     tilename: string
+#     tilename: str
 #         e.g. 'DES0417-5914'
-#     band: string
+#     band: str
 #         e.g. 'i'
 #     """
 #
@@ -1376,12 +1376,12 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config.  e.g. '013'
 #         or 'y3a1-v02'
-#     tilename: string
+#     tilename: str
 #         e.g. 'DES0417-5914'
-#     band: string
+#     band: str
 #         e.g. 'i'
 #     """
 #
@@ -1405,12 +1405,12 @@ class StagedOutFile(object):
 #
 #     parameters
 #     ----------
-#     medsconf: string
+#     medsconf: str
 #         A name for the meds version or config.  e.g. '013'
 #         or 'y3a1-v02'
-#     tilename: string
+#     tilename: str
 #         e.g. 'DES0417-5914'
-#     band: string
+#     band: str
 #         e.g. 'i'
 #     """
 #

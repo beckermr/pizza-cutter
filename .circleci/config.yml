@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/python:3.6.1
+      - image: circleci/python:3.6.4
 
     steps:
       - checkout
@@ -14,6 +14,9 @@ jobs:
       - run:
           name: install dependencies
           command: |
+            # patch for weirdness in mirrors - https://discuss.circleci.com/t/circleci-failing-when-using-sudo-apt-get-update/29269/9
+            sudo sed -i '/jessie-backports/d' /etc/apt/sources.list
+            sudo sed -i '/jessie-updates/d' /etc/apt/sources.list
             sudo apt-get -qq update
             sudo apt-get -qq upgrade
             sudo apt-get -qq install libfftw3-dev libeigen3-dev build-essential libcfitsio-bin
@@ -35,5 +38,5 @@ jobs:
             pip install -U --progress-bar=off --upgrade-strategy=eager --force-reinstall -r volatile-requirements.txt
             pip install -q --progress-bar=off --force-reinstall .
             flake8 pizza_cutter
-            flake8 bin/pizza-cutter
+            flake8 bin
             pytest -vv pizza_cutter
