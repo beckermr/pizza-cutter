@@ -82,28 +82,34 @@ def _build_meds_list(*, tilename, band, sim_path, coadd_config, seed):
 @click.command()
 @click.option(
     '--metadetect-config', default=None, type=str,
-    help='metadetect configuration file')
+    help='metadetect configuration file',
+    required=True)
 @click.option(
     '--coadd-config', default=None, type=str,
-    help='coadd sim configuration file')
+    help='coadd sim configuration file',
+    required=True)
 @click.option(
     '--output-path', default='.', type=str,
     help='path to write the outputs')
 @click.option(
     '--sim-path', default=None, type=str,
-    help='path to directory that holds the simulations')
+    help='path to directory that holds the simulations',
+    required=True)
 @click.option(
     '--tilename', default=None, type=str,
-    help='tile to process')
+    help='tile to process',
+    required=True)
 @click.option(
     '--band', default=None, type=str,
-    help='band(s) to process - list multiple with commas')
+    help='band(s) to process - list multiple with commas',
+    required=True)
 @click.option(
     '--tag', default=None, type=str,
     help='an extra tag to attach to the filename if desired')
 @click.option(
     '--seed', default=-1, type=int,
-    help='seed for the RNG')
+    help='seed for the RNG',
+    required=True)
 @click.option(
     '--log-level', default='warning', type=str,
     help='python logging level')

@@ -26,13 +26,15 @@ def _make_output_filename(meds_fname, part):
 @click.argument('meds_files', nargs=-1)
 @click.option(
     '--config', default=None, type=str,
-    help='configuration file')
+    help='configuration file',
+    required=True)
 @click.option(
     '--output-path', default='.', type=str,
     help='path to write the outputs')
 @click.option(
     '--seed', default=-1, type=int,
-    help='seed for the RNG')
+    help='seed for the RNG',
+    required=True)
 @click.option(
     '--use-tmpdir', is_flag=True,
     help='use a temporary directory to stage data')
