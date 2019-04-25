@@ -85,18 +85,25 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
         The `DESCoadd` object that can be used to download the data via the
         `download()` method.
     """
-    coadd_srcs = DESCoaddSources(
-        medsconf=medsconf,
-        tilename=tilename,
-        band=band,
-        campaign=campaign)
 
-    coadd = DESCoadd(
-        medsconf=medsconf,
-        tilename=tilename,
-        band=band,
+    # guarding this here, since not all codes would need it
+    import desmeds
+
+    coadd_srcs = desmeds.coaddsrc.CoaddSrc(
+        medsconf,
+        tilename,
+        band,
         campaign=campaign,
-        sources=coadd_srcs)
+    )
+
+    coadd = desmeds.coaddinfo.Coadd(
+        medsconf,
+        tilename,
+        band,
+        campaign=campaign,
+        sources=coadd_srcs,
+    )
+
 
     info = coadd.get_info()
     info['wcs'] = eu.wcsutil.WCS(
