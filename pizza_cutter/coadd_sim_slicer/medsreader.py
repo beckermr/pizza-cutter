@@ -7,7 +7,7 @@ from ngmix.medsreaders import NGMixMEDS
 import esutil as eu
 from meds.util import get_image_info_struct, get_meds_output_struct
 
-from .memmappednoise import MemMappedNoiseImage
+from ..memmappednoise import MemMappedNoiseImage
 from ..simulation.maskgen import BMaskGenerator
 from .galsim_psf import GalSimPSF, GalSimPSFEx
 

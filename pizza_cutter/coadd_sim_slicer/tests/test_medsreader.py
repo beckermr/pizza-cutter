@@ -11,7 +11,7 @@ from esutil.wcsutil import WCS
 
 from ..medsreader import POSITION_OFFSET, MAGZP_REF
 from ..medsreader import CoaddSimSliceMEDS
-from ..memmappednoise import MemMappedNoiseImage
+from ...memmappednoise import MemMappedNoiseImage
 from ..galsim_psf import GalSimPSF
 
 
