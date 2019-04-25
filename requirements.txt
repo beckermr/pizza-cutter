@@ -14,5 +14,3 @@ joblib
 jinja2
 blosc
 tqdm
-meds
-desmeds
