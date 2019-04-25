@@ -103,7 +103,6 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
         sources=coadd_srcs,
     )
 
-
     info = coadd.get_info()
     info['wcs'] = eu.wcsutil.WCS(
         _munge_fits_header(fitsio.read_header(info['image_path'], ext='sci')))
