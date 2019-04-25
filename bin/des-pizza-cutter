@@ -13,25 +13,30 @@ from pizza_cutter.des_pizza_cutter import (
 @click.command()
 @click.option(
     '--config', default=None, type=str,
-    help='configuration file')
+    help='configuration file',
+    required=True)
 @click.option(
     '--tilename', default=None, type=str,
-    help='tile to process')
+    help='tile to process',
+    required=True)
 @click.option(
     '--band', default=None, type=str,
-    help='band to process')
+    help='band to process',
+    required=True)
 @click.option(
     '--tag', default=None, type=str,
     help='an extra tag to attach to the filename if desired')
 @click.option(
     '--output-path', default='.', type=str,
-    help='path to write the MEDS file')
+    help='path to write the MEDS file',
+    required=True)
 @click.option(
     '--log-level', default='warning', type=str,
     help='python logging level')
 @click.option(
     '--seed', default=-1, type=int,
-    help='seed for the RNG')
+    help='seed for the RNG',
+    required=True)
 def main(config, tilename, band, tag, output_path, log_level, seed):
     """Create a metadetection MEDS file from a DES coadd tile."""
 
