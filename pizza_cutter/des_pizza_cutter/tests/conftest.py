@@ -81,6 +81,8 @@ def se_image_data():
         'crval2': 0.6171111312777}
 
     if 'TEST_DESDATA' in os.environ:
+        DESDATA = os.path.join(os.environ['TEST_DESDATA'], 'DESDATA')
+
         pth = os.path.join(
             os.environ['TEST_DESDATA'], 'source_info.yaml')
         with open(pth, 'r') as fp:
@@ -90,8 +92,7 @@ def se_image_data():
 
         for k in source_info:
             if '_path' in k:
-                source_info[k] = os.path.join(
-                    os.environ['DESDATA'], source_info[k])
+                source_info[k] = os.path.join(DESDATA, source_info[k])
     else:
         source_info = None
 
