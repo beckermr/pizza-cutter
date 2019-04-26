@@ -4,7 +4,7 @@ from meds.util import radec_to_uv
 
 
 def get_rough_sky_bounds(
-        *, wcs, position_offset, bounds_buffer_uv, n_grid):
+        *, im_shape, wcs, position_offset, bounds_buffer_uv, n_grid):
     """Get the rough boundry of a CCD on the sky for detecting if an object
     is on the CCD.
 
@@ -12,6 +12,8 @@ def get_rough_sky_bounds(
 
     Parameters
     ----------
+    im_shape : two-tuple of ints
+        The shape of the image.
     wcs : `esutil.wcsutil.WCS`
         The wcs object that defines the transformation from pixels to the sky.
     position_offset : int
@@ -36,13 +38,14 @@ def get_rough_sky_bounds(
     Examples
     --------
     >>> sky_bnds, ra_ccd, dec_ccd = get_rough_sky_bounds(
+    >>>     im_shape=(4096, 2048),
     >>>     wcs=wcs, position_offset=1, bounds_buffer_uv=16, n_grid=4)
     >>> # ra, dec are points to test
     >>> u, v = radec_to_uv(ra, dec, ra_ccd, dec_ccd)
     >>> in_sky_bnds = sky_bnds.contains_points(u, v)  # returs a bool mask
     >>> q = np.where(in_sky_bnds)
     """
-    ncol, nrow = wcs.get_naxis()
+    nrow, ncol = im_shape
 
     # set n_grid so that pixels are square-ish
     if ncol < nrow:

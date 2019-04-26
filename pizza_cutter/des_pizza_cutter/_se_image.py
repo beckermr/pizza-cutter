@@ -1,9 +1,16 @@
+import functools
+import fitsio
+
 import numpy as np
 import esutil as eu
 import galsim
+
+from meds.bounds import Bounds
+from meds.util import radec_to_uv
 # import copy
 #
 # from ..memmappednoise import MemMappedNoiseImage
+from ._sky_bounds import get_rough_sky_bounds
 
 
 class SEImageSlice(object):
@@ -64,6 +71,8 @@ class SEImageSlice(object):
         The zero-indexed starting row for the slice.
     box_size : int
         The size of the slice.
+    ccd_bnds : meds.bounds.Bounds
+        A boundary object for the full CCD.
     """
     def __init__(self, *, source_info, psf_model, wcs, random_state):
         self.source_info = source_info
@@ -74,6 +83,20 @@ class SEImageSlice(object):
             self._rng = random_state
         else:
             self._rng = np.random.RandomState(seed=random_state)
+
+        # init the sky bounds
+        sky_bnds, ra_ccd, dec_ccd = get_rough_sky_bounds(
+            im_shape=(4096, 2048),
+            wcs=self,  # the magic of APIs and duck typing - quack!
+            position_offset=0,  # the wcs on this class is zero-indexed
+            bounds_buffer_uv=16.0,  # in arcsec
+            n_grid=4)
+        self._sky_bnds = sky_bnds
+        self._ra_ccd = ra_ccd
+        self._dec_ccd = dec_ccd
+
+        # init ccd bounds
+        self.ccd_bnds = Bounds(0, 4096-1, 0, 2048-1)
 
     def set_slice(self, x_start, y_start, box_size):
         """Set the slice location and read a square slice of the
@@ -201,8 +224,41 @@ class SEImageSlice(object):
 
     def contains_radec(self, ra, dec):
         """Use the approximate sky bounds to detect if the given point in
-        ra, dec is anywhere in the total SE image (not just the slice)."""
-        raise NotImplementedError()
+        ra, dec is anywhere in the total SE image (not just the slice).
+
+        Parameters
+        ----------
+        ra : scalar or 1d array-like
+            The right ascension of the sky position.
+        dec : scalar or 1d array-like
+            The declination of the sky position.
+
+        Returns
+        -------
+        in_sky_bnds : bool or boolean array mask
+            True if the point is in the approximate sky bounds, False
+            otherwise.
+        """
+        if np.ndim(ra) == 0 and np.ndim(dec) == 0:
+            is_scalar = True
+        else:
+            is_scalar = False
+
+        assert np.ndim(ra) <= 1 and np.ndim(dec) <= 1, (
+            "Inputs to sky2mage must be scalars or 1d arrays")
+        assert np.ndim(ra) == np.ndim(dec), (
+            "Inputs to sky2image must be the same shape")
+
+        ra = np.atleast_1d(ra).ravel()
+        dec = np.atleast_1d(dec).ravel()
+
+        u, v = radec_to_uv(ra, dec, self._ra_ccd, self._dec_ccd)
+        in_sky_bnds = self._sky_bnds.contains_points(u, v)
+
+        if is_scalar:
+            return bool(in_sky_bnds[0])
+        else:
+            return in_sky_bnds
 
     def get_psf_image(self, x, y):
         """Get an image of the PSF as a numpy array at the given location."""
@@ -212,3 +268,13 @@ class SEImageSlice(object):
         """Get the PSF as a `galsim.InterpolatedImage` with the appropriate
         WCS set at the given location."""
         raise NotImplementedError()
+
+
+@functools.lru_cache(maxsize=16)
+def _read_image(path, ext):
+    """Cached reads of images.
+
+    Each SE image in DES is ~33 MB in float. Thus we use at most ~0.5 GB of
+    memory with a 16 element cache.
+    """
+    return fitsio.read(path, ext=ext)

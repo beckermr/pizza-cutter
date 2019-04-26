@@ -47,6 +47,7 @@ def bnds_data():
         pv2_10=2.846317319947E-03))
     position_offset = 1
     sky_bnds, ra_ccd, dec_ccd = get_rough_sky_bounds(
+        im_shape=wcs.get_naxis()[::-1],
         wcs=wcs,
         position_offset=position_offset,
         bounds_buffer_uv=16.0,

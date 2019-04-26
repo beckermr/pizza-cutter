@@ -49,8 +49,8 @@ def data(tmpdir_factory):
         cd1_2=0.0,
         cd2_1=0.0,
         cd2_2=7.305555555556E-05,
-        cunit1='deg     ',
-        cunit2='deg     ',
+        cunit1='deg',
+        cunit2='deg',
         crval1=321.417528,
         crval2=1.444444)
     wcs = WCS(wcs_header)
