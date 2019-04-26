@@ -1,7 +1,19 @@
+import os
 import pytest
+import yaml
 
 import galsim
 import esutil as eu
+
+
+@pytest.fixture(scope='function')
+def set_desdata(monkeypatch):
+    if 'TEST_DESDATA' in os.environ:
+        pth = os.path.join(os.environ['TEST_DESDATA'], 'DESDATA')
+    else:
+        pth = None
+    monkeypatch.setenv("DESDATA", pth)
+    monkeypatch.setenv("MEDS_DIR", pth)
 
 
 @pytest.fixture
@@ -78,7 +90,23 @@ def se_image_data():
         'crval1': 320.4912462427,
         'crval2': 0.6171111312777}
 
+    if 'TEST_DESDATA' in os.environ:
+        pth = os.path.join(
+            os.environ['TEST_DESDATA'], 'source_info.yaml')
+        with open(pth, 'r') as fp:
+            source_info = yaml.load(fp, Loader=yaml.Loader)
+        source_info['weight_path'] = source_info['image_path']
+        source_info['bmask_path'] = source_info['image_path']
+
+        for k in source_info:
+            if '_path' in k:
+                source_info[k] = os.path.join(
+                    os.environ['DESDATA'], source_info[k])
+    else:
+        source_info = None
+
     return {
+        'source_info': source_info,
         'wcs_header': se_wcs_data,
         'eu_wcs': eu.wcsutil.WCS(se_wcs_data),
         'gs_wcs': galsim.FitsWCS(

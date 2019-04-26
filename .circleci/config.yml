@@ -39,4 +39,7 @@ jobs:
             pip install -q --progress-bar=off --force-reinstall .
             flake8 pizza_cutter
             flake8 bin
+
+            git clone https://github.com/beckermr/des-y3-test-data.git
+            export TEST_DESDATA=`pwd`/des_y3_test_data
             pytest -vv pizza_cutter

@@ -9,8 +9,19 @@ from meds.bounds import Bounds
 from meds.util import radec_to_uv
 # import copy
 #
-# from ..memmappednoise import MemMappedNoiseImage
+from ..memmappednoise import MemMappedNoiseImage
 from ._sky_bounds import get_rough_sky_bounds
+from ._constants import MAGZP_REF
+
+
+@functools.lru_cache(maxsize=16)
+def _read_image(path, ext):
+    """Cached reads of images.
+
+    Each SE image in DES is ~33 MB in float. Thus we use at most ~0.5 GB of
+    memory with a 16 element cache.
+    """
+    return fitsio.read(path, ext=ext)
 
 
 class SEImageSlice(object):
@@ -32,8 +43,8 @@ class SEImageSlice(object):
         called appropriately.
     wcs : a ` esutil.wcsutil.WCS` or `galsim.BaseWCS` instance
         The WCS model to use.
-    random_state : int, None, or np.random.RandomState, optional
-        A random state to use. If None, a new RNG will be instantiated.
+    noise_seed : int
+        A seed to use for the noise field.
 
     Methods
     -------
@@ -74,15 +85,11 @@ class SEImageSlice(object):
     ccd_bnds : meds.bounds.Bounds
         A boundary object for the full CCD.
     """
-    def __init__(self, *, source_info, psf_model, wcs, random_state):
+    def __init__(self, *, source_info, psf_model, wcs, noise_seed):
         self.source_info = source_info
         self._psf_model = psf_model
         self._wcs = wcs
-
-        if isinstance(random_state, np.random.RandomState):
-            self._rng = random_state
-        else:
-            self._rng = np.random.RandomState(seed=random_state)
+        self._noise_seed = noise_seed
 
         # init the sky bounds
         sky_bnds, ra_ccd, dec_ccd = get_rough_sky_bounds(
@@ -100,8 +107,58 @@ class SEImageSlice(object):
 
     def set_slice(self, x_start, y_start, box_size):
         """Set the slice location and read a square slice of the
-        image, weight map, bit mask, and the noise field."""
-        raise NotImplementedError()
+        image, weight map, bit mask, and the noise field.
+
+        Parameters
+        ----------
+        x_start : int
+            The zero-indexed x/column location for the start of the slice.
+        y_start : int
+            The zero-indexed y/row location for the start of the slice.
+        box_size : int
+            The size of the square slice.
+        """
+        self.x_start = x_start
+        self.y_start = y_start
+        self.box_size = box_size
+
+        # we scale the image and weight map for the zero point
+        scale = 10.0**(0.4*(MAGZP_REF - self.source_info['magzp']))
+
+        # NOTE: DO NOT MODIFY THE UNDERLYING IMAGES IN PLACE BECAUSE THEY
+        # ARE BEING CACHED!
+        im = (
+            _read_image(
+                self.source_info['image_path'],
+                ext=self.source_info['image_ext']) -
+            _read_image(
+                self.source_info['bkg_path'],
+                ext=self.source_info['bkg_ext']))
+        self.image = im[
+            y_start:y_start+box_size, x_start:x_start+box_size].copy() * scale
+
+        wgt = _read_image(
+            self.source_info['weight_path'],
+            ext=self.source_info['weight_ext'])
+        self.weight = (
+            wgt[y_start:y_start+box_size, x_start:x_start+box_size].copy() /
+            scale**2)
+
+        bmask = _read_image(
+            self.source_info['bmask_path'],
+            ext=self.source_info['bmask_ext'])
+        self.bmask = bmask[
+            y_start:y_start+box_size, x_start:x_start+box_size].copy()
+
+        if not hasattr(self, '_noise'):
+            self._noise = MemMappedNoiseImage(
+                seed=self._noise_seed,
+                weight=wgt / scale**2,
+                sx=1024,
+                sy=1024)
+
+        self.noise = self._noise[
+            y_start:y_start+box_size, x_start:x_start+box_size].copy()
 
     def image2sky(self, x, y):
         """Compute ra, dec for a given set of pixel coordinates.
@@ -268,13 +325,3 @@ class SEImageSlice(object):
         """Get the PSF as a `galsim.InterpolatedImage` with the appropriate
         WCS set at the given location."""
         raise NotImplementedError()
-
-
-@functools.lru_cache(maxsize=16)
-def _read_image(path, ext):
-    """Cached reads of images.
-
-    Each SE image in DES is ~33 MB in float. Thus we use at most ~0.5 GB of
-    memory with a 16 element cache.
-    """
-    return fitsio.read(path, ext=ext)

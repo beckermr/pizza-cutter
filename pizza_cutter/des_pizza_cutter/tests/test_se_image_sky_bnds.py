@@ -10,7 +10,7 @@ from .._se_image import SEImageSlice
 def test_se_image_sky_bnds_array_shape(se_image_data, x, y):
     se_im = SEImageSlice(
         source_info=None, psf_model=None,
-        wcs=se_image_data['eu_wcs'], random_state=10)
+        wcs=se_image_data['eu_wcs'], noise_seed=10)
 
     with pytest.raises(AssertionError):
         se_im.image2sky(x, y)
@@ -22,7 +22,7 @@ def test_se_image_sky_bnds_array_shape(se_image_data, x, y):
 def test_se_image_sky_bnds_array(se_image_data):
     se_im = SEImageSlice(
         source_info=None, psf_model=None,
-        wcs=se_image_data['eu_wcs'], random_state=10)
+        wcs=se_image_data['eu_wcs'], noise_seed=10)
 
     ra = se_im._ra_ccd * np.ones(10)
     dec = se_im._dec_ccd * np.ones(10)
@@ -36,7 +36,7 @@ def test_se_image_sky_bnds_array(se_image_data):
 def test_se_image_sky_bnds_scalar(se_image_data):
     se_im = SEImageSlice(
         source_info=None, psf_model=None,
-        wcs=se_image_data['eu_wcs'], random_state=10)
+        wcs=se_image_data['eu_wcs'], noise_seed=10)
 
     ra = se_im._ra_ccd
     dec = se_im._dec_ccd

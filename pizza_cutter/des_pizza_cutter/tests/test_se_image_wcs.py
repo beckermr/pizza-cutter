@@ -12,7 +12,7 @@ from .._se_image import SEImageSlice
 def test_se_image_wcs_array_shape(se_image_data, x, y):
     se_im = SEImageSlice(
         source_info=None, psf_model=None,
-        wcs=se_image_data['eu_wcs'], random_state=10)
+        wcs=se_image_data['eu_wcs'], noise_seed=10)
 
     with pytest.raises(AssertionError):
         se_im.image2sky(x, y)
@@ -30,7 +30,7 @@ def test_se_image_wcs_array_shape(se_image_data, x, y):
 def test_se_image_wcs_esutil(se_image_data):
     se_im = SEImageSlice(
         source_info=None, psf_model=None,
-        wcs=se_image_data['eu_wcs'], random_state=10)
+        wcs=se_image_data['eu_wcs'], noise_seed=10)
 
     rng = np.random.RandomState(seed=10)
     for _ in range(10):
@@ -50,7 +50,7 @@ def test_se_image_wcs_esutil(se_image_data):
 def test_se_image_wcs_esutil_array(se_image_data):
     se_im = SEImageSlice(
         source_info=None, psf_model=None,
-        wcs=se_image_data['eu_wcs'], random_state=10)
+        wcs=se_image_data['eu_wcs'], noise_seed=10)
 
     x = np.arange(10)
     y = np.arange(10)
@@ -74,7 +74,7 @@ def test_se_image_wcs_esutil_array(se_image_data):
 def test_se_image_wcs_galsim(se_image_data):
     se_im = SEImageSlice(
         source_info=None, psf_model=None,
-        wcs=se_image_data['gs_wcs'], random_state=10)
+        wcs=se_image_data['gs_wcs'], noise_seed=10)
 
     rng = np.random.RandomState(seed=10)
     for _ in range(10):
@@ -98,7 +98,7 @@ def test_se_image_wcs_galsim(se_image_data):
 def test_se_image_wcs_galsim_array(se_image_data):
     se_im = SEImageSlice(
         source_info=None, psf_model=None,
-        wcs=se_image_data['gs_wcs'], random_state=10)
+        wcs=se_image_data['gs_wcs'], noise_seed=10)
 
     x = np.arange(2)
     y = np.arange(2) + 100
