@@ -6,16 +6,6 @@ import galsim
 import esutil as eu
 
 
-@pytest.fixture(scope='function')
-def set_desdata(monkeypatch):
-    if 'TEST_DESDATA' in os.environ:
-        pth = os.path.join(os.environ['TEST_DESDATA'], 'DESDATA')
-    else:
-        pth = None
-    monkeypatch.setenv("DESDATA", pth)
-    monkeypatch.setenv("MEDS_DIR", pth)
-
-
 @pytest.fixture
 def se_image_data():
     se_wcs_data = {

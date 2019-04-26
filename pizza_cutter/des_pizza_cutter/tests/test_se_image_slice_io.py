@@ -14,7 +14,10 @@ from ...memmappednoise import MemMappedNoiseImage
     reason=(
         'SEImageSlice i/o can only be tested if '
         'test data is at TEST_DESDATA'))
-def test_se_image_slice_read(set_desdata, se_image_data):
+def test_se_image_slice_read(monkeypatch, se_image_data):
+    monkeypatch.setenv(
+        'DESDATA', os.path.join(os.environ['TEST_DESDATA'], 'DESDATA'))
+
     se_im = SEImageSlice(
         source_info=se_image_data['source_info'], psf_model=None,
         wcs=se_image_data['eu_wcs'], noise_seed=10)
@@ -61,7 +64,10 @@ def test_se_image_slice_read(set_desdata, se_image_data):
     reason=(
         'SEImageSlice i/o can only be tested if '
         'test data is at TEST_DESDATA'))
-def test_se_image_slice_noise_adjacent(set_desdata, se_image_data):
+def test_se_image_slice_noise_adjacent(monkeypatch, se_image_data):
+    monkeypatch.setenv(
+        'DESDATA', os.path.join(os.environ['TEST_DESDATA'], 'DESDATA'))
+
     se_im = SEImageSlice(
         source_info=se_image_data['source_info'], psf_model=None,
         wcs=se_image_data['eu_wcs'], noise_seed=10)
@@ -81,7 +87,10 @@ def test_se_image_slice_noise_adjacent(set_desdata, se_image_data):
     reason=(
         'SEImageSlice i/o can only be tested if '
         'test data is at TEST_DESDATA'))
-def test_se_image_slice_double_use(set_desdata, se_image_data):
+def test_se_image_slice_double_use(monkeypatch, se_image_data):
+    monkeypatch.setenv(
+        'DESDATA', os.path.join(os.environ['TEST_DESDATA'], 'DESDATA'))
+
     se_im = SEImageSlice(
         source_info=se_image_data['source_info'], psf_model=None,
         wcs=se_image_data['eu_wcs'], noise_seed=10)
@@ -127,7 +136,10 @@ def test_se_image_slice_double_use(set_desdata, se_image_data):
     reason=(
         'SEImageSlice i/o can only be tested if '
         'test data is at TEST_DESDATA'))
-def test_se_image_slice_two_obj(set_desdata, se_image_data):
+def test_se_image_slice_two_obj(monkeypatch, se_image_data):
+    monkeypatch.setenv(
+        'DESDATA', os.path.join(os.environ['TEST_DESDATA'], 'DESDATA'))
+
     se_im = SEImageSlice(
         source_info=se_image_data['source_info'], psf_model=None,
         wcs=se_image_data['eu_wcs'], noise_seed=10)
