@@ -41,6 +41,5 @@ jobs:
             flake8 bin
 
             git clone https://github.com/beckermr/des-y3-test-data.git
-            export TEST_DESDATA=`pwd`/des_y3_test_data
-            ls $TEST_DESDATA
+            export TEST_DESDATA=`pwd`/des-y3-test-data
             pytest -vv pizza_cutter
