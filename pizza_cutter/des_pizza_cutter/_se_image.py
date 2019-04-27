@@ -4,6 +4,7 @@ import fitsio
 import numpy as np
 import esutil as eu
 import galsim
+import piff
 
 from meds.bounds import Bounds
 from meds.util import radec_to_uv
@@ -37,7 +38,7 @@ class SEImageSlice(object):
     ----------
     source_info : dict
         The single-epoch source info from the `desmeds` classes.
-    psf_model : a `galsim.GSObject`, `psfex.PSFEx`, `galsim.des.DES_PSFEx`,
+    psf_model : a `galsim.GSObject`, `galsim.des.DES_PSFEx`,
             or `piff.PSF` object
         The PSF model to use. The type of input will be detected and then
         called appropriately.
@@ -55,6 +56,9 @@ class SEImageSlice(object):
         Compute ra, dec for a given set of pixel coordinates.
     sky2image(ra, dec)
         Return x, y pixel coordinates for a given ra, dec.
+    get_wcs_jacobian(x, y)
+        Return the Jacobian of the WCS transformation as a `galsim.JacobianWCS`
+        object.
     contains_radec(ra, dec)
         Use the approximate sky bounds to detect if the given point in
         ra, dec is anywhere in the total SE image (not just the slice).
@@ -279,6 +283,43 @@ class SEImageSlice(object):
         else:
             return x, y
 
+    def get_wcs_jacobian(self, x, y):
+        """Return the Jacobian of the WCS transformation as a
+        `galsim.JacobianWCS` object.
+
+        Parameters
+        ----------
+        x : scalar or 1d array-like
+            The x/column image location in zero-indexed, pixel centered
+            coordinates.
+        y : scalar or 1d array-like
+            The y/row image location in zero-indexed, pixel centered
+            coordinates.
+
+        Returns
+        -------
+        jac : galsim.JacobianWCS
+            The WCS Jacobian at (x, y).
+        """
+        assert np.ndim(x) == 0 and np.ndim(y) == 0, (
+            "WCS Jacobians are only returned for a single position at a time")
+
+        if isinstance(self._wcs, eu.wcsutil.WCS):
+            tup = self._wcs.get_jacobian(x+1, y+1)
+            dudx = tup[0]
+            dudy = tup[1]
+            dvdx = tup[2]
+            dvdy = tup[3]
+            jac = galsim.JacobianWCS(
+                dudx, dudy, dvdx, dvdy)
+        elif isinstance(self._wcs, galsim.BaseWCS):
+            pos = galsim.PositionD(x=x+1, y=y+1)
+            jac = self._wcs.local(image_pos=pos)
+        else:
+            raise ValueError('WCS %s not recognized!' % self._wcs)
+
+        return jac
+
     def contains_radec(self, ra, dec):
         """Use the approximate sky bounds to detect if the given point in
         ra, dec is anywhere in the total SE image (not just the slice).
@@ -318,8 +359,75 @@ class SEImageSlice(object):
             return in_sky_bnds
 
     def get_psf_image(self, x, y):
-        """Get an image of the PSF as a numpy array at the given location."""
-        raise NotImplementedError()
+        """Get an image of the PSF as a numpy array at the given location.
+
+        NOTE: The PSF is ~almost always centered at the canonical center of
+        the image (e.g., (dim - 1/2)). Further, the returned image is always
+        of odd dimension. Finally, the PSF is drawn at the nearest pixel
+        center.
+
+        Parameters
+        ----------
+        x : scalar
+            The x/column image location in zero-indexed, pixel centered
+            coordinates.
+        y : scalar
+            The y/row image location in zero-indexed, pixel centered
+            coordinates.
+
+        Returns
+        -------
+        psf_im : np.ndarray
+            An image of the PSF with odd dimension and with the PSF centered
+            at the canonical center of the image.
+        """
+        assert np.ndim(x) == 0 and np.ndim(y) == 0, (
+            "PSFs are only returned for a single position at a time")
+
+        x = int(x+0.5)
+        y = int(y+0.5)
+
+        if isinstance(self._psf_model, galsim.GSObject):
+            # get jacobian
+            wcs = self.get_wcs_jacobian(x, y)
+
+            # draw the image
+            if not hasattr(self, '_galsim_psf_dim'):
+                im = self._psf_model.drawImage(
+                    wcs=wcs, setup_only=True)
+                if im.array.shape[0] % 2 == 0:
+                    self._galsim_psf_dim = im.array.shape[0] + 1
+                else:
+                    self._galsim_psf_dim = im.array.shape[0]
+
+            im = self._psf_model.drawImage(
+                nx=self._galsim_psf_dim,
+                ny=self._galsim_psf_dim,
+                wcs=wcs)
+            psf_im = im.array.copy()
+
+        elif isinstance(self._psf_model, galsim.des.DES_PSFEx):
+            # get the gs object
+
+            # get the jacobian
+
+            # draw the image
+            pass
+        elif isinstance(self._psf_model, piff.PSF):
+            # get the galsim object
+
+            # draw the image
+            pass
+        else:
+            raise ValueError('PSF %s not recognized!' % self._psf_model)
+
+        # always normalize to unity
+        psf_im /= np.sum(psf_im)
+
+        assert psf_im.shape[0] == psf_im.shape[1], "PSF image is not square!"
+        assert psf_im.shape[0] % 2 == 1, "PSF dimension is not odd!"
+
+        return psf_im
 
     def get_psf_gsobject(self, x, y):
         """Get the PSF as a `galsim.InterpolatedImage` with the appropriate
