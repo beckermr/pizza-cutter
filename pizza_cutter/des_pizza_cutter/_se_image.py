@@ -64,9 +64,6 @@ class SEImageSlice(object):
         ra, dec is anywhere in the total SE image (not just the slice).
     get_psf_image(x, y)
         Get an image of the PSF as a numpy array at the given location.
-    get_psf_gsobject(x, y)
-        Get the PSF as a `galsim.InterpolatedImage` with the appropriate
-        WCS set at the given location.
 
     Attributes
     ----------
@@ -361,11 +358,6 @@ class SEImageSlice(object):
     def get_psf_image(self, x, y):
         """Get an image of the PSF as a numpy array at the given location.
 
-        NOTE: The PSF is ~almost always centered at the canonical center of
-        the image (e.g., (dim - 1/2)). Further, the returned image is always
-        of odd dimension. Finally, the PSF is drawn at the nearest pixel
-        center.
-
         Parameters
         ----------
         x : scalar
@@ -384,10 +376,17 @@ class SEImageSlice(object):
         assert np.ndim(x) == 0 and np.ndim(y) == 0, (
             "PSFs are only returned for a single position at a time")
 
-        x = int(x+0.5)
-        y = int(y+0.5)
+        # these are the subpixel offsets of the request position and
+        # the nearest pixel center
+        # we will draw the psf with these same offsets
+        # when used with a coadd via interpolation, this should
+        # locate the PSF center at the proper pixel location in the final
+        # coadd
+        dx = x - int(np.floor(x))
+        dy = y - int(np.floor(y))
 
         if isinstance(self._psf_model, galsim.GSObject):
+
             # get jacobian
             wcs = self.get_wcs_jacobian(x, y)
 
@@ -403,21 +402,34 @@ class SEImageSlice(object):
             im = self._psf_model.drawImage(
                 nx=self._galsim_psf_dim,
                 ny=self._galsim_psf_dim,
-                wcs=wcs)
+                wcs=wcs,
+                offset=galsim.PositionD(x=dx, y=dy))
             psf_im = im.array.copy()
 
         elif isinstance(self._psf_model, galsim.des.DES_PSFEx):
             # get the gs object
+            psf = self._psf_model.getPSF(galsim.PositionD(x=x+1, y=y+1))
 
-            # get the jacobian
+            # get the jacobian if a wcs is present
+            if self._psf_model.wcs is None:
+                # psf is in image coords, so jacobian is unity
+                wcs = galsim.PixelScale(1.0)
+            else:
+                # psf is in work coords, so we need to draw with the jacobian
+                wcs = self.get_wcs_jacobian(x, y)
 
             # draw the image
-            pass
+            im = psf.drawImage(
+                nx=33, ny=33, wcs=wcs, method='no_pixel',
+                offset=galsim.PositionD(x=dx, y=dy))
+            psf_im = im.array.copy()
+
         elif isinstance(self._psf_model, piff.PSF):
-            # get the galsim object
-
             # draw the image
-            pass
+            # piff is zero offset? wtf?
+            im = self._psf_model.draw(x=x, y=y, stamp_size=17)
+            psf_im = im.array.copy()
+
         else:
             raise ValueError('PSF %s not recognized!' % self._psf_model)
 
@@ -428,8 +440,3 @@ class SEImageSlice(object):
         assert psf_im.shape[0] % 2 == 1, "PSF dimension is not odd!"
 
         return psf_im
-
-    def get_psf_gsobject(self, x, y):
-        """Get the PSF as a `galsim.InterpolatedImage` with the appropriate
-        WCS set at the given location."""
-        raise NotImplementedError()

@@ -1,6 +1,7 @@
 import os
 import pytest
 import yaml
+import fitsio
 
 import galsim
 import esutil as eu
@@ -93,6 +94,12 @@ def se_image_data():
         for k in source_info:
             if '_path' in k:
                 source_info[k] = os.path.join(DESDATA, source_info[k])
+
+        _se_wcs_data = fitsio.read_header(
+            source_info['image_path'],
+            ext=source_info['image_ext'])
+        se_wcs_data = {
+            k: _se_wcs_data[k] for j in _se_wcs_data.keys()}
     else:
         source_info = None
 
