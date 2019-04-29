@@ -241,7 +241,10 @@ def test_medsreader(psf_mock, data, using_psfex):
         assert ii['position_offset'] == POSITION_OFFSET
         ii_wcs = json.loads(ii['wcs'][0].decode('utf=8'))
         for k, v in data['wcs_header'].items():
-            assert ii_wcs[k.lower()].strip() == v
+            if isinstance(ii_wcs[k.lower()], str):
+                assert ii_wcs[k.lower()].strip() == v
+            else:
+                assert ii_wcs[k.lower()] == v
 
         metadata = m.get_meta()
         assert metadata['magzp_ref'] == MAGZP_REF
