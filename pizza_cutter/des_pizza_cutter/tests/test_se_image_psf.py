@@ -33,7 +33,7 @@ def test_se_image_psf_gsobject_offcenter(se_image_data):
         psf_model=galsim.Gaussian(fwhm=0.8),
         wcs=se_image_data['eu_wcs'], noise_seed=10)
 
-    psf_im = se_im.get_psf_image(10.1, 11.5)
+    psf_im = se_im.get_psf_image(10.75, 11.75)
     ind = np.argmax(psf_im)
     cen = (psf_im.shape[0] - 1) / 2
     assert ind != psf_im.shape[1]*cen + cen
@@ -41,8 +41,8 @@ def test_se_image_psf_gsobject_offcenter(se_image_data):
     true_psf_im = galsim.Gaussian(fwhm=0.8).drawImage(
         nx=19,
         ny=19,
-        wcs=se_im.get_wcs_jacobian(10.1, 11.5),
-        offset=galsim.PositionD(x=0.1, y=0.5)
+        wcs=se_im.get_wcs_jacobian(10.75, 11.75),
+        offset=galsim.PositionD(x=0.75, y=0.75)
     ).array
     true_psf_im /= np.sum(true_psf_im)
     assert np.array_equal(psf_im, true_psf_im)
@@ -65,6 +65,82 @@ def test_se_image_psf_gsobject_center(se_image_data):
         ny=19,
         wcs=se_im.get_wcs_jacobian(10, 11),
         offset=galsim.PositionD(x=0, y=0)
+    ).array
+    true_psf_im /= np.sum(true_psf_im)
+    assert np.array_equal(psf_im, true_psf_im)
+
+
+@pytest.mark.parametrize('use_wcs', [False, True])
+def test_se_image_psf_psfex_offcenter(se_image_data, use_wcs):
+    if use_wcs:
+        psfex = galsim.des.DES_PSFEx(
+            se_image_data['source_info']['psf_path'],
+            se_image_data['source_info']['image_path'],
+            )
+    else:
+        psfex = galsim.des.DES_PSFEx(
+            se_image_data['source_info']['psf_path'])
+
+    se_im = SEImageSlice(
+        source_info=se_image_data['source_info'],
+        psf_model=psfex,
+        wcs=se_image_data['eu_wcs'], noise_seed=10)
+
+    if use_wcs:
+        wcs = se_im.get_wcs_jacobian(10.5, 11.5)
+    else:
+        wcs = galsim.PixelScale(1.0)
+
+    psf_im = se_im.get_psf_image(10.5, 11.5)
+    ind = np.argmax(psf_im)
+    cen = (psf_im.shape[0] - 1) / 2
+    assert ind != psf_im.shape[1]*cen + cen
+
+    psf = psfex.getPSF(galsim.PositionD(x=10.5+1, y=11.5+1))
+    true_psf_im = psf.drawImage(
+        nx=psf_im.shape[0],
+        ny=psf_im.shape[0],
+        wcs=wcs,
+        offset=galsim.PositionD(x=0.5, y=0.5),
+        method='no_pixel',
+    ).array
+    true_psf_im /= np.sum(true_psf_im)
+    assert np.array_equal(psf_im, true_psf_im)
+
+
+@pytest.mark.parametrize('use_wcs', [False, True])
+def test_se_image_psf_psfex_center(se_image_data, use_wcs):
+    if use_wcs:
+        psfex = galsim.des.DES_PSFEx(
+            se_image_data['source_info']['psf_path'],
+            se_image_data['source_info']['image_path'],
+            )
+    else:
+        psfex = galsim.des.DES_PSFEx(
+            se_image_data['source_info']['psf_path'])
+
+    se_im = SEImageSlice(
+        source_info=se_image_data['source_info'],
+        psf_model=psfex,
+        wcs=se_image_data['eu_wcs'], noise_seed=10)
+
+    if use_wcs:
+        wcs = se_im.get_wcs_jacobian(10, 11)
+    else:
+        wcs = galsim.PixelScale(1.0)
+
+    psf_im = se_im.get_psf_image(10, 11)
+    ind = np.argmax(psf_im)
+    cen = (psf_im.shape[0] - 1) / 2
+    assert ind == psf_im.shape[1]*cen + cen
+
+    psf = psfex.getPSF(galsim.PositionD(x=10+1, y=11+1))
+    true_psf_im = psf.drawImage(
+        nx=psf_im.shape[0],
+        ny=psf_im.shape[0],
+        wcs=wcs,
+        offset=galsim.PositionD(x=0, y=0),
+        method='no_pixel',
     ).array
     true_psf_im /= np.sum(true_psf_im)
     assert np.array_equal(psf_im, true_psf_im)
