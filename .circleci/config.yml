@@ -24,6 +24,7 @@ jobs:
             . venv/bin/activate
             pip install -U pip setuptools numpy cython pybind11
             pip install -U --progress-bar=off --upgrade-strategy=eager -r dev-requirements.txt
+            pip install galsim
             pip install -U --progress-bar=off --upgrade-strategy=eager -r requirements.txt
 
       - save_cache:
