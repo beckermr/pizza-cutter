@@ -43,7 +43,7 @@ def test_se_image_psf_gsobject_offcenter(se_image_data):
         nx=19,
         ny=19,
         wcs=se_im.get_wcs_jacobian(10.75, 11.75),
-        offset=galsim.PositionD(x=0.75, y=0.75)
+        offset=galsim.PositionD(x=-0.25, y=-0.25)
     ).array
     true_psf_im /= np.sum(true_psf_im)
     assert np.array_equal(psf_im, true_psf_im)
@@ -102,7 +102,7 @@ def test_se_image_psf_psfex_offcenter(se_image_data, use_wcs):
         nx=psf_im.shape[0],
         ny=psf_im.shape[0],
         wcs=wcs,
-        offset=galsim.PositionD(x=0.5, y=0.5),
+        offset=galsim.PositionD(x=-0.5, y=-0.5),
         method='no_pixel',
     ).array
     true_psf_im /= np.sum(true_psf_im)
@@ -160,7 +160,7 @@ def test_se_image_psf_piff_offcenter(se_image_data):
     assert ind != psf_im.shape[1]*cen + cen
 
     true_psf_im = psf_mod.draw(
-        10.75, 11.75, stamp_size=17, offset=(0.75, 0.75)).array
+        10.75, 11.75, stamp_size=21, offset=(-0.25, -0.25)).array
     true_psf_im /= np.sum(true_psf_im)
     assert np.array_equal(psf_im, true_psf_im)
 
@@ -178,6 +178,6 @@ def test_se_image_psf_piff_center(se_image_data):
     assert ind == psf_im.shape[1]*cen + cen
 
     true_psf_im = psf_mod.draw(
-        10, 11, stamp_size=17, offset=(0, 0)).array
+        10, 11, stamp_size=21, offset=(0, 0)).array
     true_psf_im /= np.sum(true_psf_im)
     assert np.array_equal(psf_im, true_psf_im)

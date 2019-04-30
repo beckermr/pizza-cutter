@@ -1,9 +1,10 @@
+import os
 import galsim
 import esutil as eu
 import fitsio
 
 from meds.bounds import Bounds
-import psfex
+import galsim.des
 
 from ._sky_bounds import get_rough_sky_bounds
 from ._des_coadd_data import DESCoadd, DESCoaddSources
@@ -132,8 +133,9 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
         ii['galsim_wcs'] = galsim.FitsWCS(ii['image_path'])
         ii['position_offset'] = POSITION_OFFSET
 
-        # psf
-        ii['psf_rec'] = psfex.PSFEx(ii['psf_path'])
+        # psfex psf
+        ii['psf_rec'] = galsim.des.DES_PSFEx(ii['psf_path'])
+        ii['piff_rec'] = _get_piff_path(ii['image_path'])
 
         # rough sky cut tests
         ncol, nrow = ii['wcs'].get_naxis()
@@ -159,3 +161,8 @@ def _munge_fits_header(hdr):
         except Exception:
             pass
     return dct
+
+
+def _get_piff_path(imag_path):
+    PIFF_DATA_DIR = os.environ['PIFF_DATA_DIR']
+    return False

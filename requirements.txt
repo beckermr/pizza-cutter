@@ -6,13 +6,12 @@ pyyaml
 numba
 easyaccess
 click
-git+https://github.com/esheldon/psfex.git@master
-git+https://github.com/esheldon/meds.git@master
 esutil
 sep
 joblib
 jinja2
 blosc
 tqdm
+git+https://github.com/esheldon/meds.git@master
 git+https://github.com/rmjarvis/Piff.git@master
 git+https://github.com/gbernstein/pixmappy.git

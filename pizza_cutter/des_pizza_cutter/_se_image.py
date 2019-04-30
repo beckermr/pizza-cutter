@@ -382,8 +382,8 @@ class SEImageSlice(object):
         # when used with a coadd via interpolation, this should
         # locate the PSF center at the proper pixel location in the final
         # coadd
-        dx = x - int(np.floor(x))
-        dy = y - int(np.floor(y))
+        dx = x - int(x+0.5)
+        dy = y - int(y+0.5)
 
         if isinstance(self._psf_model, galsim.GSObject):
 
@@ -420,14 +420,14 @@ class SEImageSlice(object):
 
             # draw the image
             im = psf.drawImage(
-                nx=17, ny=17, wcs=wcs, method='no_pixel',
+                nx=21, ny=21, wcs=wcs, method='no_pixel',
                 offset=galsim.PositionD(x=dx, y=dy))
             psf_im = im.array.copy()
 
         elif isinstance(self._psf_model, piff.PSF):
             # draw the image
             # piff is zero offset? wtf?
-            im = self._psf_model.draw(x=x, y=y, stamp_size=17, offset=(dx, dy))
+            im = self._psf_model.draw(x=x, y=y, stamp_size=21, offset=(dx, dy))
             psf_im = im.array.copy()
         else:
             raise ValueError('PSF %s not recognized!' % self._psf_model)
