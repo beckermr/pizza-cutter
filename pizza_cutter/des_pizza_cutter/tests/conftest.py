@@ -83,6 +83,8 @@ def se_image_data():
 
     if 'TEST_DESDATA' in os.environ:
         DESDATA = os.path.join(os.environ['TEST_DESDATA'], 'DESDATA')
+        PIFF_DATA_DIR = os.path.join(
+            os.environ['TEST_DESDATA'], 'PIFF_DATA_DIR')
 
         pth = os.path.join(
             os.environ['TEST_DESDATA'], 'source_info.yaml')
@@ -92,8 +94,10 @@ def se_image_data():
         source_info['bmask_path'] = source_info['image_path']
 
         for k in source_info:
-            if '_path' in k:
+            if '_path' in k and k != 'piff_path':
                 source_info[k] = os.path.join(DESDATA, source_info[k])
+        source_info['piff_path'] = os.path.join(
+            PIFF_DATA_DIR, source_info['piff_path'])
 
         _se_wcs_data = fitsio.read_header(
             source_info['image_path'],

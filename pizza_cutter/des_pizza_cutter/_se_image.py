@@ -420,16 +420,15 @@ class SEImageSlice(object):
 
             # draw the image
             im = psf.drawImage(
-                nx=33, ny=33, wcs=wcs, method='no_pixel',
+                nx=17, ny=17, wcs=wcs, method='no_pixel',
                 offset=galsim.PositionD(x=dx, y=dy))
             psf_im = im.array.copy()
 
         elif isinstance(self._psf_model, piff.PSF):
             # draw the image
             # piff is zero offset? wtf?
-            im = self._psf_model.draw(x=x, y=y, stamp_size=17)
+            im = self._psf_model.draw(x=x, y=y, stamp_size=17, offset=(dx, dy))
             psf_im = im.array.copy()
-
         else:
             raise ValueError('PSF %s not recognized!' % self._psf_model)
 

@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 import galsim
+import piff
 
 from .._se_image import SEImageSlice
 
@@ -142,5 +143,41 @@ def test_se_image_psf_psfex_center(se_image_data, use_wcs):
         offset=galsim.PositionD(x=0, y=0),
         method='no_pixel',
     ).array
+    true_psf_im /= np.sum(true_psf_im)
+    assert np.array_equal(psf_im, true_psf_im)
+
+
+def test_se_image_psf_piff_offcenter(se_image_data):
+    psf_mod = piff.PSF.read(se_image_data['source_info']['piff_path'])
+    se_im = SEImageSlice(
+        source_info=se_image_data['source_info'],
+        psf_model=psf_mod,
+        wcs=se_image_data['eu_wcs'], noise_seed=10)
+
+    psf_im = se_im.get_psf_image(10.75, 11.75)
+    ind = np.argmax(psf_im)
+    cen = (psf_im.shape[0] - 1) / 2
+    assert ind != psf_im.shape[1]*cen + cen
+
+    true_psf_im = psf_mod.draw(
+        10.75, 11.75, stamp_size=17, offset=(0.75, 0.75)).array
+    true_psf_im /= np.sum(true_psf_im)
+    assert np.array_equal(psf_im, true_psf_im)
+
+
+def test_se_image_psf_piff_center(se_image_data):
+    psf_mod = piff.PSF.read(se_image_data['source_info']['piff_path'])
+    se_im = SEImageSlice(
+        source_info=se_image_data['source_info'],
+        psf_model=psf_mod,
+        wcs=se_image_data['eu_wcs'], noise_seed=10)
+
+    psf_im = se_im.get_psf_image(10, 11)
+    ind = np.argmax(psf_im)
+    cen = (psf_im.shape[0] - 1) / 2
+    assert ind == psf_im.shape[1]*cen + cen
+
+    true_psf_im = psf_mod.draw(
+        10, 11, stamp_size=17, offset=(0, 0)).array
     true_psf_im /= np.sum(true_psf_im)
     assert np.array_equal(psf_im, true_psf_im)
