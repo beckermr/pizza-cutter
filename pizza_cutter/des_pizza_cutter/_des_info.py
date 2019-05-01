@@ -170,4 +170,4 @@ def _munge_fits_header(hdr):
 
 def _get_piff_path(imag_path):
     PIFF_DATA_DIR = os.environ['PIFF_DATA_DIR']
-    return False
+    return PIFF_DATA_DIR
