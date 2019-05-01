@@ -421,9 +421,9 @@ class SEImageSlice(object):
                 # psf is in work coords, so we need to draw with the jacobian
                 wcs = self.get_wcs_jacobian(x, y)
 
-            # draw the image - always use 21 pixels for DES Y3+
+            # draw the image - always use 33 pixels for DES Y3+
             im = psf.drawImage(
-                nx=21, ny=21, wcs=wcs, method='no_pixel',
+                nx=33, ny=33, wcs=wcs, method='no_pixel',
                 offset=galsim.PositionD(x=dx, y=dy))
             psf_im = im.array.copy()
 
