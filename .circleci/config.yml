@@ -24,6 +24,7 @@ jobs:
             . venv/bin/activate
             pip install -U pip setuptools numpy cython pybind11
             pip install -U --progress-bar=off --upgrade-strategy=eager -r dev-requirements.txt
+            pip install galsim
             pip install -U --progress-bar=off --upgrade-strategy=eager -r requirements.txt
 
       - save_cache:
@@ -39,4 +40,7 @@ jobs:
             pip install -q --progress-bar=off --force-reinstall .
             flake8 pizza_cutter
             flake8 bin
+
+            git clone https://github.com/beckermr/des-y3-test-data.git
+            export TEST_DESDATA=`pwd`/des-y3-test-data
             pytest -vv pizza_cutter

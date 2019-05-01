@@ -3,7 +3,7 @@ import esutil as eu
 import fitsio
 
 from meds.bounds import Bounds
-import psfex
+import galsim.des
 
 from ._sky_bounds import get_rough_sky_bounds
 from ._constants import MAGZP_REF, POSITION_OFFSET
@@ -137,8 +137,8 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
         ii['galsim_wcs'] = galsim.FitsWCS(ii['image_path'])
         ii['position_offset'] = POSITION_OFFSET
 
-        # psf
-        ii['psf_rec'] = psfex.PSFEx(ii['psf_path'])
+        # psfex psf
+        ii['psf_rec'] = galsim.des.DES_PSFEx(ii['psf_path'])
 
         # rough sky cut tests
         ncol, nrow = ii['wcs'].get_naxis()
