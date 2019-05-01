@@ -1,4 +1,3 @@
-import os
 import galsim
 import esutil as eu
 import fitsio
@@ -140,7 +139,6 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
 
         # psfex psf
         ii['psf_rec'] = galsim.des.DES_PSFEx(ii['psf_path'])
-        ii['piff_rec'] = _get_piff_path(ii['image_path'])
 
         # rough sky cut tests
         ncol, nrow = ii['wcs'].get_naxis()
@@ -166,8 +164,3 @@ def _munge_fits_header(hdr):
         except Exception:
             pass
     return dct
-
-
-def _get_piff_path(imag_path):
-    PIFF_DATA_DIR = os.environ['PIFF_DATA_DIR']
-    return PIFF_DATA_DIR
