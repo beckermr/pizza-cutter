@@ -371,17 +371,19 @@ class SEImageSlice(object):
         -------
         psf_im : np.ndarray
             An image of the PSF with odd dimension and with the PSF centered
-            at the canonical center of the image.
+            at the canonical center of the image. The central pixel of the
+            returned image is located at coordinates `(int(x+0.5), int(y+0.5))`
+            in the SE image.
         """
         assert np.ndim(x) == 0 and np.ndim(y) == 0, (
             "PSFs are only returned for a single position at a time")
 
-        # these are the subpixel offsets of the request position and
-        # the nearest pixel center
-        # we will draw the psf with these same offsets
-        # when used with a coadd via interpolation, this should
-        # locate the PSF center at the proper pixel location in the final
-        # coadd
+        # - these are the subpixel offsets between the request position and
+        #   the nearest pixel center
+        # - we will draw the psf with these same offsets
+        # - when used with a coadd via interpolation, this should
+        #   locate the PSF center at the proper pixel location in the final
+        #   coadd
         dx = x - int(x+0.5)
         dy = y - int(y+0.5)
 
@@ -390,7 +392,8 @@ class SEImageSlice(object):
             # get jacobian
             wcs = self.get_wcs_jacobian(x, y)
 
-            # draw the image
+            # draw the image - here we cache galsim's intrnal image size
+            # to force it to be off each time
             if not hasattr(self, '_galsim_psf_dim'):
                 im = self._psf_model.drawImage(
                     wcs=wcs, setup_only=True)
@@ -418,7 +421,7 @@ class SEImageSlice(object):
                 # psf is in work coords, so we need to draw with the jacobian
                 wcs = self.get_wcs_jacobian(x, y)
 
-            # draw the image
+            # draw the image - always use 21 pixels for DES Y3+
             im = psf.drawImage(
                 nx=21, ny=21, wcs=wcs, method='no_pixel',
                 offset=galsim.PositionD(x=dx, y=dy))
@@ -426,8 +429,12 @@ class SEImageSlice(object):
 
         elif isinstance(self._psf_model, piff.PSF):
             # draw the image
-            # piff is zero offset? wtf?
-            im = self._psf_model.draw(x=x, y=y, stamp_size=21, offset=(dx, dy))
+            # piff is zero-indexed? wtf?
+            # piff requires no offset since it renders in the actual
+            # SE image pixel grid, not a hypothetical grid with the
+            # star at a pixel center
+            # again always 21 pixels for DES Y3+
+            im = self._psf_model.draw(x=x, y=y, stamp_size=21)
             psf_im = im.array.copy()
         else:
             raise ValueError('PSF %s not recognized!' % self._psf_model)
