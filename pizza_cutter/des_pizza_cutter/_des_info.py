@@ -2,11 +2,11 @@ import galsim
 import esutil as eu
 import fitsio
 
-from meds.bounds import Bounds
 import galsim.des
+import desmeds
 
-from ._sky_bounds import get_rough_sky_bounds
 from ._constants import MAGZP_REF, POSITION_OFFSET
+from ._piff_tools import load_piff_from_image_path
 
 
 def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
@@ -22,8 +22,8 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
     campaign : str
         The coadd DESDM campaign (e.g., 'Y3A1_COADD')
     medsconf : str
-        The MEDS version. This string is used to set the download directory
-        for the files for subsequent downloads.
+        The MEDS version. This string is used to find where the source
+        images are located
 
     Returns
     -------
@@ -52,9 +52,7 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
 
             'wcs' : the SE `esutil.wcsutil.WCS` object
             'galsim_wcs' : the SE `galsim.FitsWCS` object
-            'position_offset' : the offset to add to zero-indexed image
-                coordinates to get transform them to the convention assumed
-                by the WCS.
+            'pixmappy_wcs' : the SE pixmappy WCS solution
             'image_path' : the path to the FITS file with the SE image
             'image_ext' : the name of the FITS extension with the SE image
             'bkg_path' : the path to the FITS file with the SE background image
@@ -65,28 +63,13 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
                 map
             'bmask_path' : the path to the FITS file with the SE bit mask
             'bmask_ext' : the name of the FITS extension with the SE bit mask
-            'psf_rec' : an object with the PSF reconstruction. This object
-                will have the methods `get_rec(row, col)` and
-                `get_center(row, col)` for getting an image of the PSF and
-                its center.
-            'sky_bnds' : a `meds.meds.Bounds` object with the bounds of the
-                SE image in a (u, v) spherical coordinate system about the
-                center. See the documentation of `get_rough_sky_bounds` for
-                more details on how to use this object.
-            'ra_ccd' : the RA of the SE image center in decimal degreees
-            'dec_ccd' : the DEC of the SE image center in decimal degrees
-            'ccd_bnds' : a `meds.meds.Bounds` object in zero-indexed image
-                coordinates
+            'psfex_psf' : a galsim.des.DES_PSFEx object with the PSFEx
+                PSF reconstruction.
+            'piff_psf' : a piff.PSF object with the Piff PSF reconstruction.
             'scale' : a multiplicative factor to apply to the image
                 (`*= scale`) and weight map (`/= scale**2`) for magnitude
                 zero-point calibration.
-    coadd : `DESCoadd`
-        The `DESCoadd` object that can be used to download the data via the
-        `download()` method.
     """
-
-    # guarding this here, since not all codes would need it
-    import desmeds
 
     coadd_srcs = desmeds.coaddsrc.CoaddSrc(
         medsconf,
@@ -120,6 +103,8 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
     info['seg_ext'] = 'sci'
 
     for ii in info['src_info']:
+        ii['image_flags'] = 0
+
         ii['image_ext'] = 'sci'
 
         ii['weight_path'] = ii['image_path']
@@ -138,22 +123,28 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
         ii['position_offset'] = POSITION_OFFSET
 
         # psfex psf
-        ii['psf_rec'] = galsim.des.DES_PSFEx(ii['psf_path'])
+        ii['psfex_psf'] = galsim.des.DES_PSFEx(ii['psf_path'])
 
-        # rough sky cut tests
-        ncol, nrow = ii['wcs'].get_naxis()
-        sky_bnds, ra_ccd, dec_ccd = get_rough_sky_bounds(
-            wcs=ii['wcs'],
-            position_offset=POSITION_OFFSET,
-            bounds_buffer_uv=16.0,
-            n_grid=4)
-        ii['sky_bnds'] = sky_bnds
-        ii['ra_ccd'] = ra_ccd
-        ii['dec_ccd'] = dec_ccd
-        ii['ccd_bnds'] = Bounds(0, nrow-1, 0, ncol-1)
+        # piff.  TODO make the piff_run configurable
+        piff_data = load_piff_from_image_path(
+            image_path=ii['image_path'],
+            piff_run='y3a1-v29',
+        )
+
+        ii['piff_path'] = piff_data['psf_path']
+        ii['piff_psf'] = piff_data['psf']
+        ii['image_flags'] |= piff_data['flags']
+
+        # pixmappy we get from the psf object
+        if ii['piff_psf'] is None:
+            ii['pixmappy_wcs'] = None
+        else:
+            ii['pixmappy_wcs'] = ii['piff_psf'].wcs
+
+        # image scale
         ii['scale'] = 10.0**(0.4*(MAGZP_REF - ii['magzp']))
 
-    return info, coadd
+    return info
 
 
 def _munge_fits_header(hdr):
