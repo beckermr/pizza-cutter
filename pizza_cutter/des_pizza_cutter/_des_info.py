@@ -69,9 +69,6 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
             'scale' : a multiplicative factor to apply to the image
                 (`*= scale`) and weight map (`/= scale**2`) for magnitude
                 zero-point calibration.
-    coadd : `DESCoadd`
-        The `DESCoadd` object that can be used to download the data via the
-        `download()` method.
     """
 
     coadd_srcs = desmeds.coaddsrc.CoaddSrc(
@@ -147,7 +144,7 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
         # image scale
         ii['scale'] = 10.0**(0.4*(MAGZP_REF - ii['magzp']))
 
-    return info, coadd
+    return info
 
 
 def _munge_fits_header(hdr):

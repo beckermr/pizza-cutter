@@ -63,7 +63,7 @@ def main(config, tilename, band, tag, output_path, log_level, seed):
     print('output meds file:', meds_path, flush=True)
 
     print('querying DESDM for tile information...', flush=True)
-    info, coadd = get_des_y3_coadd_tile_info(
+    info = get_des_y3_coadd_tile_info(
         tilename=tilename,
         band=band,
         campaign=cfg['campaign'],
