@@ -4,29 +4,6 @@ from .._pizza_cutter import _build_image_info
 
 
 def test_pizza_cutter_build_image_info():
-
-    # # first we do the coadd since it is special
-    # ii['image_id'][0] = 0
-    # ii['image_flags'][0] = info['image_flags']
-    # ii['magzp'][0] = info['magzp']
-    # ii['scale'][0] = info['scale']
-    # ii['position_offset'][0] = info['POSITION_OFFSET']
-    # ii['wcs'][0] = json.dumps(eval(str(info['wcs'])))
-    #
-    # # now do the epochs
-    # for i, se_info in enumerate(info['src_info']):
-    #     loc = i + 1
-    #     for key in [
-    #             'image_path', 'image_ext', 'weight_path', 'weight_ext',
-    #             'bmask_path', 'bmask_ext', 'bkg_path', 'bkg_ext']:
-    #         ii[key][loc] = se_info[key]
-    #     ii['image_id'][loc] = loc
-    #     ii['image_flags'][loc] = se_info['image_flags']
-    #     ii['magzp'][loc] = se_info['magzp']
-    #     ii['scale'][loc] = se_info['scale']
-    #     ii['position_offset'][loc] = se_info['position_offset']
-    #     ii['wcs'][loc] = json.dumps(eval(str(se_info['wcs'])))
-
     info = {
         'image_flags': 10,
         'magzp': 32,
