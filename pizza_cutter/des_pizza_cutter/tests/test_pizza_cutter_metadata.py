@@ -14,7 +14,8 @@ from meds.maker import MEDS_FMT_VERSION
 from ..._version import __version__
 
 
-def test_pizza_cutter_build_metadata():
+def test_pizza_cutter_build_metadata(monkeypatch):
+    monkeypatch.setenv('MEDS_DIR', 'BLAH')
     config = 'blah blah blah'
 
     metadata = _build_metadata(config=config)
