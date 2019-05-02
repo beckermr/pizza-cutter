@@ -1,10 +1,12 @@
 import os
-import piff
-import galsim
+
 import esutil as eu
+import galsim
+import galsim.des
 import fitsio
 
-import galsim.des
+import piff
+import pixmappy
 import desmeds
 
 from ._constants import MAGZP_REF, POSITION_OFFSET
@@ -106,6 +108,12 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
 
     info['seg_ext'] = 'sci'
 
+    # always true for the coadd
+    info['magzp'] = MAGZP_REF
+    info['scale'] = 1.0
+
+    info['image_flags'] = 0  # TODO set this properly
+
     for ii in info['src_info']:
         ii['image_ext'] = 'sci'
 
@@ -130,10 +138,16 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
         # piff
         ii['piff_path'] = _get_piff_path(ii['image_path'])
         ii['piff_psf'] = piff.PSF.read(ii['piff_path'])
-        ii['pixmappy_wcs'] = ii['piff_psf'].wcs
+        # the correct entry for these objects
+        ii['pixmappy_wcs'] = ii['piff_psf'].wcs[0]
+        assert isinstance(ii['pixmappy_wcs'], pixmappy.GalSimWCS), (
+            "We did not find a pixmappy WCS object for this SE image!"
+        )
 
         # image scale
         ii['scale'] = 10.0**(0.4*(MAGZP_REF - ii['magzp']))
+
+        ii['image_flags'] = 0  # TODO set this properly
 
     return info, coadd
 

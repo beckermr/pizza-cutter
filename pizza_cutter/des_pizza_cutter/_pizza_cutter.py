@@ -8,6 +8,10 @@ import numpy as np
 import fitsio
 import meds
 import esutil as eu
+import piff
+import pixmappy
+import desmeds
+
 from meds.maker import MEDS_FMT_VERSION
 from meds.util import (
     get_image_info_struct, get_meds_output_struct, validate_meds)
@@ -16,7 +20,6 @@ from .._version import __version__
 from ._constants import (
     METADATA_EXTNAME,
     MAGZP_REF,
-    POSITION_OFFSET,
     IMAGE_INFO_EXTNAME,
     OBJECT_DATA_EXTNAME,
     IMAGE_CUTOUT_EXTNAME,
@@ -86,7 +89,7 @@ def make_des_pizza_slices(
         If `True`, remove the FITS file after fpacking.
     """
 
-    metadata = _build_metadata(config)
+    metadata = _build_metadata(config=config)
     image_info = _build_image_info(info=info)
     object_data = _build_object_data(
         central_size=central_size,
@@ -181,8 +184,7 @@ def _coadd_and_write_images(
     for i in tqdm.trange(len(object_data)):
         logger.info('processing object %d', i)
 
-        (gs_images, se_bmasks, gs_noises, gs_psfs,
-         weights, se_images_kept) = _build_slice_inputs(
+        se_image_slices, weights = _build_slice_inputs(
             ra=object_data['ra'][i],
             dec=object_data['dec'][i],
             box_size=object_data['box_size'][i],
@@ -216,10 +218,7 @@ def _coadd_and_write_images(
                 psf_box_size=object_data['psf_box_size'][i],
                 noise_interp_flags=noise_interp_flags,
                 se_interp_flags=se_interp_flags,
-                images=gs_images,
-                bmasks=se_bmasks,
-                psfs=gs_psfs,
-                noises=gs_noises,
+                se_image_slices=se_image_slices,
                 weights=weights)
 
             # write the image, bmask, ormask, noise and weight map
@@ -404,10 +403,10 @@ def _build_image_info(*, info):
 
     # first we do the coadd since it is special
     ii['image_id'][0] = 0
-    ii['image_flags'][0] = 0
-    ii['magzp'][0] = MAGZP_REF
-    ii['scale'][0] = 10.0**(0.4*(MAGZP_REF - ii['magzp'][0]))
-    ii['position_offset'][0] = POSITION_OFFSET
+    ii['image_flags'][0] = info['image_flags']
+    ii['magzp'][0] = info['magzp']
+    ii['scale'][0] = info['scale']
+    ii['position_offset'][0] = info['position_offset']
     ii['wcs'][0] = json.dumps(eval(str(info['wcs'])))
 
     # now do the epochs
@@ -418,21 +417,35 @@ def _build_image_info(*, info):
                 'bmask_path', 'bmask_ext', 'bkg_path', 'bkg_ext']:
             ii[key][loc] = se_info[key]
         ii['image_id'][loc] = loc
-        ii['image_flags'][loc] = 0
+        ii['image_flags'][loc] = se_info['image_flags']
         ii['magzp'][loc] = se_info['magzp']
-        ii['scale'][loc] = 10.0**(0.4*(MAGZP_REF - ii['magzp'][loc]))
+        ii['scale'][loc] = se_info['scale']
         ii['position_offset'][loc] = se_info['position_offset']
         ii['wcs'][loc] = json.dumps(eval(str(se_info['wcs'])))
 
     return ii
 
 
-def _build_metadata(config):
-    """Build the metadata for the pizza slices MEDS file"""
+def _build_metadata(*, config):
+    """Build the metadata for the pizza slices MEDS file.
+
+    Parameters
+    ----------
+    confg : str
+        The pizza slice MEDS file config as a string.
+
+    Returns
+    -------
+    metadata : structured np.ndarray
+        A structure numpy array with the metadata fields.
+    """
     numpy_version = np.__version__
     esutil_version = eu.__version__
     fitsio_version = fitsio.__version__
     meds_version = meds.__version__
+    piff_version = piff.__version__
+    pixmappy_version = pixmappy.__version__
+    desmeds_version = desmeds.__version__
     dt = [
         ('magzp_ref', 'f8'),
         ('config', 'S%d' % len(config)),
@@ -440,6 +453,9 @@ def _build_metadata(config):
         ('numpy_version', 'S%d' % len(numpy_version)),
         ('esutil_version', 'S%d' % len(esutil_version)),
         ('fitsio_version', 'S%d' % len(fitsio_version)),
+        ('piff_version', 'S%d' % len(piff_version)),
+        ('pixmappy_version', 'S%d' % len(pixmappy_version)),
+        ('desmeds_version', 'S%d' % len(desmeds_version)),
         ('meds_version', 'S%d' % len(meds_version)),
         ('meds_fmt_version', 'S%d' % len(MEDS_FMT_VERSION)),
         ('meds_dir', 'S%d' % len(os.environ['MEDS_DIR']))]
@@ -449,6 +465,9 @@ def _build_metadata(config):
     metadata['numpy_version'] = numpy_version
     metadata['esutil_version'] = esutil_version
     metadata['fitsio_version'] = fitsio_version
+    metadata['piff_version'] = piff_version
+    metadata['pixmappy_version'] = pixmappy_version
+    metadata['desmeds_version'] = desmeds_version
     metadata['meds_version'] = meds_version
     metadata['meds_fmt_version'] = MEDS_FMT_VERSION
     metadata['pizza_cutter_version'] = __version__
