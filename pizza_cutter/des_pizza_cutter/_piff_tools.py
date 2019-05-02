@@ -8,6 +8,7 @@ from ._constants import PSF_IN_BLACKLIST
 
 logger = logging.getLogger(__name__)
 
+
 def load_piff_from_image_path(*, image_path, piff_run):
     """
     load a piff object based on the input image path
@@ -21,7 +22,7 @@ def load_piff_from_image_path(*, image_path, piff_run):
 
     Returns
     -------
-    A dict 
+    A dict
         {'psf': piff.PSF,
          'flags': int,
          'psf_path': str}
@@ -32,13 +33,14 @@ def load_piff_from_image_path(*, image_path, piff_run):
     expinfo = _get_info(paths['info_path'])
     expnum, ccdnum = _extract_expnum_and_ccdnum(image_path)
 
-    w,=np.where(expinfo['ccdnum'] == ccdnum)
+    w, = np.where(expinfo['ccdnum'] == ccdnum)
     if w.size == 0:
-        raise RuntimeError("piff info for exp %s ccd %s not found" % (expnum,ccdnum))
+        raise RuntimeError('piff info for exp %s ccd %s '
+                           'not found' % (expnum, ccdnum))
 
     this_info = expinfo[w[0]]
 
-    piff_flags=0
+    piff_flags = 0
     if not _check_and_log(this_info):
         piff_flags |= PSF_IN_BLACKLIST
         psf = None
@@ -46,10 +48,11 @@ def load_piff_from_image_path(*, image_path, piff_run):
         psf = _get_piff_psf(paths['psf_path'])
 
     return {
-        'psf':psf,
-        'flags':piff_flags,
+        'psf': psf,
+        'flags': piff_flags,
         'psf_path': paths['psf_path'],
     }
+
 
 def _check_and_log(info):
     """
@@ -57,17 +60,20 @@ def _check_and_log(info):
     ccd 31
     """
     expnum, ccdnum = info['expnum'], info['ccdnum']
-    ok=True
+
+    ok = True
+
     if info['flag'] != 0:
         logger.info('skipping bad psf solution for exp %s '
-                    'ccd %s: %s' % (expnum,ccd,info['flag']))
-        ok=False
+                    'ccd %s: %s' % (expnum, ccdnum, info['flag']))
+        ok = False
 
     if info['ccdnum'] == 31:
         logger.info('skipping ccd 31 for exp %s' % expnum)
-        ok=False
+        ok = False
 
     return ok
+
 
 @lru_cache(maxsize=128)
 def _get_piff_psf(psf_path):
@@ -76,6 +82,7 @@ def _get_piff_psf(psf_path):
     """
     logger.info('reading: %s' % psf_path)
     return piff.read(psf_path)
+
 
 @lru_cache(maxsize=128)
 def _get_info(info_path):
@@ -96,8 +103,9 @@ def _extract_expnum_and_ccdnum(image_path):
     bname = os.path.basename(image_path)
     bs = bname.split('_')
     expnum = int(bs[0][1:])
-    ccdnum = int( bs[2][1:] )
+    ccdnum = int(bs[2][1:])
     return expnum, ccdnum
+
 
 def _get_paths_from_image_path(image_path, piff_run):
     """

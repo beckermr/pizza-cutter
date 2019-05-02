@@ -1,4 +1,3 @@
-import os
 import galsim
 import esutil as eu
 import fitsio
@@ -159,6 +158,3 @@ def _munge_fits_header(hdr):
         except Exception:
             pass
     return dct
-
-
-
