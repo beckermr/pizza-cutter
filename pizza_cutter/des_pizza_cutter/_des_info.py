@@ -5,11 +5,12 @@ import galsim
 import galsim.des
 import fitsio
 
-import piff
 import pixmappy
+import galsim.des
 import desmeds
 
 from ._constants import MAGZP_REF, POSITION_OFFSET
+from ._piff_tools import load_piff_from_image_path
 
 
 def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
@@ -25,8 +26,8 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
     campaign : str
         The coadd DESDM campaign (e.g., 'Y3A1_COADD')
     medsconf : str
-        The MEDS version. This string is used to set the download directory
-        for the files for subsequent downloads.
+        The MEDS version. This string is used to find where the source
+        images are located
 
     Returns
     -------
@@ -72,9 +73,6 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
             'scale' : a multiplicative factor to apply to the image
                 (`*= scale`) and weight map (`/= scale**2`) for magnitude
                 zero-point calibration.
-    coadd : `DESCoadd`
-        The `DESCoadd` object that can be used to download the data via the
-        `download()` method.
     """
 
     coadd_srcs = desmeds.coaddsrc.CoaddSrc(
@@ -115,6 +113,8 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
     info['image_flags'] = 0  # TODO set this properly
 
     for ii in info['src_info']:
+        ii['image_flags'] = 0
+
         ii['image_ext'] = 'sci'
 
         ii['weight_path'] = ii['image_path']
@@ -135,21 +135,30 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
         # psfex psf
         ii['psfex_psf'] = galsim.des.DES_PSFEx(ii['psf_path'])
 
-        # piff
-        ii['piff_path'] = _get_piff_path(ii['image_path'])
-        ii['piff_psf'] = piff.PSF.read(ii['piff_path'])
-        # the correct entry for these objects
-        ii['pixmappy_wcs'] = ii['piff_psf'].wcs[0]
-        assert isinstance(ii['pixmappy_wcs'], pixmappy.GalSimWCS), (
-            "We did not find a pixmappy WCS object for this SE image!"
+        # piff.  TODO make the piff_run configurable
+        piff_data = load_piff_from_image_path(
+            image_path=ii['image_path'],
+            piff_run='y3a1-v29',
         )
+
+        ii['piff_path'] = piff_data['psf_path']
+        ii['piff_psf'] = piff_data['psf']
+        ii['image_flags'] |= piff_data['flags']
+
+        # pixmappy we get from the psf object
+        if ii['piff_psf'] is None:
+            ii['pixmappy_wcs'] = None
+        else:
+            ii['pixmappy_wcs'] = ii['piff_psf'].wcs[0]
+            assert isinstance(ii['pixmappy_wcs'], pixmappy.GalSimWCS), (
+                "We did not find a pixmappy WCS object for this SE image!"
+            )
+            
 
         # image scale
         ii['scale'] = 10.0**(0.4*(MAGZP_REF - ii['magzp']))
 
-        ii['image_flags'] = 0  # TODO set this properly
-
-    return info, coadd
+    return info
 
 
 def _munge_fits_header(hdr):
