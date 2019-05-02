@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pytest
 
@@ -63,6 +64,11 @@ def test_se_image_psf_gsobject(se_image_data, eps_x, eps_y):
     assert np.array_equal(psf_im, true_psf_im)
 
 
+@pytest.mark.skipif(
+    os.environ.get('TEST_DESDATA', None) is None,
+    reason=(
+        'SEImageSlice i/o can only be tested if '
+        'test data is at TEST_DESDATA'))
 @pytest.mark.parametrize('eps_x', [
     -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75])
 @pytest.mark.parametrize('eps_y', [
@@ -116,6 +122,11 @@ def test_se_image_psf_psfex(se_image_data, use_wcs, eps_x, eps_y):
     assert np.array_equal(psf_im, true_psf_im)
 
 
+@pytest.mark.skipif(
+    os.environ.get('TEST_DESDATA', None) is None,
+    reason=(
+        'SEImageSlice i/o can only be tested if '
+        'test data is at TEST_DESDATA'))
 @pytest.mark.parametrize('eps_x', [
     -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75])
 @pytest.mark.parametrize('eps_y', [
@@ -145,6 +156,6 @@ def test_se_image_psf_piff(se_image_data, eps_x, eps_y):
 
     psf_mod = piff.PSF.read(se_image_data['source_info']['piff_path'])
     true_psf_im = psf_mod.draw(
-        x=x, y=y, stamp_size=21).array
+        x=x+1, y=y+1, stamp_size=21).array
     true_psf_im /= np.sum(true_psf_im)
     assert np.array_equal(psf_im, true_psf_im)

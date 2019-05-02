@@ -429,12 +429,11 @@ class SEImageSlice(object):
 
         elif isinstance(self._psf_model, piff.PSF):
             # draw the image
-            # piff is zero-indexed? wtf?
             # piff requires no offset since it renders in the actual
             # SE image pixel grid, not a hypothetical grid with the
             # star at a pixel center
             # again always 21 pixels for DES Y3+
-            im = self._psf_model.draw(x=x, y=y, stamp_size=21)
+            im = self._psf_model.draw(x=x+1, y=y+1, stamp_size=21)
             psf_im = im.array.copy()
         else:
             raise ValueError('PSF %s not recognized!' % self._psf_model)
