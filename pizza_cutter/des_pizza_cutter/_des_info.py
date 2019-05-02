@@ -74,6 +74,8 @@ def get_des_y3_coadd_tile_info(
             'bmask_ext' : the name of the FITS extension with the SE bit mask
             'psfex_psf' : a galsim.des.DES_PSFEx object with the PSFEx
                 PSF reconstruction.
+            'psf_path' : the path to the PSFEx PSF model
+            'piff_path' : the path to the Piff PSF model
             'piff_psf' : a piff.PSF object with the Piff PSF reconstruction.
             'scale' : a multiplicative factor to apply to the image
                 (`*= scale`) and weight map (`/= scale**2`) for magnitude

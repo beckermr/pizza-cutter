@@ -131,7 +131,7 @@ def run_metadetect(
     n_parts : int, optional
         The number of parts to split the file into.
     preprocessing_function : function, optional
-        An optional function to preprocessing the multiband observation
+        An optional function to preprocess the multiband observation
         lists before running metadetect. The function signature should
         be:
             ```
