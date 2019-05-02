@@ -67,7 +67,8 @@ def main(config, tilename, band, tag, output_path, log_level, seed):
         tilename=tilename,
         band=band,
         campaign=cfg['campaign'],
-        medsconf=sname)
+        medsconf=sname,
+        piff_run=cfg['piff_run'])
 
     make_des_pizza_slices(
         config=_config,

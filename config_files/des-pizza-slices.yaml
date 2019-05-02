@@ -8,7 +8,8 @@ buffer_size: 125  # size of the buffer on each size
 
 # this should be even and bigger than any stamp returned by the
 # PSF reconstruction
-psf_box_size: 32
+psf_box_size: 21
+piff_run: y3a1-v29
 
 reject_outliers: False
 symmetrize_masking: True

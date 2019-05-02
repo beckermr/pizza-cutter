@@ -10,14 +10,13 @@ logger = logging.getLogger(__name__)
 
 
 def load_piff_from_image_path(*, image_path, piff_run):
-    """
-    load a piff object based on the input image path
+    """Load a piff object based on the input image path.
 
     Parameters
     ----------
-    image_path: str
+    image_path : str
         A path to an immask file
-    piff_run: str
+    piff_run : str
         e.g. y3a1-v29
 
     Returns
@@ -55,10 +54,7 @@ def load_piff_from_image_path(*, image_path, piff_run):
 
 
 def _check_and_log(info):
-    """
-    check the exp/ccd are OK based on flags and always skipping
-    ccd 31
-    """
+    """check the exp/ccd are OK based on flags and always skipping ccd 31"""
     expnum, ccdnum = info['expnum'], info['ccdnum']
 
     ok = True
@@ -77,18 +73,14 @@ def _check_and_log(info):
 
 @lru_cache(maxsize=128)
 def _get_piff_psf(psf_path):
-    """
-    load a piff.PSF object from the specified file
-    """
+    """load a piff.PSF object from the specified file"""
     logger.info('reading: %s' % psf_path)
     return piff.read(psf_path)
 
 
 @lru_cache(maxsize=128)
 def _get_info(info_path):
-    """
-    read the info extension of the summary file
-    """
+    """read the info extension of the summary file"""
     if not os.path.exists(info_path):
         raise RuntimeError('missing piff info file: %s' % info_path)
 
@@ -96,8 +88,7 @@ def _get_info(info_path):
 
 
 def _extract_expnum_and_ccdnum(image_path):
-    """
-    extract the ccdnum from a path such as
+    """extract the ccdnum from a path such as
     .../D00365173_i_c29_r2166p01_immasked.fits.fz
     """
     bname = os.path.basename(image_path)
@@ -108,16 +99,15 @@ def _extract_expnum_and_ccdnum(image_path):
 
 
 def _get_paths_from_image_path(image_path, piff_run):
-    """
-    get the piff and info path from the image path
+    """Get the piff and info path from the image path.
 
-    requires PIFF_DATA_DIR environment variable to be set
+    NOTE: Requires PIFF_DATA_DIR environment variable to be set!
 
     Parameters
     ----------
-    image_path: str
+    image_path : str
         A path to an immask file
-    piff_run: str
+    piff_run : str
         e.g. y3a1-v29
 
     Returns

@@ -1,19 +1,17 @@
-import os
-
 import esutil as eu
 import galsim
 import galsim.des
 import fitsio
 
 import pixmappy
-import galsim.des
 import desmeds
 
 from ._constants import MAGZP_REF, POSITION_OFFSET
 from ._piff_tools import load_piff_from_image_path
 
 
-def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
+def get_des_y3_coadd_tile_info(
+        *, tilename, band, campaign, medsconf, piff_run):
     """Read the coadd tile info, load WCS info, and load PSF info for
     the DES Y3 DESDM layout.
 
@@ -28,6 +26,8 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
     medsconf : str
         The MEDS version. This string is used to find where the source
         images are located
+    piff_run : str
+        The PIFF PSF run to use.
 
     Returns
     -------
@@ -50,6 +50,11 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
                 mask
             'seg_path' : the path to the FITS file with the coadd seg map
             'seg_ext' : the name of the FITS extension with the coadd seg map
+            'image_flags' : any flags for the coadd image
+            'scale' : a multiplicative factor to apply to the image
+                (`*= scale`) and weight map (`/= scale**2`) for magnitude
+                zero-point calibration.
+            'magzp' : the magnitude zero point for the image
 
         The dictionaries in the 'src_info' list have at least the
         following keys:
@@ -72,7 +77,9 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
             'piff_psf' : a piff.PSF object with the Piff PSF reconstruction.
             'scale' : a multiplicative factor to apply to the image
                 (`*= scale`) and weight map (`/= scale**2`) for magnitude
-                zero-point calibration.
+                zero-point calibration
+            'magzp' : the magnitude zero point for the image
+            'image_flags' : any flags for the SE image
     """
 
     coadd_srcs = desmeds.coaddsrc.CoaddSrc(
@@ -110,7 +117,7 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
     info['magzp'] = MAGZP_REF
     info['scale'] = 1.0
 
-    info['image_flags'] = 0  # TODO set this properly
+    info['image_flags'] = 0  # TODO set this properly for the coadd?
 
     for ii in info['src_info']:
         ii['image_flags'] = 0
@@ -135,10 +142,10 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
         # psfex psf
         ii['psfex_psf'] = galsim.des.DES_PSFEx(ii['psf_path'])
 
-        # piff.  TODO make the piff_run configurable
+        # piff
         piff_data = load_piff_from_image_path(
             image_path=ii['image_path'],
-            piff_run='y3a1-v29',
+            piff_run=piff_run,
         )
 
         ii['piff_path'] = piff_data['psf_path']
@@ -153,7 +160,6 @@ def get_des_y3_coadd_tile_info(*, tilename, band, campaign, medsconf):
             assert isinstance(ii['pixmappy_wcs'], pixmappy.GalSimWCS), (
                 "We did not find a pixmappy WCS object for this SE image!"
             )
-            
 
         # image scale
         ii['scale'] = 10.0**(0.4*(MAGZP_REF - ii['magzp']))
@@ -169,18 +175,3 @@ def _munge_fits_header(hdr):
         except Exception:
             pass
     return dct
-
-
-def _get_piff_path(image_path):
-    PIFF_DATA_DIR = os.environ['PIFF_DATA_DIR']
-
-    img = os.path.basename(image_path)
-    img = img.replace('immasked.fits.fz', 'piff.fits')
-    num = str(int(img.split('_')[0][1:]))  # strip leading zeros...
-
-    return os.path.join(
-        PIFF_DATA_DIR,
-        'y3a1-v29',
-        num,
-        img
-    )
