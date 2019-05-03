@@ -1,4 +1,5 @@
 import os
+import tempfile
 import subprocess
 import json
 import logging
@@ -33,6 +34,7 @@ from ._constants import (
     CUTOUT_DEFAULT_VALUES)
 from ..slice_utils.locate import build_slice_locations
 from ..slice_utils.measure import measure_fwhm
+from ..files import StagedOutFile
 from ._coadd_slices import (
     _build_slice_inputs, _coadd_slice_inputs)
 
@@ -57,7 +59,8 @@ def make_des_pizza_slices(
         max_masked_fraction,
         max_unmasked_trail_fraction,
         psf_box_size,
-        remove_fits_file=True):
+        remove_fits_file=True,
+        use_tempdir):
     """Build a MEDS pizza slices file for the DES.
 
     Parameters
@@ -86,7 +89,8 @@ def make_des_pizza_slices(
     max_unmasked_trail_fraction : float
     psf_box_size : int
     remove_fits_file : bool, optional
-        If `True`, remove the FITS file after fpacking.
+        If `True`, remove the FITS file after fpacking. Only works if not
+        using a temporary directory.
     """
 
     metadata = _build_metadata(config=config)
@@ -103,40 +107,49 @@ def make_des_pizza_slices(
 
     eu.ostools.makedirs_fromfile(meds_path)
 
-    with fitsio.FITS(meds_path, 'rw', clobber=True) as fits:
-        _coadd_and_write_images(
-            fits=fits,
-            object_data=object_data,
-            info=info,
-            reject_outliers=reject_outliers,
-            symmetrize_masking=symmetrize_masking,
-            coadding_weight=coadding_weight,
-            coadding_interp=coadding_interp,
-            noise_interp_flags=noise_interp_flags,
-            se_interp_flags=se_interp_flags,
-            bad_image_flags=bad_image_flags,
-            max_masked_fraction=max_masked_fraction,
-            max_unmasked_trail_fraction=max_unmasked_trail_fraction,
-            seed=seed,
-            fpack_pars=fpack_pars)
-
-        fits.write(metadata, extname=METADATA_EXTNAME)
-        fits.write(image_info, extname=IMAGE_INFO_EXTNAME)
-
-    # fpack it
-    try:
-        os.remove(meds_path + '.fz')
-    except FileNotFoundError:
-        pass
-    cmd = 'fpack %s' % meds_path
-    print("fpacking:\n    command: '%s'" % cmd, flush=True)
-    try:
-        subprocess.check_call(cmd, shell=True)
-    except Exception:
-        pass
+    if use_tempdir:
+        tmpdir = tempfile.mkdtemp()
     else:
-        if remove_fits_file:
-            os.remove(meds_path)
+        tmpdir = None
+
+    with StagedOutFile(meds_path + '.fz', tmpdir=tmpdir) as sf:
+
+        staged_meds_path = sf.path[:-3]
+
+        with fitsio.FITS(staged_meds_path, 'rw', clobber=True) as fits:
+            _coadd_and_write_images(
+                fits=fits,
+                object_data=object_data,
+                info=info,
+                reject_outliers=reject_outliers,
+                symmetrize_masking=symmetrize_masking,
+                coadding_weight=coadding_weight,
+                coadding_interp=coadding_interp,
+                noise_interp_flags=noise_interp_flags,
+                se_interp_flags=se_interp_flags,
+                bad_image_flags=bad_image_flags,
+                max_masked_fraction=max_masked_fraction,
+                max_unmasked_trail_fraction=max_unmasked_trail_fraction,
+                seed=seed,
+                fpack_pars=fpack_pars)
+
+            fits.write(metadata, extname=METADATA_EXTNAME)
+            fits.write(image_info, extname=IMAGE_INFO_EXTNAME)
+
+        # fpack it
+        try:
+            os.remove(staged_meds_path + '.fz')
+        except FileNotFoundError:
+            pass
+        cmd = 'fpack %s' % staged_meds_path
+        print("fpacking:\n    command: '%s'" % cmd, flush=True)
+        try:
+            subprocess.check_call(cmd, shell=True)
+        except Exception:
+            pass
+        else:
+            if remove_fits_file:
+                os.remove(staged_meds_path)
 
     # validate the fpacked file
     print('validating:', flush=True)
@@ -184,9 +197,31 @@ def _coadd_and_write_images(
     for i in tqdm.trange(len(object_data)):
         logger.info('processing object %d', i)
 
+        # we center the PSF at the nearest pixel center near the patch center
+        col, row = info['wcs'].sky2image(
+            longitude=object_data['ra'][i], latitude=object_data['dec'][i])
+        # this col, row includes the position offset
+        # we don't need to remove it when putting them back into the WCS
+        # but we will remove it later since we work in zero-indexed coords
+        col = int(col + 0.5)
+        row = int(row + 0.5)
+        # ra, dec of the pixel center
+        ra_psf, dec_psf = info['wcs'].image2sky(col, row)
+
+        # now we find the lower left location of the PSF image
+        half = (object_data['psf_box_size'][i] - 1) / 2
+        assert int(half) == half, "PSF images must have odd dimensions!"
+        # here we remove the position offset
+        col -= info['position_offset']
+        row -= info['position_offset']
+        psf_orig_start_col = col - half
+        psf_orig_start_row = row - half
+
         se_image_slices, weights = _build_slice_inputs(
             ra=object_data['ra'][i],
             dec=object_data['dec'][i],
+            ra_psf=ra_psf,
+            dec_psf=dec_psf,
             box_size=object_data['box_size'][i],
             coadd_info=info,
             start_row=object_data['orig_start_row'][i, 0],
@@ -208,13 +243,13 @@ def _coadd_and_write_images(
             object_data['ncutout'][i] = 1
 
             image, bmask, ormask, noise, psf, weight = _coadd_slice_inputs(
-                galsim_coadd_wcs=info['galsim_wcs'],
-                position_offset=info['position_offset'],
-                row=object_data['orig_row'][i, 0],
-                col=object_data['orig_col'][i, 0],
+                wcs=info['wcs'],
+                wcs_position_offset=info['position_offset'],
                 start_row=object_data['orig_start_row'][i, 0],
                 start_col=object_data['orig_start_col'][i, 0],
                 box_size=object_data['box_size'][i],
+                psf_start_row=psf_orig_start_row,
+                psf_start_col=psf_orig_start_col,
                 psf_box_size=object_data['psf_box_size'][i],
                 noise_interp_flags=noise_interp_flags,
                 se_interp_flags=se_interp_flags,

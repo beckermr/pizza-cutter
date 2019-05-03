@@ -1,5 +1,4 @@
 import esutil as eu
-import galsim
 import galsim.des
 import fitsio
 
@@ -35,7 +34,6 @@ def get_des_y3_coadd_tile_info(
         A dictionary with at least the following keys:
 
             'wcs' : the coadd `esutil.wcsutil.WCS` object
-            'galsim_wcs' : the coadd `galsim.FitsWCS` object
             'position_offset' : the offset to add to zero-indexed image
                 coordinates to get transform them to the convention assumed
                 by the WCS.
@@ -60,7 +58,6 @@ def get_des_y3_coadd_tile_info(
         following keys:
 
             'wcs' : the SE `esutil.wcsutil.WCS` object
-            'galsim_wcs' : the SE `galsim.FitsWCS` object
             'pixmappy_wcs' : the SE pixmappy WCS solution
             'image_path' : the path to the FITS file with the SE image
             'image_ext' : the name of the FITS extension with the SE image
@@ -102,7 +99,6 @@ def get_des_y3_coadd_tile_info(
     info = coadd.get_info()
     info['wcs'] = eu.wcsutil.WCS(
         _munge_fits_header(fitsio.read_header(info['image_path'], ext='sci')))
-    info['galsim_wcs'] = galsim.FitsWCS(info['image_path'])
     info['position_offset'] = POSITION_OFFSET
 
     info['image_ext'] = 'sci'
@@ -138,7 +134,6 @@ def get_des_y3_coadd_tile_info(
         ii['wcs'] = eu.wcsutil.WCS(
             _munge_fits_header(
                 fitsio.read_header(ii['image_path'], ext='sci')))
-        ii['galsim_wcs'] = galsim.FitsWCS(ii['image_path'])
         ii['position_offset'] = POSITION_OFFSET
 
         # psfex psf

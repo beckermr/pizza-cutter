@@ -1,14 +1,8 @@
-import functools
 import logging
 
 import numpy as np
 
-import galsim
-import fitsio
-
 import meds.meds
-from meds.bounds import Bounds
-from meds.util import radec_to_uv
 
 from ._slice_flagging import (
     compute_unmasked_trail_fraction)
@@ -22,112 +16,10 @@ from ..slice_utils.symmetrize import (
     symmetrize_weight)
 from ..slice_utils.measure import measure_fwhm
 
-from ._constants import BMASK_SE_INTERP, BMASK_NOISE_INTERP, BMASK_EDGE
+from ._se_image import SEImageSlice
+from ._constants import BMASK_SE_INTERP, BMASK_NOISE_INTERP
 
 logger = logging.getLogger(__name__)
-
-
-@functools.lru_cache(maxsize=16)
-def _read_image(path, ext):
-    """Cached reads of images.
-
-    Each SE image in DES is ~33 MB in float. Thus we use at most ~0.5 GB of
-    memory with a 16 element cache.
-    """
-    return fitsio.read(path, ext=ext)
-
-
-def _do_rough_cut_and_maybe_extract(
-        *, ra, dec, ra_ccd, dec_ccd, sky_bnds, ccd_bnds, wcs,
-        half_box_size, box_size):
-    """Do a rough check if a CCD overlaps a slice. If yes, return information
-    about the proper patch of the CCD to extract. If no, then return an empty
-    dictionary.
-
-    The returned dict, if not empty, has the following keys:
-
-        'start_row' : the starting row of the patch
-        'start_col' : the starting col of the patch
-        'row' : the row location of the slice center (ra, dec)
-        'col' : the col location of the slice center (ra, dec)
-        'row_offset' : the offset in pixels between the canonical patch
-            center row and the slice center row
-        'col_offset' : the offset in pixels between the canonical patch
-            center col and the slice center col
-    """
-    ii = {}
-
-    u, v = radec_to_uv(ra, dec, ra_ccd, dec_ccd)
-    rough_msk = sky_bnds.contains_points(u, v)
-
-    if rough_msk:
-        col, row = wcs.sky2image(longitude=ra, latitude=dec)
-        col -= 1
-        row -= 1
-
-        se_start_row = np.int32(row) - half_box_size + 1
-        se_start_col = np.int32(col) - half_box_size + 1
-        se_row_cen = (box_size - 1) / 2 + se_start_row
-        se_col_cen = (box_size - 1) / 2 + se_start_col
-        se_row_offset = row - se_row_cen
-        se_col_offset = col - se_col_cen
-        patch_bnds = Bounds(
-            se_start_row, se_start_row+box_size,
-            se_start_col, se_start_col+box_size)
-
-        if ccd_bnds.contains_bounds(patch_bnds):
-            ii = {
-                'start_row': se_start_row,
-                'start_col': se_start_col,
-                'row_offset': se_row_offset,
-                'col_offset': se_col_offset,
-                'row': row,
-                'col': col}
-
-    return ii
-
-
-def _read_image_lists(*, images_to_use, se_src_info, box_size):
-    imlist = []
-    wtlist = []
-    bmlist = []
-    for i, image_info in images_to_use.items():
-        src_info = se_src_info[i]
-
-        image = (
-            _read_image(src_info['image_path'], ext=src_info['image_ext']) -
-            _read_image(src_info['bkg_path'], ext=src_info['bkg_ext']))
-        weight = _read_image(
-            src_info['weight_path'], ext=src_info['weight_ext'])
-        bmask = _read_image(src_info['bmask_path'], ext=src_info['bmask_ext'])
-
-        row = image_info['start_row']
-        col = image_info['start_col']
-
-        # we have to make sure to return copies here - otherwise we get a
-        # view and then further downstream stuff can muck with things
-        imlist.append(
-            image[row:row+box_size, col:col+box_size] * src_info['scale'])
-        wtlist.append(
-            weight[row:row+box_size, col:col+box_size] / src_info['scale']**2)
-        bmlist.append(
-            bmask[row:row+box_size, col:col+box_size].copy())
-
-    return imlist, wtlist, bmlist
-
-
-def _build_gs_image(
-        *, array, galsim_wcs, start_col, start_row,
-        col_offset, row_offset, position_offset, coadding_interp):
-    return galsim.InterpolatedImage(
-        galsim.ImageD(
-            array,
-            wcs=galsim_wcs,
-            xmin=start_col + position_offset,
-            ymin=start_row + position_offset),
-        offset=galsim.PositionD(
-            x=col_offset, y=row_offset),
-        x_interpolant=coadding_interp)
 
 
 def _build_coadd_weight(*, coadding_weight, weight, psf):
@@ -147,95 +39,13 @@ def _build_coadd_weight(*, coadding_weight, weight, psf):
     return wt
 
 
-def _build_psf_image(
-        *, row, col, psf_rec, galsim_wcs, position_offset, coadding_interp):
-    # we get the PSF image from the nearest position on the pixel grid
-    # this is so that we can apply the WCS when doing the coadding w/ galsim
-    psf_row = int(row + 0.5)
-    psf_col = int(col + 0.5)
-
-    # now reconstruct and normalize so the sum of the pixels is 1
-    # TODO: Should this be the integral in sky coords?
-    psf = psf_rec.get_rec(psf_row, psf_col)
-    assert psf.shape[0] == psf.shape[1]
-    psf /= np.sum(psf)
-
-    # now we compute the lower-left corner of the PSF image
-    psf_img_center = (psf.shape[0] - 1) / 2
-    psf_start_row = psf_row - psf_img_center
-    psf_start_col = psf_col - psf_img_center
-    # FIXME: this might fail - if it does...crap?
-    assert int(psf_start_col) == psf_start_col
-    assert int(psf_start_row) == psf_start_row
-
-    # finally, we allow for the center of the PSF to be offset from
-    # the canonical image center
-    psf_center = psf_rec.get_center(psf_row, psf_col)
-    psf_row_offset = psf_center[0] - psf_img_center
-    psf_col_offset = psf_center[1] - psf_img_center
-
-    # and do the thing...
-    gs_psf = galsim.InterpolatedImage(
-        galsim.ImageD(
-            psf,
-            wcs=galsim_wcs,
-            xmin=psf_start_col + position_offset,
-            ymin=psf_start_row + position_offset),
-        offset=galsim.PositionD(
-            x=psf_col_offset, y=psf_row_offset),
-        x_interpolant=coadding_interp)
-
-    return psf, gs_psf
-
-
-def _interpolate_bmask(
-        *, box_size, se_bmask,
-        se_start_row, se_start_col, se_wcs, se_position_offset,
-        start_row, start_col, coadd_wcs, coadd_position_offset):
-    """Interpolate a bit mask from an SE exposure to a coadd.
-    """
-
-    # first convert row, col to ra, dec
-    row, col = np.mgrid[0:box_size, 0:box_size]
-    row = row.ravel()
-    col = col.ravel()
-    ra, dec = coadd_wcs.image2sky(
-        x=col + np.int64(start_col) + coadd_position_offset,
-        y=row + np.int64(start_row) + coadd_position_offset)
-
-    # then for each SE image, find the row, col, clip to the box, and set
-    # values
-    ncol, nrow = se_wcs.get_naxis()
-
-    se_col, se_row = se_wcs.sky2image(
-        longitude=ra,
-        latitude=dec,
-        find=False)
-    se_col -= se_position_offset
-    se_row -= se_position_offset
-    se_col = np.clip((se_col + 0.5).astype(np.int64), 0, ncol - 1)
-    se_row = np.clip((se_row + 0.5).astype(np.int64), 0, nrow - 1)
-    se_col -= se_start_col
-    se_row -= se_start_row
-    msk = (
-        (se_row >= 0) & (se_row < se_bmask.shape[0]) &
-        (se_col >= 0) & (se_col < se_bmask.shape[1]))
-
-    coadd_bmask = np.zeros((box_size, box_size), dtype=np.int32)
-    coadd_bmask[row[msk], col[msk]] = se_bmask[se_row[msk], se_col[msk]]
-    coadd_bmask[row[~msk], col[~msk]] = BMASK_EDGE
-
-    return coadd_bmask
-
-
 def _build_slice_inputs(
-        *, ra, dec, box_size,
+        *, ra, dec, ra_psf, dec_psf, box_size,
         coadd_info, start_row, start_col,
         se_src_info,
         reject_outliers,
         symmetrize_masking,
         coadding_weight,
-        coadding_interp,
         noise_interp_flags,
         se_interp_flags,
         bad_image_flags,
@@ -248,82 +58,75 @@ def _build_slice_inputs(
     ----------
     ra : float
     dec : float
+    ra_psf : float
+    dec_psf : float
     box_size : int
     se_src_info : list of dicts
     reject_outliers : bool
     symmetrize_masking : bool
     coadding_weight : str
-    coadding_interp : str
     noise_interp_flags : int
     se_interp_flags : int
     bad_image_flags : int
     max_masked_fraction : float
+    max_unmasked_trail_fraction : float
     rng : np.random.RandomState
 
     Returns
     -------
-    images
-    bmasks
-    noises
-    psfs
-    weights
-    se_images_kept
+    slices : list of SEImageSlice objects
+    weights : np.ndarray
     """
-
-    half_box_size = int(box_size / 2)
 
     # we first do a rough cut of the images
     # this is fast and lets us stop if nothing can be used
-    images_to_use = {}
-    for i, se_info in enumerate(se_src_info):
-        image_info = _do_rough_cut_and_maybe_extract(
-            ra=ra,
-            dec=dec,
-            ra_ccd=se_info['ra_ccd'],
-            dec_ccd=se_info['dec_ccd'],
-            sky_bnds=se_info['sky_bnds'],
-            ccd_bnds=se_info['ccd_bnds'],
-            wcs=se_info['wcs'],
-            half_box_size=half_box_size,
-            box_size=box_size)
-        if image_info:
-            images_to_use[i] = image_info
-    logger.debug('images found in rough cut: %d', len(images_to_use))
+    seeds = rng.randint(low=1, high=2**30, size=len(se_src_info))
+    slices_to_use = []
+    for seed, se_info in zip(seeds, se_src_info):
+        if se_info['image_flags'] == 0:
+            # no flags so init the object
+            se_slice = SEImageSlice(
+                source_info=se_src_info,
+                psf_model=se_src_info['piff_psf'],
+                wcs=se_src_info['pixmappy_wcs'],
+                noise_seed=seed)
+
+            # first try a very rough cut on the patch center
+            if se_slice.ccd_contains_radec(ra, dec):
+
+                # if the rough cut worked, then we do a more exact
+                # intersection test
+                patch_bnds = se_slice.compute_slice_bounds(
+                    ra, dec, box_size)
+                if se_slice.ccd_contains_bounds(patch_bnds):
+                    # we found one - set the slice (also does i/o of image
+                    # data products)
+                    se_slice.set_slice(
+                        patch_bnds.colmin,
+                        patch_bnds.rowmin,
+                        box_size)
+                    slices_to_use.append(se_slice)
+    logger.debug('images found in rough cut: %d', len(slices_to_use))
 
     # just stop now if we find nothing
-    if not images_to_use:
-        return [], [], [], [], [], []
-
-    # we found some stuff - let's read it in
-    # note that `_read_image` (called by `_read_image_lists`) is cached
-    # to help avoid duplicate i/o
-    # this function also scales the images and weight maps to the right
-    # zero points
-    imlist, wtlist, bmlist = _read_image_lists(
-        images_to_use=images_to_use,
-        se_src_info=se_src_info,
-        box_size=box_size)
+    if not slices_to_use:
+        return [], []
 
     # we reject outliers after scaling the images to the same zero points
+    # every here is passed by reference so this just works
     if reject_outliers:
-        nreject = meds.meds.reject_outliers(imlist, wtlist)
+        nreject = meds.meds.reject_outliers(
+            [s.image for s in slices_to_use],
+            [s.weight for s in slices_to_use])
         logger.debug('# of rejected pixels: %d', nreject)
 
-    # finally, we do the final set of cuts, interp, and build the needed
-    # galsim objects
+    # finally, we do the final set of cuts and interpolation
     # any image that passes those gets bad pixels interpolated (slow!)
     # and we call the PSF reconstruction
-    gs_images = []
-    bmasks = []
-    gs_noises = []
-    gs_psfs = []
+    slices = []
     weights = []
-    se_images_kept = []
-    for image, weight, bmask, (index, image_info) in zip(
-            imlist, wtlist, bmlist, images_to_use.items()):
-        logger.debug('proccseeing image %d', index)
-
-        src_info = se_src_info[index]
+    for se_slice in slices_to_use:
+        logger.debug('proccseeing image %s', se_slice.source_info['filename'])
 
         # the test for interpolating a full edge is done only with the
         # non-noise flags (se_interp_flags)
@@ -332,19 +135,23 @@ def _build_slice_inputs(
         # we also symmetrize both
         bad_flags = se_interp_flags | noise_interp_flags
 
+        # this operates in place on references
         if symmetrize_masking:
-            symmetrize_bmask(bmask=bmask, bad_flags=bad_flags)
-            symmetrize_weight(weight=weight)
+            symmetrize_bmask(bmask=se_slice.bmask, bad_flags=bad_flags)
+            symmetrize_weight(weight=se_slice.weight)
 
         skip_edge_masked = slice_full_edge_masked(
-                weight=weight, bmask=bmask, bad_flags=se_interp_flags)
-        skip_has_flags = slice_has_flags(bmask=bmask, flags=bad_image_flags)
+                weight=se_slice.weight, bmask=se_slice.bmask,
+                bad_flags=se_interp_flags)
+        skip_has_flags = slice_has_flags(
+            bmask=se_slice.bmask, flags=bad_image_flags)
         skip_masked_fraction = (
             compute_masked_fraction(
-                weight=weight, bmask=bmask, bad_flags=bad_flags) >=
+                weight=se_slice.weight, bmask=se_slice.bmask,
+                bad_flags=bad_flags) >=
             max_masked_fraction)
         skip_unmasked_trail_too_big = compute_unmasked_trail_fraction(
-            bmask=bmask) >= max_unmasked_trail_fraction
+            bmask=se_slice.bmask) >= max_unmasked_trail_fraction
 
         skip = (
             skip_edge_masked or
@@ -361,188 +168,126 @@ def _build_slice_inputs(
                 msg = 'masked fraction too high'
             elif skip_unmasked_trail_too_big:
                 msg = 'unmasked bleed trail too big'
-            logger.debug('rejecting image %d: %s', index, msg)
+            logger.debug('rejecting image %s: %s',
+                         se_slice.source_info['filename'], msg)
         else:
             # first we do the noise interp
-            msk = (bmask & noise_interp_flags) != 0
+            msk = (se_slice.bmask & noise_interp_flags) != 0
             if np.any(msk):
-                noise = rng.normal(size=weight.shape) * np.sqrt(1.0/weight)
-                image[msk] = noise[msk]
+                noise = (
+                    rng.normal(size=se_slice.weight.shape) *
+                    np.sqrt(1.0/se_slice.weight))
+                se_slice.image[msk] = noise[msk]
 
             # now do the cubic interp - note that this will use the noise
             # inteprolated values
             # the same thing is done for the noise field since the noise
             # interpolation above is equivalent to drawing noise
             interp_image, interp_noise = interpolate_image_and_noise(
-                image=image,
-                weight=weight,
-                bmask=bmask,
+                image=se_slice.image,
+                weight=se_slice.weight,
+                bmask=se_slice.bmask,
                 bad_flags=se_interp_flags,
                 rng=rng)
 
             if interp_image is None or interp_noise is None:
                 logger.debug(
-                    'rejecting image %d: interpolated region too big', index)
+                    'rejecting image %s: interpolated region too big',
+                    se_slice.source_info['filename'])
                 continue
 
-            se_images_kept.append(index)
+            se_slice.image = interp_image
+            se_slice.noise = interp_noise
 
-            # finally we build the galsim inteprolated images to be used for
-            # coadding
-            gs_images.append(_build_gs_image(
-                array=interp_image,
-                galsim_wcs=src_info['galsim_wcs'],
-                start_col=image_info['start_col'],
-                start_row=image_info['start_row'],
-                col_offset=image_info['col_offset'],
-                row_offset=image_info['row_offset'],
-                position_offset=src_info['position_offset'],
-                coadding_interp=coadding_interp))
+            se_slice.set_psf(ra_psf, dec_psf)
 
-            gs_noises.append(_build_gs_image(
-                array=interp_noise,
-                galsim_wcs=src_info['galsim_wcs'],
-                start_col=image_info['start_col'],
-                start_row=image_info['start_row'],
-                col_offset=image_info['col_offset'],
-                row_offset=image_info['row_offset'],
-                position_offset=src_info['position_offset'],
-                coadding_interp=coadding_interp))
+            slices.append(se_slice)
 
-            bmasks.append(_interpolate_bmask(
-                box_size=box_size,
-                se_bmask=bmask,
-                se_start_row=image_info['start_row'],
-                se_start_col=image_info['start_col'],
-                se_wcs=src_info['wcs'],
-                se_position_offset=src_info['position_offset'],
-                start_row=start_row,
-                start_col=start_col,
-                coadd_wcs=coadd_info['wcs'],
-                coadd_position_offset=coadd_info['position_offset']))
-
-            psf, gs_psf = _build_psf_image(
-                row=image_info['row'],
-                col=image_info['col'],
-                psf_rec=src_info['psf_rec'],
-                galsim_wcs=src_info['galsim_wcs'],
-                position_offset=src_info['position_offset'],
-                coadding_interp=coadding_interp)
-            gs_psfs.append(gs_psf)
-
-            # build the coadding weight
             weights.append(_build_coadd_weight(
                 coadding_weight=coadding_weight,
-                weight=weight,
-                psf=psf))
+                weight=se_slice.weight,
+                psf=se_slice.psf))
 
     if weights:
         weights = np.array(weights)
         weights /= np.sum(weights)
 
-    return gs_images, bmasks, gs_noises, gs_psfs, weights, se_images_kept
+    return slices, weights
 
 
 def _coadd_slice_inputs(
-        *, galsim_coadd_wcs, position_offset, row, col, start_row, start_col,
-        box_size, psf_box_size, noise_interp_flags, se_interp_flags,
-        images, bmasks, psfs, noises, weights):
+        *, wcs, wcs_position_offset, start_row, start_col,
+        box_size, psf_start_row, psf_start_col, psf_box_size,
+        noise_interp_flags, se_interp_flags,
+        se_image_slices, weights):
     """Coadd the slice inputs to form the coadded image, noise realization,
     psf, and weight map.
 
-    Note that the WCS of the output images is always the WCS at the
-    input `(row, col)` for the input `galsim_coadd_wcs` using the
-    `position_offset` to translate from the zero-indexed input `(row, col)`
-    to the WCS indexing convention.
-
     Parameters
     ----------
-    galsim_coadd_wcs
-    position_offset : float
-    row : float
-    col : float
+    wcs : `esutil.wcsutil.WCS` object
+    wcs_position_offset : int
     start_row : int
     start_col : int
     box_size : int
+    psf_start_row : int
+    psf_start_col : int
     psf_box_size : int
     noise_interp_flags : int
     se_interp_flags : int
-    images :
-    noises :
-    psfs :
-    weights :
+    se_image_slices : list of SEImageSlice objects
+    weights : np.ndarray
 
     Returns
     -------
-    image : np.array
-    bmask : np.array
-    ormask : np.array
-    noise : np.array
-    psf : np.array
-    weight : np.array
+    image : np.ndarray
+    bmask : np.ndarray
+    ormask : np.ndarray
+    noise : np.ndarray
+    psf : np.ndarray
+    weight : np.ndarray
     """
 
-    coadd_image = galsim.Image(
-        box_size, box_size,
-        dtype=np.float64,
-        init_value=0,
-        xmin=start_col + position_offset,
-        ymin=start_row + position_offset,
-        wcs=galsim_coadd_wcs)
-
-    noise_image = galsim.Image(
-        box_size, box_size,
-        dtype=np.float64,
-        init_value=0,
-        xmin=start_col + position_offset,
-        ymin=start_row + position_offset,
-        wcs=galsim_coadd_wcs)
-
-    _size = max(i.image.xmax - i.image.xmin + 1 for i in psfs)
-    assert _size <= psf_box_size
-    psf_start_col = col - ((psf_box_size - 1)/2)
-    psf_start_row = row - ((psf_box_size - 1)/2)
-    assert psf_start_col == int(psf_start_col)
-    assert psf_start_row == int(psf_start_row)
-
-    psf_image = galsim.Image(
-        psf_box_size, psf_box_size,
-        dtype=np.float64,
-        init_value=0,
-        xmin=int(psf_start_col) + position_offset,
-        ymin=int(psf_start_row) + position_offset,
-        wcs=galsim_coadd_wcs)
-
-    img_sum = galsim.Sum([im * w for im, w in zip(images, weights)])
-    img_sum.drawImage(image=coadd_image, method='no_pixel')
-
-    img_sum = galsim.Sum([im * w for im, w in zip(noises, weights)])
-    img_sum.drawImage(image=noise_image, method='no_pixel')
-
-    img_sum = galsim.Sum([im * w for im, w in zip(psfs, weights)])
-    img_sum.drawImage(image=psf_image, method='no_pixel')
-
-    weight = np.zeros_like(noise_image.array)
-    weight[:, :] = 1.0 / np.var(noise_image.array)
-
-    ormask = np.zeros((box_size, box_size), dtype=np.int32)
-    for coadd_bmask in bmasks:
-        ormask |= coadd_bmask
-
+    image = np.zeros(
+        (box_size, box_size), dtype=se_image_slices[0].image.dtype)
     bmask = np.zeros((box_size, box_size), dtype=np.int32)
-    for coadd_bmask in bmasks:
-        msk = (coadd_bmask & noise_interp_flags) != 0
+    ormask = np.zeros((box_size, box_size), dtype=np.int32)
+    noise = np.zeros(
+        (box_size, box_size), dtype=se_image_slices[0].image.dtype)
+    psf = np.zeros(
+        (psf_box_size, psf_box_size), dtype=se_image_slices[0].image.dtype)
+
+    for se_slice, weight in zip(se_image_slices, weights):
+        resampled_data = se_slice.resample(
+            wcs=wcs,
+            wcs_position_offset=wcs_position_offset,
+            x_start=start_col,
+            y_start=start_row,
+            box_size=box_size,
+            psf_x_start=psf_start_col,
+            psf_y_start=psf_start_row,
+            psf_box_size=psf_box_size
+        )
+
+        image += (resampled_data['image'] * weight)
+        noise += (resampled_data['noise'] * weight)
+        psf += (resampled_data['psf'] * weight)
+
+        ormask |= resampled_data['bmask']
+
+        msk = (resampled_data['bmask'] & noise_interp_flags) != 0
         bmask[msk] |= BMASK_NOISE_INTERP
 
-        msk = (coadd_bmask & se_interp_flags) != 0
+        msk = (resampled_data['bmask'] & se_interp_flags) != 0
         bmask[msk] |= BMASK_SE_INTERP
 
-    # make copies here to let python have a chance at freeing the galsim
-    # objects
+    weight = np.zeros_like(noise)
+    weight[:, :] = 1.0 / np.var(noise)
+
     return (
-        coadd_image.array.copy(),
+        image,
         bmask,
         ormask,
-        noise_image.array.copy(),
-        psf_image.array.copy(),
+        noise,
+        psf,
         weight)

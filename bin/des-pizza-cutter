@@ -37,7 +37,12 @@ from pizza_cutter.des_pizza_cutter import (
     '--seed', default=-1, type=int,
     help='seed for the RNG',
     required=True)
-def main(config, tilename, band, tag, output_path, log_level, seed):
+@click.option(
+    '--use-tmpdir', is_flag=True,
+    help='use a temporary directory to stage data')
+def main(
+        config, tilename, band, tag, output_path, log_level, seed,
+        use_tempdir):
     """Create a metadetection MEDS file from a DES coadd tile."""
 
     logging.basicConfig(stream=sys.stdout)
@@ -71,6 +76,7 @@ def main(config, tilename, band, tag, output_path, log_level, seed):
         piff_run=cfg['piff_run'])
 
     make_des_pizza_slices(
+        use_tempdir=use_tempdir,
         config=_config,
         central_size=cfg['central_size'],
         buffer_size=cfg['buffer_size'],
