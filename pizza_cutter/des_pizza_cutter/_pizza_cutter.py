@@ -190,7 +190,7 @@ def _coadd_and_write_images(
     psf_data += CUTOUT_DEFAULT_VALUES[PSF_CUTOUT_EXTNAME]
     start_row = 0
     psf_start_row = 0
-    for i in tqdm.trange(1):  # len(object_data)):
+    for i in tqdm.trange(len(object_data)):
         logger.info('processing object %d', i)
 
         # we center the PSF at the nearest pixel center near the patch center
