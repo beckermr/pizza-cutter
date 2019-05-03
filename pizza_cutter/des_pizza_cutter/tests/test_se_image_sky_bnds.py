@@ -16,7 +16,7 @@ def test_se_image_sky_bnds_array_shape(se_image_data, x, y):
         se_im.image2sky(x, y)
 
     with pytest.raises(AssertionError):
-        se_im.contains_radec(y, x)
+        se_im.ccd_contains_radec(y, x)
 
 
 def test_se_image_sky_bnds_array(se_image_data):
@@ -28,7 +28,7 @@ def test_se_image_sky_bnds_array(se_image_data):
     dec = se_im._dec_ccd * np.ones(10)
     dec[0] += 15.0  # not in the CCD
 
-    msk = se_im.contains_radec(ra, dec)
+    msk = se_im.ccd_contains_radec(ra, dec)
     assert not msk[0]
     assert np.all(msk[1:])
 
@@ -40,11 +40,11 @@ def test_se_image_sky_bnds_scalar(se_image_data):
 
     ra = se_im._ra_ccd
     dec = se_im._dec_ccd
-    msk = se_im.contains_radec(ra, dec)
+    msk = se_im.ccd_contains_radec(ra, dec)
     assert msk
     assert msk is True
 
     dec += 15.0  # not in the CCD
-    msk = se_im.contains_radec(ra, dec)
+    msk = se_im.ccd_contains_radec(ra, dec)
     assert not msk
     assert msk is False
