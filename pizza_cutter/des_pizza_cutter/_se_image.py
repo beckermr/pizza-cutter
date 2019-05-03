@@ -1,6 +1,8 @@
 import functools
-import fitsio
+import logging
+import time
 
+import fitsio
 import numpy as np
 import esutil as eu
 import galsim
@@ -13,6 +15,8 @@ from ..coadding import WCSInversionInterpolator, lanczos_resample
 from ..memmappednoise import MemMappedNoiseImage
 from ._sky_bounds import get_rough_sky_bounds
 from ._constants import MAGZP_REF, BMASK_EDGE
+
+logger = logging.getLogger(__name__)
 
 
 @functools.lru_cache(maxsize=16)
@@ -609,11 +613,24 @@ class SEImageSlice(object):
             0:self.box_size+2*buff:2, 0:self.box_size+2*buff:2]
         y_se = y_se.ravel() - buff + self.y_start
         x_se = x_se.ravel() - buff + self.x_start
+
+        logger.debug('start image2sky')
+        t0 = time.time()
         ra_se, dec_se = self.image2sky(x_se, y_se)
-        x_coadd, y_coadd = wcs.sky2mage(longitude=ra_se, latitude=dec_se)
+        logger.debug('end image2sky: %f', time.time() - t0)
+
+        logger.debug('start sky2image')
+        t0 = time.time()
+        x_coadd, y_coadd = wcs.sky2image(longitude=ra_se, latitude=dec_se)
+        logger.debug('end sky2image: %f', time.time() - t0)
+
         x_coadd -= wcs_position_offset
         y_coadd -= wcs_position_offset
+
+        logger.debug('start wcs interp')
+        t0 = time.time()
         wcs_interp = WCSInversionInterpolator(x_coadd, y_coadd, x_se, y_se)
+        logger.debug('end wcs interp: %f', time.time() - t0)
 
         # 2. using the lookup table, we resample each image/weight to the
         # coadd coordinates
@@ -643,6 +660,8 @@ class SEImageSlice(object):
         }
 
         # 3. do the nearest pixel for the bit mask
+        y_rs_se = (y_rs_se + 0.5).astype(np.int64)
+        x_rs_se = (x_rs_se + 0.5).astype(np.int64)
         msk = (
             (y_rs_se >= 0) & (y_rs_se < self.bmask.shape[0]) &
             (x_rs_se >= 0) & (x_rs_se < self.bmask.shape[1]))
@@ -662,6 +681,6 @@ class SEImageSlice(object):
         y_rs_se -= self.psf_y_start
 
         resampled_data['psf'] = lanczos_resample(
-            self.psf, y_rs_se, x_rs_se).reshape(psf_box_size, psf_box_size),
+            self.psf, y_rs_se, x_rs_se).reshape(psf_box_size, psf_box_size)
 
         return resampled_data

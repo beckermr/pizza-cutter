@@ -80,15 +80,16 @@ def _build_slice_inputs(
 
     # we first do a rough cut of the images
     # this is fast and lets us stop if nothing can be used
+    logger.debug('generating slice objects')
     seeds = rng.randint(low=1, high=2**30, size=len(se_src_info))
     slices_to_use = []
     for seed, se_info in zip(seeds, se_src_info):
         if se_info['image_flags'] == 0:
             # no flags so init the object
             se_slice = SEImageSlice(
-                source_info=se_src_info,
-                psf_model=se_src_info['piff_psf'],
-                wcs=se_src_info['pixmappy_wcs'],
+                source_info=se_info,
+                psf_model=se_info['piff_psf'],
+                wcs=se_info['pixmappy_wcs'],
                 noise_seed=seed)
 
             # first try a very rough cut on the patch center
@@ -115,6 +116,7 @@ def _build_slice_inputs(
     # we reject outliers after scaling the images to the same zero points
     # every here is passed by reference so this just works
     if reject_outliers:
+        logger.debug('rejecting outliers')
         nreject = meds.meds.reject_outliers(
             [s.image for s in slices_to_use],
             [s.weight for s in slices_to_use])
@@ -137,6 +139,7 @@ def _build_slice_inputs(
 
         # this operates in place on references
         if symmetrize_masking:
+            logger.debug('symmetrizing the masks')
             symmetrize_bmask(bmask=se_slice.bmask, bad_flags=bad_flags)
             symmetrize_weight(weight=se_slice.weight)
 
@@ -172,6 +175,7 @@ def _build_slice_inputs(
                          se_slice.source_info['filename'], msg)
         else:
             # first we do the noise interp
+            logger.debug('doing noise interpolation')
             msk = (se_slice.bmask & noise_interp_flags) != 0
             if np.any(msk):
                 noise = (
@@ -183,6 +187,7 @@ def _build_slice_inputs(
             # inteprolated values
             # the same thing is done for the noise field since the noise
             # interpolation above is equivalent to drawing noise
+            logger.debug('doing image interpolation')
             interp_image, interp_noise = interpolate_image_and_noise(
                 image=se_slice.image,
                 weight=se_slice.weight,
@@ -199,6 +204,7 @@ def _build_slice_inputs(
             se_slice.image = interp_image
             se_slice.noise = interp_noise
 
+            logger.debug('drawing the PSF')
             se_slice.set_psf(ra_psf, dec_psf)
 
             slices.append(se_slice)
@@ -258,6 +264,7 @@ def _coadd_slice_inputs(
         (psf_box_size, psf_box_size), dtype=se_image_slices[0].image.dtype)
 
     for se_slice, weight in zip(se_image_slices, weights):
+        logger.debug('resampling image %s', se_slice.source_info['filename'])
         resampled_data = se_slice.resample(
             wcs=wcs,
             wcs_position_offset=wcs_position_offset,

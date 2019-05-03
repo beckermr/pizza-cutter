@@ -52,7 +52,6 @@ def make_des_pizza_slices(
         reject_outliers,
         symmetrize_masking,
         coadding_weight,
-        coadding_interp,
         noise_interp_flags,
         se_interp_flags,
         bad_image_flags,
@@ -60,7 +59,7 @@ def make_des_pizza_slices(
         max_unmasked_trail_fraction,
         psf_box_size,
         remove_fits_file=True,
-        use_tempdir):
+        use_tmpdir):
     """Build a MEDS pizza slices file for the DES.
 
     Parameters
@@ -81,7 +80,6 @@ def make_des_pizza_slices(
     reject_outliers : bool
     symmetrize_masking : bool
     coadding_weight : str
-    coadding_interp : str
     noise_interp_flags : int
     se_interp_flags : int
     bad_image_flags : int
@@ -107,7 +105,7 @@ def make_des_pizza_slices(
 
     eu.ostools.makedirs_fromfile(meds_path)
 
-    if use_tempdir:
+    if use_tmpdir:
         tmpdir = tempfile.mkdtemp()
     else:
         tmpdir = None
@@ -124,7 +122,6 @@ def make_des_pizza_slices(
                 reject_outliers=reject_outliers,
                 symmetrize_masking=symmetrize_masking,
                 coadding_weight=coadding_weight,
-                coadding_interp=coadding_interp,
                 noise_interp_flags=noise_interp_flags,
                 se_interp_flags=se_interp_flags,
                 bad_image_flags=bad_image_flags,
@@ -161,7 +158,6 @@ def _coadd_and_write_images(
         reject_outliers,
         symmetrize_masking,
         coadding_weight,
-        coadding_interp,
         noise_interp_flags,
         se_interp_flags,
         bad_image_flags,
@@ -194,7 +190,7 @@ def _coadd_and_write_images(
     psf_data += CUTOUT_DEFAULT_VALUES[PSF_CUTOUT_EXTNAME]
     start_row = 0
     psf_start_row = 0
-    for i in tqdm.trange(len(object_data)):
+    for i in tqdm.trange(1):  # len(object_data)):
         logger.info('processing object %d', i)
 
         # we center the PSF at the nearest pixel center near the patch center
@@ -230,7 +226,6 @@ def _coadd_and_write_images(
             reject_outliers=reject_outliers,
             symmetrize_masking=symmetrize_masking,
             coadding_weight=coadding_weight,
-            coadding_interp=coadding_interp,
             noise_interp_flags=noise_interp_flags,
             se_interp_flags=se_interp_flags,
             bad_image_flags=bad_image_flags,

@@ -1,12 +1,15 @@
 import esutil as eu
 import galsim.des
 import fitsio
+import logging
 
 import pixmappy
 import desmeds
 
 from ._constants import MAGZP_REF, POSITION_OFFSET
 from ._piff_tools import load_piff_from_image_path
+
+logger = logging.getLogger(__name__)
 
 
 def get_des_y3_coadd_tile_info(
@@ -157,6 +160,13 @@ def get_des_y3_coadd_tile_info(
             assert isinstance(ii['pixmappy_wcs'], pixmappy.GalSimWCS), (
                 "We did not find a pixmappy WCS object for this SE image!"
             )
+
+            # HACK at the internals to code around a bug!
+            if isinstance(ii['pixmappy_wcs'].origin, galsim._galsim.PositionD):
+                logger.debug("adjusting the pixmappy origin to fix a bug!")
+                ii['pixmappy_wcs']._origin = galsim.PositionD(
+                    ii['pixmappy_wcs']._origin.x,
+                    ii['pixmappy_wcs']._origin.y)
 
         # image scale
         ii['scale'] = 10.0**(0.4*(MAGZP_REF - ii['magzp']))
