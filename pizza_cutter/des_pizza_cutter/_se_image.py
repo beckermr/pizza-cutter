@@ -499,17 +499,18 @@ class SEImageSlice(object):
 
         Returns
         -------
-        patch_bounds : meds.meds.Bounds
+        patch_bounds : meds.bounds.Bounds
             The boundaries of the patch.
         """
-        half_box_size = int(box_size / 2)
-
+        box_cen = (box_size - 1) / 2
         col, row = self.sky2image(ra, dec)
-        se_start_row = np.int32(row) - half_box_size + 1
-        se_start_col = np.int32(col) - half_box_size + 1
+        se_start_row = int(row - box_cen + 0.5)
+        se_start_col = int(col - box_cen + 0.5)
         patch_bnds = Bounds(
-            se_start_row, se_start_row+box_size,
-            se_start_col, se_start_col+box_size)
+            rowmin=se_start_row,
+            rowmax=se_start_row+box_size-1,
+            colmin=se_start_col,
+            colmax=se_start_col+box_size-1)
 
         return patch_bnds
 
