@@ -60,7 +60,8 @@ def get_des_y3_coadd_tile_info(
         The dictionaries in the 'src_info' list have at least the
         following keys:
 
-            'wcs' : the SE `esutil.wcsutil.WCS` object
+            'scamp_wcs' : the SE `esutil.wcsutil.WCS` object with the
+                scamp solution
             'pixmappy_wcs' : the SE pixmappy WCS solution
             'image_path' : the path to the FITS file with the SE image
             'image_ext' : the name of the FITS extension with the SE image
@@ -134,7 +135,7 @@ def get_des_y3_coadd_tile_info(
         ii['bkg_ext'] = 'sci'
 
         # wcs info
-        ii['wcs'] = eu.wcsutil.WCS(
+        ii['scamp_wcs'] = eu.wcsutil.WCS(
             _munge_fits_header(
                 fitsio.read_header(ii['image_path'], ext='sci')))
         ii['position_offset'] = POSITION_OFFSET

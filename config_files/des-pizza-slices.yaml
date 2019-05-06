@@ -11,6 +11,9 @@ buffer_size: 125  # size of the buffer on each size
 psf_box_size: 21
 piff_run: y3a1-v29
 
+# which SE WCS to use - one of pixmappy or scamp
+wcs_type: scamp
+
 reject_outliers: False
 symmetrize_masking: True
 coadding_weight: 'noise'
