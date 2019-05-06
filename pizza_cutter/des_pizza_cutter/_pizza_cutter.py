@@ -1,6 +1,7 @@
 import os
 import tempfile
 import subprocess
+import functools
 import json
 import logging
 import tqdm
@@ -75,21 +76,63 @@ def make_des_pizza_slices(
     meds_path : str
         Path to the output MEDS file.
     info : dict
+        Dictionary of information about the coadd and SE images. This should
+        be set to the output of `get_des_y3_coadd_tile_info` or a similar
+        function that uses the `desmeds` package to query DESDM.
     fpack_pars : dict, optional
         A dictionary of fpack header keywords for compression.
     seed : int
         The random seed used to make the noise field.
     reject_outliers : bool
+        If True, assume the SE images are approximatly registered with
+        respect to one another and apply the pixel outlier rejection
+        code from the `meds` package. If False, this step is skipped.
     symmetrize_masking : bool
+        If True, the bit masks and any zero weight pixels will be rotated
+        by 90 degrees and applied again to the weight and bit masks. If False,
+        this step is skipped.
     coadding_weight : str
+        The kind of relative weight to apply to each of the SE images that
+        form a coadd. The options are
+
+        'noise' - use the maximum of the weight map for each SE image.
+        'noise-fwhm' - use the maximum of the weight map divided by the
+            (PSF FWHM)**4
+
     noise_interp_flags : int
+        An "or" of bit flags. Any pixel in the image with one or more of these
+        flags will be replaced by noise (computed from the weight map) before
+        coadding. This step is done after any mask symmetrization.
     se_interp_flags : int
+        An "or" of bit flags. Any pixel in the image with one or more of these
+        flags will be interpolated using a cubic order interpolant over the
+        good pixels. This step is done after symmetrization of the mask and
+        any noise interpolation via `noise_interp_flags`.
     bad_image_flags : int
+        An "or" of bit flags. Any image the set of SE images with any pixel
+        in the coadding region set to one of these flags is ignored during
+        coadding.
     max_masked_fraction : float
+        The maximum masked fraction an SE image can have before it is
+        excluded from the coadd. This masked fraction is computed from any
+        zero weight pixels, any picels with any of the se_interp_flags or
+        any pixels with any of the noise_interp_flags. It is the fraction of
+        the subset of the SE image that approximatly overlaps the final coadded
+        region.
     max_unmasked_trail_fraction : float
+        The maximum unmasked bleed trail fraction an SE image can have
+        before it is exlcuded from the coadd. This parameter is the
+        fraction of the subset of the SE image that overlaps the coadd. See
+        the function `compute_unmasked_trail_fraction` in
+        `pizza_cutter.des_pizz_cutter._slice_flagging.` for details.
     psf_box_size : int
+        The size of the PSF stamp in the final coadd coordinates. This should
+        be an odd number large enough to contain any SE PSF.
     wcs_type : str
+        The SE WCS solution to use for coadd. This should be one of 'pixmappy'
+        or 'scamp'.
     psf_type : str
+        The SE PSF model to use. This should be one 'psfex' or 'piff'.
     remove_fits_file : bool, optional
         If `True`, remove the FITS file after fpacking. Only works if not
         using a temporary directory.
@@ -172,8 +215,6 @@ def _coadd_and_write_images(
         wcs_type,
         psf_type,
         seed):
-    """
-    """
     print('reserving mosaic images...', flush=True)
     n_pixels = int(np.sum(object_data['box_size']**2))
     _reserve_images(fits, n_pixels, fpack_pars)
@@ -340,6 +381,7 @@ def _write_single_image(*, fits, data, ext, start_row):
     fits[ext].write(subim, start=start_row)
 
 
+@functools.lru_cache(maxsize=128)
 def _get_image_width(*, coadd_image_path, coadd_image_ext):
     h = fitsio.read_header(coadd_image_path, ext=coadd_image_ext)
     return h['znaxis1']
@@ -353,9 +395,9 @@ def _build_object_data(
         psf_box_size,
         wcs,
         position_offset):
-    """Build the internal MEDS data structureself.
+    """Build the internal MEDS data structure.
 
-    Information about the PSF is filled when the PSF is drawn
+    NOTE: Information about the PSF is filled when the PSF is drawn later.
     """
     rows, cols, start_rows, start_cols = build_slice_locations(
         central_size=central_size,
@@ -412,8 +454,6 @@ def _build_object_data(
 
 
 def _build_image_info(*, info):
-    """Build the image info structure."""
-
     n_images = 1 + len(info['src_info'])
 
     # we need to get the maximum WCS length here
@@ -467,18 +507,6 @@ def _build_image_info(*, info):
 
 
 def _build_metadata(*, config):
-    """Build the metadata for the pizza slices MEDS file.
-
-    Parameters
-    ----------
-    confg : str
-        The pizza slice MEDS file config as a string.
-
-    Returns
-    -------
-    metadata : structured np.ndarray
-        A structure numpy array with the metadata fields.
-    """
     numpy_version = np.__version__
     esutil_version = eu.__version__
     fitsio_version = fitsio.__version__
