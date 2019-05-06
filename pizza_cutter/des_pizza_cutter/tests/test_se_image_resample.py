@@ -3,7 +3,6 @@ import numpy as np
 import pytest
 
 import piff
-import galsim
 
 from .._se_image import SEImageSlice
 
@@ -22,28 +21,37 @@ def test_se_image_resample_smoke(se_image_data, coadd_image_data):
     ra, dec = se_im.image2sky(600, 700)
     se_im.set_slice(600-250, 700-250, 500)
     se_im.set_psf(ra, dec)
+    x, y = coadd_image_data['eu_wcs'].sky2image(ra, dec)
+    x = int(x+0.5)
+    y = int(y+0.5)
     resampled_data = se_im.resample(
         wcs=coadd_image_data['eu_wcs'],
         wcs_position_offset=coadd_image_data['position_offset'],
-        x_start=600-250,
-        y_start=700-250,
+        x_start=x-250,
+        y_start=y-250,
         box_size=500,
-        psf_x_start=600-23,
-        psf_y_start=700-23,
+        psf_x_start=x-11,
+        psf_y_start=y-11,
         psf_box_size=23
     )
 
+    # we are simply looking for weird outputs here to make sure it actually
+    # runs in a simple, known case
+    for k in resampled_data:
+        if k != 'bmask' and k != 'ormask':
+            assert np.all(np.isfinite(resampled_data[k])), k
 
-@pytest.mark.parametrize('eps_x', [
-    -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75])
-@pytest.mark.parametrize('eps_y', [
-    -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75])
-def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
 
-    def _sky2image(ra, dec):
-        return ra, dec + eps_y
-
-    def _image2sky(x, y):
-        return x + eps_x, y
-
-    assert False
+# @pytest.mark.parametrize('eps_x', [
+#     -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75])
+# @pytest.mark.parametrize('eps_y', [
+#     -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75])
+# def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
+#
+#     def _sky2image(ra, dec):
+#         return ra, dec + eps_y
+#
+#     def _image2sky(x, y):
+#         return x + eps_x, y
+#
+#     assert False
