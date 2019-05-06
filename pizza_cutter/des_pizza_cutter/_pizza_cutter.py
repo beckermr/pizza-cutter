@@ -59,6 +59,7 @@ def make_des_pizza_slices(
         max_unmasked_trail_fraction,
         psf_box_size,
         wcs_type,
+        psf_type,
         remove_fits_file=True,
         use_tmpdir):
     """Build a MEDS pizza slices file for the DES.
@@ -88,6 +89,7 @@ def make_des_pizza_slices(
     max_unmasked_trail_fraction : float
     psf_box_size : int
     wcs_type : str
+    psf_type : str
     remove_fits_file : bool, optional
         If `True`, remove the FITS file after fpacking. Only works if not
         using a temporary directory.
@@ -130,6 +132,7 @@ def make_des_pizza_slices(
                 max_masked_fraction=max_masked_fraction,
                 max_unmasked_trail_fraction=max_unmasked_trail_fraction,
                 wcs_type=wcs_type,
+                psf_type=psf_type,
                 seed=seed,
                 fpack_pars=fpack_pars)
 
@@ -167,6 +170,7 @@ def _coadd_and_write_images(
         max_masked_fraction,
         max_unmasked_trail_fraction,
         wcs_type,
+        psf_type,
         seed):
     """
     """
@@ -236,6 +240,7 @@ def _coadd_and_write_images(
             max_masked_fraction=max_masked_fraction,
             max_unmasked_trail_fraction=max_unmasked_trail_fraction,
             wcs_type=wcs_type,
+            psf_type=psf_type,
             rng=rng)
 
         # did we get anything?

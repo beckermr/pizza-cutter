@@ -6,10 +6,11 @@ source_type: finalcut
 central_size: 250  # size of the central region
 buffer_size: 125  # size of the buffer on each size
 
-# this should be even and bigger than any stamp returned by the
+# this should be odd and bigger than any stamp returned by the
 # PSF reconstruction
 psf_box_size: 21
 piff_run: y3a1-v29
+psf_type: piff
 
 # which SE WCS to use - one of pixmappy or scamp
 wcs_type: scamp

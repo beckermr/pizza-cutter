@@ -52,6 +52,7 @@ def _build_slice_inputs(
         max_masked_fraction,
         max_unmasked_trail_fraction,
         wcs_type,
+        psf_type,
         rng):
     """Build the inputs to coadd a single slice.
 
@@ -72,6 +73,7 @@ def _build_slice_inputs(
     max_masked_fraction : float
     max_unmasked_trail_fraction : float
     wcs_type : str
+    psf_type : str
     rng : np.random.RandomState
 
     Returns
@@ -90,7 +92,7 @@ def _build_slice_inputs(
             # no flags so init the object
             se_slice = SEImageSlice(
                 source_info=se_info,
-                psf_model=se_info['piff_psf'],
+                psf_model=se_info['%s_psf' % psf_type],
                 wcs=se_info['%s_wcs' % wcs_type],
                 noise_seed=seed)
 

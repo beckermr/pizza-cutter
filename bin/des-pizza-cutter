@@ -94,6 +94,7 @@ def main(
         max_masked_fraction=cfg['max_masked_fraction'],
         max_unmasked_trail_fraction=cfg['max_unmasked_trail_fraction'],
         wcs_type=cfg['wcs_type'],
+        psf_type=cfg['psf_type'],
         psf_box_size=cfg['psf_box_size'])
 
 
