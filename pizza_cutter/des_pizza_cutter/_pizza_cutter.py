@@ -414,7 +414,7 @@ def _build_image_info(*, info):
     # we need to get the maximum WCS length here
     max_wcs_len = max(
         [len(json.dumps(eval(str(info['wcs']))))] + [
-            len(json.dumps(eval(str(se['wcs']))))
+            len(json.dumps(eval(str(se['scamp_wcs']))))
             for se in info['src_info']])
 
     # we need to get the maximum string length here too
@@ -456,7 +456,7 @@ def _build_image_info(*, info):
         ii['magzp'][loc] = se_info['magzp']
         ii['scale'][loc] = se_info['scale']
         ii['position_offset'][loc] = se_info['position_offset']
-        ii['wcs'][loc] = json.dumps(eval(str(se_info['wcs'])))
+        ii['wcs'][loc] = json.dumps(eval(str(se_info['scamp_wcs'])))
 
     return ii
 
