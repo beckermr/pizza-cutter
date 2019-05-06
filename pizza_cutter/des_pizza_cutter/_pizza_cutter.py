@@ -1,4 +1,5 @@
 import os
+import tempfile
 import subprocess
 import json
 import logging
@@ -8,6 +9,10 @@ import numpy as np
 import fitsio
 import meds
 import esutil as eu
+import piff
+import pixmappy
+import desmeds
+
 from meds.maker import MEDS_FMT_VERSION
 from meds.util import (
     get_image_info_struct, get_meds_output_struct, validate_meds)
@@ -16,7 +21,6 @@ from .._version import __version__
 from ._constants import (
     METADATA_EXTNAME,
     MAGZP_REF,
-    POSITION_OFFSET,
     IMAGE_INFO_EXTNAME,
     OBJECT_DATA_EXTNAME,
     IMAGE_CUTOUT_EXTNAME,
@@ -30,6 +34,7 @@ from ._constants import (
     CUTOUT_DEFAULT_VALUES)
 from ..slice_utils.locate import build_slice_locations
 from ..slice_utils.measure import measure_fwhm
+from ..files import StagedOutFile
 from ._coadd_slices import (
     _build_slice_inputs, _coadd_slice_inputs)
 
@@ -47,14 +52,16 @@ def make_des_pizza_slices(
         reject_outliers,
         symmetrize_masking,
         coadding_weight,
-        coadding_interp,
         noise_interp_flags,
         se_interp_flags,
         bad_image_flags,
         max_masked_fraction,
         max_unmasked_trail_fraction,
         psf_box_size,
-        remove_fits_file=True):
+        wcs_type,
+        psf_type,
+        remove_fits_file=True,
+        use_tmpdir):
     """Build a MEDS pizza slices file for the DES.
 
     Parameters
@@ -75,18 +82,20 @@ def make_des_pizza_slices(
     reject_outliers : bool
     symmetrize_masking : bool
     coadding_weight : str
-    coadding_interp : str
     noise_interp_flags : int
     se_interp_flags : int
     bad_image_flags : int
     max_masked_fraction : float
     max_unmasked_trail_fraction : float
     psf_box_size : int
+    wcs_type : str
+    psf_type : str
     remove_fits_file : bool, optional
-        If `True`, remove the FITS file after fpacking.
+        If `True`, remove the FITS file after fpacking. Only works if not
+        using a temporary directory.
     """
 
-    metadata = _build_metadata(config)
+    metadata = _build_metadata(config=config)
     image_info = _build_image_info(info=info)
     object_data = _build_object_data(
         central_size=central_size,
@@ -100,40 +109,50 @@ def make_des_pizza_slices(
 
     eu.ostools.makedirs_fromfile(meds_path)
 
-    with fitsio.FITS(meds_path, 'rw', clobber=True) as fits:
-        _coadd_and_write_images(
-            fits=fits,
-            object_data=object_data,
-            info=info,
-            reject_outliers=reject_outliers,
-            symmetrize_masking=symmetrize_masking,
-            coadding_weight=coadding_weight,
-            coadding_interp=coadding_interp,
-            noise_interp_flags=noise_interp_flags,
-            se_interp_flags=se_interp_flags,
-            bad_image_flags=bad_image_flags,
-            max_masked_fraction=max_masked_fraction,
-            max_unmasked_trail_fraction=max_unmasked_trail_fraction,
-            seed=seed,
-            fpack_pars=fpack_pars)
-
-        fits.write(metadata, extname=METADATA_EXTNAME)
-        fits.write(image_info, extname=IMAGE_INFO_EXTNAME)
-
-    # fpack it
-    try:
-        os.remove(meds_path + '.fz')
-    except FileNotFoundError:
-        pass
-    cmd = 'fpack %s' % meds_path
-    print("fpacking:\n    command: '%s'" % cmd, flush=True)
-    try:
-        subprocess.check_call(cmd, shell=True)
-    except Exception:
-        pass
+    if use_tmpdir:
+        tmpdir = tempfile.mkdtemp()
     else:
-        if remove_fits_file:
-            os.remove(meds_path)
+        tmpdir = None
+
+    with StagedOutFile(meds_path + '.fz', tmpdir=tmpdir) as sf:
+
+        staged_meds_path = sf.path[:-3]
+
+        with fitsio.FITS(staged_meds_path, 'rw', clobber=True) as fits:
+            _coadd_and_write_images(
+                fits=fits,
+                object_data=object_data,
+                info=info,
+                reject_outliers=reject_outliers,
+                symmetrize_masking=symmetrize_masking,
+                coadding_weight=coadding_weight,
+                noise_interp_flags=noise_interp_flags,
+                se_interp_flags=se_interp_flags,
+                bad_image_flags=bad_image_flags,
+                max_masked_fraction=max_masked_fraction,
+                max_unmasked_trail_fraction=max_unmasked_trail_fraction,
+                wcs_type=wcs_type,
+                psf_type=psf_type,
+                seed=seed,
+                fpack_pars=fpack_pars)
+
+            fits.write(metadata, extname=METADATA_EXTNAME)
+            fits.write(image_info, extname=IMAGE_INFO_EXTNAME)
+
+        # fpack it
+        try:
+            os.remove(staged_meds_path + '.fz')
+        except FileNotFoundError:
+            pass
+        cmd = 'fpack %s' % staged_meds_path
+        print("fpacking:\n    command: '%s'" % cmd, flush=True)
+        try:
+            subprocess.check_call(cmd, shell=True)
+        except Exception:
+            pass
+        else:
+            if remove_fits_file:
+                os.remove(staged_meds_path)
 
     # validate the fpacked file
     print('validating:', flush=True)
@@ -145,12 +164,13 @@ def _coadd_and_write_images(
         reject_outliers,
         symmetrize_masking,
         coadding_weight,
-        coadding_interp,
         noise_interp_flags,
         se_interp_flags,
         bad_image_flags,
         max_masked_fraction,
         max_unmasked_trail_fraction,
+        wcs_type,
+        psf_type,
         seed):
     """
     """
@@ -181,10 +201,31 @@ def _coadd_and_write_images(
     for i in tqdm.trange(len(object_data)):
         logger.info('processing object %d', i)
 
-        (gs_images, se_bmasks, gs_noises, gs_psfs,
-         weights, se_images_kept) = _build_slice_inputs(
+        # we center the PSF at the nearest pixel center near the patch center
+        col, row = info['wcs'].sky2image(
+            longitude=object_data['ra'][i], latitude=object_data['dec'][i])
+        # this col, row includes the position offset
+        # we don't need to remove it when putting them back into the WCS
+        # but we will remove it later since we work in zero-indexed coords
+        col = int(col + 0.5)
+        row = int(row + 0.5)
+        # ra, dec of the pixel center
+        ra_psf, dec_psf = info['wcs'].image2sky(col, row)
+
+        # now we find the lower left location of the PSF image
+        half = (object_data['psf_box_size'][i] - 1) / 2
+        assert int(half) == half, "PSF images must have odd dimensions!"
+        # here we remove the position offset
+        col -= info['position_offset']
+        row -= info['position_offset']
+        psf_orig_start_col = col - half
+        psf_orig_start_row = row - half
+
+        se_image_slices, weights = _build_slice_inputs(
             ra=object_data['ra'][i],
             dec=object_data['dec'][i],
+            ra_psf=ra_psf,
+            dec_psf=dec_psf,
             box_size=object_data['box_size'][i],
             coadd_info=info,
             start_row=object_data['orig_start_row'][i, 0],
@@ -193,12 +234,13 @@ def _coadd_and_write_images(
             reject_outliers=reject_outliers,
             symmetrize_masking=symmetrize_masking,
             coadding_weight=coadding_weight,
-            coadding_interp=coadding_interp,
             noise_interp_flags=noise_interp_flags,
             se_interp_flags=se_interp_flags,
             bad_image_flags=bad_image_flags,
             max_masked_fraction=max_masked_fraction,
             max_unmasked_trail_fraction=max_unmasked_trail_fraction,
+            wcs_type=wcs_type,
+            psf_type=psf_type,
             rng=rng)
 
         # did we get anything?
@@ -206,20 +248,17 @@ def _coadd_and_write_images(
             object_data['ncutout'][i] = 1
 
             image, bmask, ormask, noise, psf, weight = _coadd_slice_inputs(
-                galsim_coadd_wcs=info['galsim_wcs'],
-                position_offset=info['position_offset'],
-                row=object_data['orig_row'][i, 0],
-                col=object_data['orig_col'][i, 0],
+                wcs=info['wcs'],
+                wcs_position_offset=info['position_offset'],
                 start_row=object_data['orig_start_row'][i, 0],
                 start_col=object_data['orig_start_col'][i, 0],
                 box_size=object_data['box_size'][i],
+                psf_start_row=psf_orig_start_row,
+                psf_start_col=psf_orig_start_col,
                 psf_box_size=object_data['psf_box_size'][i],
                 noise_interp_flags=noise_interp_flags,
                 se_interp_flags=se_interp_flags,
-                images=gs_images,
-                bmasks=se_bmasks,
-                psfs=gs_psfs,
-                noises=gs_noises,
+                se_image_slices=se_image_slices,
                 weights=weights)
 
             # write the image, bmask, ormask, noise and weight map
@@ -362,8 +401,8 @@ def _build_object_data(
         output_info['orig_col'][index, 0] = col
         output_info['orig_start_row'][index, 0] = start_row
         output_info['orig_start_col'][index, 0] = start_col
-        output_info['cutout_row'][index, 0] = cen_offset
-        output_info['cutout_col'][index, 0] = cen_offset
+        output_info['cutout_row'][index, 0] = cen_offset + buffer_size
+        output_info['cutout_col'][index, 0] = cen_offset + buffer_size
         output_info['dudcol'][index, 0] = jacob[0]
         output_info['dudrow'][index, 0] = jacob[1]
         output_info['dvdcol'][index, 0] = jacob[2]
@@ -380,7 +419,7 @@ def _build_image_info(*, info):
     # we need to get the maximum WCS length here
     max_wcs_len = max(
         [len(json.dumps(eval(str(info['wcs']))))] + [
-            len(json.dumps(eval(str(se['wcs']))))
+            len(json.dumps(eval(str(se['scamp_wcs']))))
             for se in info['src_info']])
 
     # we need to get the maximum string length here too
@@ -404,10 +443,10 @@ def _build_image_info(*, info):
 
     # first we do the coadd since it is special
     ii['image_id'][0] = 0
-    ii['image_flags'][0] = 0
-    ii['magzp'][0] = MAGZP_REF
-    ii['scale'][0] = 10.0**(0.4*(MAGZP_REF - ii['magzp'][0]))
-    ii['position_offset'][0] = POSITION_OFFSET
+    ii['image_flags'][0] = info['image_flags']
+    ii['magzp'][0] = info['magzp']
+    ii['scale'][0] = info['scale']
+    ii['position_offset'][0] = info['position_offset']
     ii['wcs'][0] = json.dumps(eval(str(info['wcs'])))
 
     # now do the epochs
@@ -418,21 +457,35 @@ def _build_image_info(*, info):
                 'bmask_path', 'bmask_ext', 'bkg_path', 'bkg_ext']:
             ii[key][loc] = se_info[key]
         ii['image_id'][loc] = loc
-        ii['image_flags'][loc] = 0
+        ii['image_flags'][loc] = se_info['image_flags']
         ii['magzp'][loc] = se_info['magzp']
-        ii['scale'][loc] = 10.0**(0.4*(MAGZP_REF - ii['magzp'][loc]))
+        ii['scale'][loc] = se_info['scale']
         ii['position_offset'][loc] = se_info['position_offset']
-        ii['wcs'][loc] = json.dumps(eval(str(se_info['wcs'])))
+        ii['wcs'][loc] = json.dumps(eval(str(se_info['scamp_wcs'])))
 
     return ii
 
 
-def _build_metadata(config):
-    """Build the metadata for the pizza slices MEDS file"""
+def _build_metadata(*, config):
+    """Build the metadata for the pizza slices MEDS file.
+
+    Parameters
+    ----------
+    confg : str
+        The pizza slice MEDS file config as a string.
+
+    Returns
+    -------
+    metadata : structured np.ndarray
+        A structure numpy array with the metadata fields.
+    """
     numpy_version = np.__version__
     esutil_version = eu.__version__
     fitsio_version = fitsio.__version__
     meds_version = meds.__version__
+    piff_version = piff.__version__
+    pixmappy_version = pixmappy.__version__
+    desmeds_version = desmeds.__version__
     dt = [
         ('magzp_ref', 'f8'),
         ('config', 'S%d' % len(config)),
@@ -440,6 +493,9 @@ def _build_metadata(config):
         ('numpy_version', 'S%d' % len(numpy_version)),
         ('esutil_version', 'S%d' % len(esutil_version)),
         ('fitsio_version', 'S%d' % len(fitsio_version)),
+        ('piff_version', 'S%d' % len(piff_version)),
+        ('pixmappy_version', 'S%d' % len(pixmappy_version)),
+        ('desmeds_version', 'S%d' % len(desmeds_version)),
         ('meds_version', 'S%d' % len(meds_version)),
         ('meds_fmt_version', 'S%d' % len(MEDS_FMT_VERSION)),
         ('meds_dir', 'S%d' % len(os.environ['MEDS_DIR']))]
@@ -449,6 +505,9 @@ def _build_metadata(config):
     metadata['numpy_version'] = numpy_version
     metadata['esutil_version'] = esutil_version
     metadata['fitsio_version'] = fitsio_version
+    metadata['piff_version'] = piff_version
+    metadata['pixmappy_version'] = pixmappy_version
+    metadata['desmeds_version'] = desmeds_version
     metadata['meds_version'] = meds_version
     metadata['meds_fmt_version'] = MEDS_FMT_VERSION
     metadata['pizza_cutter_version'] = __version__

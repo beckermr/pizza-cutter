@@ -37,7 +37,12 @@ from pizza_cutter.des_pizza_cutter import (
     '--seed', default=-1, type=int,
     help='seed for the RNG',
     required=True)
-def main(config, tilename, band, tag, output_path, log_level, seed):
+@click.option(
+    '--use-tmpdir', is_flag=True,
+    help='use a temporary directory to stage data')
+def main(
+        config, tilename, band, tag, output_path, log_level, seed,
+        use_tmpdir):
     """Create a metadetection MEDS file from a DES coadd tile."""
 
     logging.basicConfig(stream=sys.stdout)
@@ -49,7 +54,8 @@ def main(config, tilename, band, tag, output_path, log_level, seed):
     with open(config, 'r') as fp:
         _config = fp.read()
     cfg = yaml.load(
-        jinja2.Template(_config).render(tilename=tilename, band=band))
+        jinja2.Template(_config).render(tilename=tilename, band=band),
+        Loader=yaml.Loader)
 
     sname = os.path.basename(config).replace('.yaml', '')
     if tag is not None:
@@ -67,9 +73,11 @@ def main(config, tilename, band, tag, output_path, log_level, seed):
         tilename=tilename,
         band=band,
         campaign=cfg['campaign'],
-        medsconf=sname)
+        medsconf=sname,
+        piff_run=cfg['piff_run'])
 
     make_des_pizza_slices(
+        use_tmpdir=use_tmpdir,
         config=_config,
         central_size=cfg['central_size'],
         buffer_size=cfg['buffer_size'],
@@ -80,12 +88,13 @@ def main(config, tilename, band, tag, output_path, log_level, seed):
         reject_outliers=cfg['reject_outliers'],
         symmetrize_masking=cfg['symmetrize_masking'],
         coadding_weight=cfg['coadding_weight'],
-        coadding_interp=cfg['coadding_interp'],
         noise_interp_flags=sum(cfg['noise_interp_flags']),
         se_interp_flags=sum(cfg['se_interp_flags']),
         bad_image_flags=sum(cfg['bad_image_flags']),
         max_masked_fraction=cfg['max_masked_fraction'],
         max_unmasked_trail_fraction=cfg['max_unmasked_trail_fraction'],
+        wcs_type=cfg['wcs_type'],
+        psf_type=cfg['psf_type'],
         psf_box_size=cfg['psf_box_size'])
 
 

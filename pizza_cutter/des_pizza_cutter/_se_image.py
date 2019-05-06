@@ -1,6 +1,8 @@
 import functools
-import fitsio
+import logging
+import time
 
+import fitsio
 import numpy as np
 import esutil as eu
 import galsim
@@ -8,11 +10,13 @@ import piff
 
 from meds.bounds import Bounds
 from meds.util import radec_to_uv
-# import copy
-#
+
+from ..coadding import WCSInversionInterpolator, lanczos_resample
 from ..memmappednoise import MemMappedNoiseImage
 from ._sky_bounds import get_rough_sky_bounds
-from ._constants import MAGZP_REF
+from ._constants import MAGZP_REF, BMASK_EDGE
+
+logger = logging.getLogger(__name__)
 
 
 @functools.lru_cache(maxsize=16)
@@ -51,7 +55,8 @@ class SEImageSlice(object):
     -------
     set_slice(x_start, y_start, box_size)
         Set the slice location and read a square slice of the
-        image, weight map, bit mask, and the noise field.
+        image, weight map, bit mask, and the noise field. Sets the `image`
+        and related attributes. See the attribute list below.
     image2sky(x, y)
         Compute ra, dec for a given set of pixel coordinates.
     sky2image(ra, dec)
@@ -59,32 +64,49 @@ class SEImageSlice(object):
     get_wcs_jacobian(x, y)
         Return the Jacobian of the WCS transformation as a `galsim.JacobianWCS`
         object.
-    contains_radec(ra, dec)
+    ccd_contains_radec(ra, dec)
         Use the approximate sky bounds to detect if the given point in
         ra, dec is anywhere in the total SE image (not just the slice).
+    ccd_contains_bounds(bounds)
+        Uses the CCD bounds in image coordinates to test for an intersection
+        with another bounds object.
     get_psf_image(x, y)
         Get an image of the PSF as a numpy array at the given location.
+    compute_slice_bounds(ra, dec, box_size)
+        Compute the patch bounds for a given ra,dec image and box size.
+    set_psf(ra, dec)
+        Set the PSF of the slice using the input (ra, dec). Sets the `psf`,
+        `psf_x_start`, `psf_y_start` and `psf_box_size` attributes.
 
     Attributes
     ----------
     source_info : dict
         The source info dictionary for the SE image.
     image : np.ndarray
-        The slice of the image.
+        The slice of the image. Set by calling `set_slice`.
     weight : np.ndarray
-        The slice of the wight map.
+        The slice of the wight map. Set by calling `set_slice`.
     bmask : np.ndarray
-        The slice of the bit mask.
+        The slice of the bit mask. Set by calling `set_slice`.
     noise : np.ndarray
-        The slice of the noise field for the image.
+        The slice of the noise field for the image. Set by calling `set_slice`.
     x_start : int
-        The zero-indexed starting column for the slice.
+        The zero-indexed starting column for the slice. Set by calling
+        `set_slice`.
     y_start : int
-        The zero-indexed starting row for the slice.
+        The zero-indexed starting row for the slice. Set by calling
+        `set_slice`.
     box_size : int
-        The size of the slice.
-    ccd_bnds : meds.bounds.Bounds
-        A boundary object for the full CCD.
+        The size of the slice. Set by calling `set_slice`.
+    psf : np.ndarray
+        An image of the PSF. Set by calling `set_psf`.
+    psf_x_start : int
+        The starting x/column location of the PSF image. Set by calling
+        `set_psf`.
+    psf_y_start : int
+        The starting y/row location of the PSF image. Set by calling `set_psf`.
+    psf_box_size : int
+        The size of the PSF image. Set by calling `set_psf`.
     """
     def __init__(self, *, source_info, psf_model, wcs, noise_seed):
         self.source_info = source_info
@@ -104,7 +126,7 @@ class SEImageSlice(object):
         self._dec_ccd = dec_ccd
 
         # init ccd bounds
-        self.ccd_bnds = Bounds(0, 4096-1, 0, 2048-1)
+        self._ccd_bnds = Bounds(0, 4096-1, 0, 2048-1)
 
     def set_slice(self, x_start, y_start, box_size):
         """Set the slice location and read a square slice of the
@@ -198,18 +220,12 @@ class SEImageSlice(object):
             ra, dec = self._wcs.image2sky(x+1, y+1)
         elif isinstance(self._wcs, galsim.BaseWCS):
             assert self._wcs.isCelestial()
-            ra = []
-            dec = []
-            for _x, _y in zip(x, y):
-                # for the DES we always have a one-indexed system
-                image_pos = galsim.PositionD(x=_x+1, y=_y+1)
-                world_pos = self._wcs.toWorld(image_pos)
-                _ra = world_pos.ra / galsim.degrees
-                _dec = world_pos.dec / galsim.degrees
-                ra.append(_ra)
-                dec.append(_dec)
-            ra = np.array(ra)
-            dec = np.array(dec)
+
+            # ignoring color for now
+            ra, dec = self._wcs._radec(
+                x - self._wcs.x0 + 1, y - self._wcs.y0 + 1)
+            np.degrees(ra, out=ra)
+            np.degrees(dec, out=dec)
         else:
             raise ValueError('WCS %s not recognized!' % self._wcs)
 
@@ -317,7 +333,7 @@ class SEImageSlice(object):
 
         return jac
 
-    def contains_radec(self, ra, dec):
+    def ccd_contains_radec(self, ra, dec):
         """Use the approximate sky bounds to detect if the given point in
         ra, dec is anywhere in the total SE image (not just the slice).
 
@@ -429,12 +445,11 @@ class SEImageSlice(object):
 
         elif isinstance(self._psf_model, piff.PSF):
             # draw the image
-            # piff is zero-indexed? wtf?
             # piff requires no offset since it renders in the actual
             # SE image pixel grid, not a hypothetical grid with the
             # star at a pixel center
             # again always 21 pixels for DES Y3+
-            im = self._psf_model.draw(x=x, y=y, stamp_size=21)
+            im = self._psf_model.draw(x=x+1, y=y+1, stamp_size=21)
             psf_im = im.array.copy()
         else:
             raise ValueError('PSF %s not recognized!' % self._psf_model)
@@ -446,3 +461,221 @@ class SEImageSlice(object):
         assert psf_im.shape[0] % 2 == 1, "PSF dimension is not odd!"
 
         return psf_im
+
+    def ccd_contains_bounds(self, bounds):
+        """Uses the CCD bounds in image coordinates to test for an intersection
+        with another bounds object.
+
+        Parameters
+        ----------
+        bounds : meds.bounds.Bounds
+            A bounds object to test with.
+
+        Returns
+        -------
+        intersects : bool
+            True if the SE image intersects with this bounds object, False
+            otherwise.
+        """
+        return self._ccd_bnds.contains_bounds(bounds)
+
+    def compute_slice_bounds(self, ra, dec, box_size):
+        """Compute the patch bounds for a given ra,dec image and box size.
+
+        Parameters
+        ----------
+        ra : float
+            The right ascension of the sky position.
+        dec : float
+            The declination of the sky position.
+        box_size : int
+            The size of the square slice.
+
+        Returns
+        -------
+        patch_bounds : meds.bounds.Bounds
+            The boundaries of the patch.
+        """
+        box_cen = (box_size - 1) / 2
+        col, row = self.sky2image(ra, dec)
+        se_start_row = int(row - box_cen + 0.5)
+        se_start_col = int(col - box_cen + 0.5)
+        patch_bnds = Bounds(
+            rowmin=se_start_row,
+            rowmax=se_start_row+box_size-1,
+            colmin=se_start_col,
+            colmax=se_start_col+box_size-1)
+
+        return patch_bnds
+
+    def set_psf(self, ra, dec):
+        """Set the PSF of the slice using the input (ra, dec).
+
+        Parameters
+        ----------
+        ra : float
+            The right ascension of the sky position.
+        dec : float
+            The declination of the sky position.
+        """
+
+        x, y = self.sky2image(ra, dec)
+        psf = self.get_psf_image(x, y)
+        half = (psf.shape[0] - 1) / 2
+        x_cen = int(x+0.5)
+        y_cen = int(y+0.5)
+
+        # make sure this is true so pixel index math is ok
+        assert y_cen - half == int(y_cen - half)
+        assert x_cen - half == int(x_cen - half)
+
+        self.psf = psf
+        self.psf_x_start = int(x_cen - half)
+        self.psf_y_start = int(y_cen - half)
+        self.psf_box_size = psf.shape[0]
+
+    def resample(
+            self, *, wcs, wcs_position_offset, x_start, y_start, box_size,
+            psf_x_start, psf_y_start, psf_box_size):
+        """Resample a SEImageSlice to a new WCS.
+
+        The resampling is done as follows. For each pixel in the destination
+        image, we compute its location in the source image. Then we use a
+        Lanczos3 interpolant in the source grid to compute the value of the
+        pixel in the destination image. For bit masks, we use the nearest pixel
+        instead of an interpolant.
+
+        NOTE: For destination grids that are far from the input grid, this
+        function will not work.
+
+        NOTE: Typically, the input WCS object will be for a coadd.
+
+        Parameters
+        ----------
+        wcs : `esutil.wcsutil.WCS` object
+            The WCS model to use for the resampled pixel grid. This object is
+            assumed to take one-indexed, pixel-centered coordinates.
+        wcs_position_offset : int
+            The coordinate offset, if any, to get from the zero-indexed, pixel-
+            centered coordinates used by this class to the coordinate convetion
+            of the input `wcs` object.
+        x_start : int
+            The zero-indexed, pixel-centered starting x/column in the
+            destination grid.
+        y_start : int
+            The zero-indexed, pixel-centered starting y/row in the
+            destination grid.
+        box_size : int
+            The size of the square region to resample to in the destination
+            grid.
+        psf_x_start : int
+            The zero-indexed, pixel-centered starting x/column in the
+            destination PSF grid.
+        psf_y_start : int
+            The zero-indexed, pixel-centered starting y/row in the
+            destination PSF grid.
+        psf_box_size : int
+            The size of the square region to resample to in the destination
+            PSF grid.
+
+        Returns
+        -------
+        resampled_data : dict
+            A dictionary with the resampled data. It has keys
+
+                'image' : the resampled image
+                'weight' : the resampled weight map
+                'bmask' : an approximate bmask using the nearest SE image
+                    pixel
+                'noise' : the resampled noise image
+                'psf' : the resmapled PSF image
+        """
+        # error check
+        if not hasattr(self, 'box_size'):
+            raise RuntimeError("You must call set_slice before resmpling!")
+
+        if not hasattr(self, 'psf_box_size'):
+            raise RuntimeError("You must call set_psf before resmpling!")
+
+        # 1. build the lookup table of SE position as a function of coadd
+        # position
+        # we always go SE -> sky -> coadd because inverting the SE WCS will
+        # be more expensive since they typically have distortion/tree ring
+        # terms which require a root finder
+        # we use a buffer to make sure edge pixels are ok
+        buff = 10
+        y_se, x_se = np.mgrid[
+            0:self.box_size+2*buff:2, 0:self.box_size+2*buff:2]
+        y_se = y_se.ravel() - buff + self.y_start
+        x_se = x_se.ravel() - buff + self.x_start
+
+        logger.debug('start image2sky')
+        t0 = time.time()
+        ra_se, dec_se = self.image2sky(x_se, y_se)
+        logger.debug('end image2sky: %f', time.time() - t0)
+
+        logger.debug('start sky2image')
+        t0 = time.time()
+        x_coadd, y_coadd = wcs.sky2image(longitude=ra_se, latitude=dec_se)
+        logger.debug('end sky2image: %f', time.time() - t0)
+
+        x_coadd -= wcs_position_offset
+        y_coadd -= wcs_position_offset
+
+        logger.debug('start wcs interp')
+        t0 = time.time()
+        wcs_interp = WCSInversionInterpolator(x_coadd, y_coadd, x_se, y_se)
+        logger.debug('end wcs interp: %f', time.time() - t0)
+
+        # 2. using the lookup table, we resample each image/weight to the
+        # coadd coordinates
+
+        # compute the SE image positions using the lookup table
+        y_rs, x_rs = np.mgrid[0:box_size, 0:box_size]
+        y_rs = y_rs.ravel()
+        x_rs = x_rs.ravel()
+        # we need to add in the zero-indexed lower, left location of the
+        # slice of the coadd image here since the WCS interp is in
+        # absolute image pixel units
+        x_rs_se, y_rs_se = wcs_interp(x_rs + x_start, y_rs + y_start)
+
+        # remove the offset to local coords for resampling
+        x_rs_se -= self.x_start
+        y_rs_se -= self.y_start
+
+        resampled_data = {
+            'image': lanczos_resample(
+                self.image, y_rs_se, x_rs_se).reshape(box_size, box_size),
+            'weight': lanczos_resample(
+                self.weight, y_rs_se, x_rs_se).reshape(box_size, box_size),
+            'bmask': lanczos_resample(
+                self.image, y_rs_se, x_rs_se).reshape(box_size, box_size),
+            'noise': lanczos_resample(
+                self.noise, y_rs_se, x_rs_se).reshape(box_size, box_size),
+        }
+
+        # 3. do the nearest pixel for the bit mask
+        y_rs_se = (y_rs_se + 0.5).astype(np.int64)
+        x_rs_se = (x_rs_se + 0.5).astype(np.int64)
+        msk = (
+            (y_rs_se >= 0) & (y_rs_se < self.bmask.shape[0]) &
+            (x_rs_se >= 0) & (x_rs_se < self.bmask.shape[1]))
+        bmask = np.zeros((box_size, box_size), dtype=self.bmask.dtype)
+        bmask[y_rs[msk], x_rs[msk]] = self.bmask[y_rs_se[msk], x_rs_se[msk]]
+        bmask[y_rs[~msk], x_rs[~msk]] = BMASK_EDGE
+        resampled_data['bmask'] = bmask
+
+        # 4. do the PSF image
+        y_rs, x_rs = np.mgrid[0:psf_box_size, 0:psf_box_size]
+        y_rs = y_rs.ravel() + psf_y_start
+        x_rs = x_rs.ravel() + psf_x_start
+        x_rs_se, y_rs_se = wcs_interp(x_rs, y_rs)
+
+        # remove the offset to local coords for resampling
+        x_rs_se -= self.psf_x_start
+        y_rs_se -= self.psf_y_start
+
+        resampled_data['psf'] = lanczos_resample(
+            self.psf, y_rs_se, x_rs_se).reshape(psf_box_size, psf_box_size)
+
+        return resampled_data
