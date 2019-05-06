@@ -22,6 +22,16 @@ def test_se_image_resample_smoke(se_image_data, coadd_image_data):
     ra, dec = se_im.image2sky(600, 700)
     se_im.set_slice(600-250, 700-250, 500)
     se_im.set_psf(ra, dec)
+    resampled_data = se_im.resample(
+        wcs=coadd_image_data['eu_wcs'],
+        wcs_position_offset=coadd_image_data['position_offset'],
+        x_start=600-250,
+        y_start=700-250,
+        box_size=500,
+        psf_x_start=600-23,
+        psf_y_start=700-23,
+        psf_box_size=23
+    )
 
 
 @pytest.mark.parametrize('eps_x', [

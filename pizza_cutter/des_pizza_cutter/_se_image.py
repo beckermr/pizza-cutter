@@ -222,10 +222,10 @@ class SEImageSlice(object):
             assert self._wcs.isCelestial()
 
             # ignoring color for now
-            ra, dec = self._wcs._radec(x, y)
+            ra, dec = self._wcs._radec(
+                x - self._wcs.x0 + 1, y - self._wcs.y0 + 1)
             np.degrees(ra, out=ra)
             np.degrees(dec, out=dec)
-
         else:
             raise ValueError('WCS %s not recognized!' % self._wcs)
 
