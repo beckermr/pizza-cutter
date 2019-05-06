@@ -220,18 +220,12 @@ class SEImageSlice(object):
             ra, dec = self._wcs.image2sky(x+1, y+1)
         elif isinstance(self._wcs, galsim.BaseWCS):
             assert self._wcs.isCelestial()
-            ra = []
-            dec = []
-            for _x, _y in zip(x, y):
-                # for the DES we always have a one-indexed system
-                image_pos = galsim.PositionD(x=_x+1, y=_y+1)
-                world_pos = self._wcs.toWorld(image_pos)
-                _ra = world_pos.ra / galsim.degrees
-                _dec = world_pos.dec / galsim.degrees
-                ra.append(_ra)
-                dec.append(_dec)
-            ra = np.array(ra)
-            dec = np.array(dec)
+
+            # ignoring color for now
+            ra, dec = self._wcs._radec(x, y)
+            np.degrees(ra, out=ra)
+            np.degrees(dec, out=dec)
+
         else:
             raise ValueError('WCS %s not recognized!' % self._wcs)
 
