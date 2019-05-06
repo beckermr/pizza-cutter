@@ -9,8 +9,12 @@ buffer_size: 125  # size of the buffer on each size
 # this should be odd and bigger than any stamp returned by the
 # PSF reconstruction
 psf_box_size: 21
-piff_run: y3a1-v29
+
+# set this to either piff or psfex
+# if using piff, you need to set the piff_run too
 psf_type: piff
+piff_run: y3a1-v29
+
 
 # which SE WCS to use - one of pixmappy or scamp
 wcs_type: scamp
