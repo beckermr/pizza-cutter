@@ -24,7 +24,7 @@ def test_pizza_cutter_build_image_info():
                 'magzp': 31,
                 'scale': 0.75,
                 'position_offset': 2,
-                'wcs': "{'key2': 'val2'}"
+                'scamp_wcs': "{'key2': 'val2'}"
             },
             {
                 'image_path': 'aa',
@@ -39,7 +39,7 @@ def test_pizza_cutter_build_image_info():
                 'magzp': 30,
                 'scale': 0.6,
                 'position_offset': -1,
-                'wcs': "{'key3': 'val3'}"
+                'scamp_wcs': "{'key3': 'val3'}"
             }]
     }
 
