@@ -59,27 +59,59 @@ def _build_slice_inputs(
     Parameters
     ----------
     ra : float
+        The ra at the center of the coadd patch.
     dec : float
+        The dec at the center of the coadd patch.
     ra_psf : float
+        The ra where the PSF should be drawn. This should correspond to the
+        center of a coadd pixel near the center of a coadd patch.
     dec_psf : float
+        The dec where the PSF should be drawn. This should correspond to the
+        center of a coadd pixel near the center of a coadd patch.
     box_size : int
+        The size of the coadd in pixels.
     se_src_info : list of dicts
+        The 'src_info' entry from the `desmeds` info outputs.
     reject_outliers : bool
+        See the documentation of `make_des_pizza_slices` in
+        `pizza_cutter.des_pizz_cutter`.
     symmetrize_masking : bool
+        See the documentation of `make_des_pizza_slices` in
+        `pizza_cutter.des_pizz_cutter`.
     coadding_weight : str
+        See the documentation of `make_des_pizza_slices` in
+        `pizza_cutter.des_pizz_cutter`.
     noise_interp_flags : int
+        See the documentation of `make_des_pizza_slices` in
+        `pizza_cutter.des_pizz_cutter`.
     se_interp_flags : int
+        See the documentation of `make_des_pizza_slices` in
+        `pizza_cutter.des_pizz_cutter`.
     bad_image_flags : int
+        See the documentation of `make_des_pizza_slices` in
+        `pizza_cutter.des_pizz_cutter`.
     max_masked_fraction : float
+        See the documentation of `make_des_pizza_slices` in
+        `pizza_cutter.des_pizz_cutter`.
     max_unmasked_trail_fraction : float
+        See the documentation of `make_des_pizza_slices` in
+        `pizza_cutter.des_pizz_cutter`.
     wcs_type : str
+        See the documentation of `make_des_pizza_slices` in
+        `pizza_cutter.des_pizz_cutter`.
     psf_type : str
+        See the documentation of `make_des_pizza_slices` in
+        `pizza_cutter.des_pizz_cutter`.
     rng : np.random.RandomState
+        An RNG to use in the coadding process.
 
     Returns
     -------
     slices : list of SEImageSlice objects
+        The list of SE images and associated metdata to coadd.
     weights : np.ndarray
+        The relative weights to be applied to the SE images when
+        coadding.
     """
 
     # we first do a rough cut of the images
@@ -236,27 +268,69 @@ def _coadd_slice_inputs(
     Parameters
     ----------
     wcs : `esutil.wcsutil.WCS` object
+        The coadd WCS object.
     wcs_position_offset : int
+        The position offset to get from zero-indexed, pixel-centered
+        coordinates to the coordinates expected by the coadd WCS object.
     start_row : int
+        The starting row/y value of the coadd patch in zero-indexed,
+        pixel-centered coordinates.
     start_col : int
+        The starting column/x value of the coadd patch in zero-indexed,
+        pixel-centered coordinates.
     box_size : int
+        The size of the slice in the coadd in pixels.
     psf_start_row : int
+        The starting row/y value of the coadd PSF stamp in zero-indexed,
+        pixel-centered coordinates. Note that the coadding code draws the PSF
+        at a single location in the coadd pixel WCS.
     psf_start_col : int
+        The starting column/x value of the coadd PSF stamp in zero-indexed,
+        pixel-centered coordinates. Note that the coadding code draws the PSF
+        at a single location in the coadd pixel WCS.
     psf_box_size : int
+        The size in pixels of the PSF stamp. This number should be odd and big
+        enough to fit any of the SE PSF images.
     noise_interp_flags : int
+        The SE image flags where noise interpolation has been applied. These
+        pixels are mapped to the nearest coadd pixel in the coadd bit mask.
+        The coadd bit mask is set to the value `BMASK_NOISE_INTERP` from
+        `pizza_cutter.des_pizz_cutter._constants`.
     se_interp_flags : int
+        The SE image flags where cubic interpolation has been applied. These
+        pixels are mapped to the nearest coadd pixel in the coadd bit mask.
+        The coadd bit mask is set to the value `BMASK_SE_INTERP` from
+        `pizza_cutter.des_pizz_cutter._constants`.
     se_image_slices : list of SEImageSlice objects
+        The list of the SE image slices to be coadded.
     weights : np.ndarray
+        An array of weights to apply to each coadd image slice.
 
     Returns
     -------
     image : np.ndarray
+        The coadded images.
     bmask : np.ndarray
+        The bit mask for the coadded image. These bit reflect anything
+        from the coadd processing.
     ormask : np.ndarray
+        An "or" mask of the SE bit mask. Each pixel in the SE bit mask is
+        mapped to the nearest coadd pixel and the values are "or"-ed over the
+        images in the stack.
     noise : np.ndarray
+        The coadded noise field from the SE images.
     psf : np.ndarray
+        The coadded PSF model.
     weight : np.ndarray
+        The coadded weight map from the SE images.
     """
+
+    # normalize just in case
+    weights = np.atleast_1d(weights) / np.sum(weights)
+
+    # make sure input data is consistent
+    assert len(se_image_slices) == len(weights), (
+        "The input set of weights and images are different sizes.")
 
     image = np.zeros(
         (box_size, box_size), dtype=se_image_slices[0].image.dtype)
@@ -282,6 +356,11 @@ def _coadd_slice_inputs(
 
         image += (resampled_data['image'] * weight)
         noise += (resampled_data['noise'] * weight)
+
+        # for the PSF, we make sure any NaNs are zero
+        msk = ~np.isfinite(resampled_data['psf'])
+        if np.any(msk):
+            resampled_data['psf'][msk] = 0
         psf += (resampled_data['psf'] * weight)
 
         ormask |= resampled_data['bmask']
