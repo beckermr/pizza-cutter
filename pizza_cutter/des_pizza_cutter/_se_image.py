@@ -77,6 +77,9 @@ class SEImageSlice(object):
     set_psf(ra, dec)
         Set the PSF of the slice using the input (ra, dec). Sets the `psf`,
         `psf_x_start`, `psf_y_start` and `psf_box_size` attributes.
+    resample(wcs, wcs_position_offset, x_start, y_start, box_size,
+             psf_x_start, psf_y_start, psf_box_size)
+        Resample a SEImageSlice to a new WCS.
 
     Attributes
     ----------
