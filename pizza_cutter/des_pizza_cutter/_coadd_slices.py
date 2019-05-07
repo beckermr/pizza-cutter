@@ -117,16 +117,15 @@ def _build_slice_inputs(
     # we first do a rough cut of the images
     # this is fast and lets us stop if nothing can be used
     logger.debug('generating slice objects')
-    seeds = rng.randint(low=1, high=2**30, size=len(se_src_info))
     slices_to_use = []
-    for seed, se_info in zip(seeds, se_src_info):
+    for se_info in se_src_info:
         if se_info['image_flags'] == 0:
             # no flags so init the object
             se_slice = SEImageSlice(
                 source_info=se_info,
                 psf_model=se_info['%s_psf' % psf_type],
                 wcs=se_info['%s_wcs' % wcs_type],
-                noise_seed=seed)
+                noise_seed=se_info['noise_seed'])
 
             # first try a very rough cut on the patch center
             if se_slice.ccd_contains_radec(ra, dec):
