@@ -44,6 +44,7 @@ def lanczos_resample(im, rows, cols, a=3):
             x_s > im.shape[1]-1 or
             y_f < 0 or
             y_s > im.shape[0]-1)
+
         if out_of_bounds:
             res[i] = np.nan
             continue
@@ -58,12 +59,16 @@ def lanczos_resample(im, rows, cols, a=3):
         val = 0.0
         for y_pix in range(y_s, y_f+1):
             dy = y - y_pix
+            sy = np.sinc(dy) * np.sinc(dy/a)
+
             for x_pix in range(x_s, x_f+1):
                 dx = x - x_pix
-                val += (
-                    im[y_pix, x_pix] *
-                    np.sinc(dx) * np.sinc(dx/a) *
-                    np.sinc(dy) * np.sinc(dy/a))
+                sx = np.sinc(dx) * np.sinc(dx/a)
+
+                kernel = sx*sy
+
+                val += im[y_pix, x_pix] * kernel
+
         res[i] = val
 
     return res
