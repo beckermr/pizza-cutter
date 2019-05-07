@@ -587,7 +587,6 @@ class SEImageSlice(object):
             A dictionary with the resampled data. It has keys
 
                 'image' : the resampled image
-                'weight' : the resampled weight map
                 'bmask' : an approximate bmask using the nearest SE image
                     pixel
                 'noise' : the resampled noise image
@@ -630,7 +629,7 @@ class SEImageSlice(object):
         wcs_interp = WCSInversionInterpolator(x_coadd, y_coadd, x_se, y_se)
         logger.debug('end wcs interp: %f', time.time() - t0)
 
-        # 2. using the lookup table, we resample each image/weight to the
+        # 2. using the lookup table, we resample each image to the
         # coadd coordinates
 
         # compute the SE image positions using the lookup table
@@ -648,10 +647,6 @@ class SEImageSlice(object):
 
         resampled_data = {
             'image': lanczos_resample(
-                self.image, y_rs_se, x_rs_se).reshape(box_size, box_size),
-            'weight': lanczos_resample(
-                self.weight, y_rs_se, x_rs_se).reshape(box_size, box_size),
-            'bmask': lanczos_resample(
                 self.image, y_rs_se, x_rs_se).reshape(box_size, box_size),
             'noise': lanczos_resample(
                 self.noise, y_rs_se, x_rs_se).reshape(box_size, box_size),
