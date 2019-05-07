@@ -4,7 +4,6 @@ import subprocess
 import functools
 import json
 import logging
-import tqdm
 
 import numpy as np
 import fitsio
@@ -38,6 +37,8 @@ from ..slice_utils.measure import measure_fwhm
 from ..files import StagedOutFile
 from ._coadd_slices import (
     _build_slice_inputs, _coadd_slice_inputs)
+
+from ..slice_utils.pbar import prange
 
 logger = logging.getLogger(__name__)
 
@@ -239,7 +240,8 @@ def _coadd_and_write_images(
     psf_data += CUTOUT_DEFAULT_VALUES[PSF_CUTOUT_EXTNAME]
     start_row = 0
     psf_start_row = 0
-    for i in tqdm.trange(len(object_data)):
+    #for i in tqdm.trange(len(object_data)):
+    for i in prange(len(object_data)):
         logger.info('processing object %d', i)
 
         # we center the PSF at the nearest pixel center near the patch center
