@@ -76,11 +76,13 @@ def lanczos_resample(im, rows, cols, a=3):
 
 @njit
 def lanczos_resample_two(im1, im2, rows, cols, a=3):
-    """Lanczos resample an image at the input row and column positions.
+    """Lanczos resample two images at the input row and column positions.
 
     Parameters
     ----------
-    im : np.ndarray
+    im1 : np.ndarray
+        A two-dimensional array with the image values.
+    im2 : np.ndarray
         A two-dimensional array with the image values.
     rows : np.ndarray
         A one-dimensional array of input row/y values. These denote the
@@ -94,7 +96,7 @@ def lanczos_resample_two(im1, im2, rows, cols, a=3):
 
     Returns
     -------
-    values : np.ndarray
+    values1, values2 : np.ndarray
         The resampled value for each row, column pair. Points whose
         interpolation kernal does not touch any part of the grid are
         returned as NaN.
