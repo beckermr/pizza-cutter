@@ -1,7 +1,6 @@
 import numpy as np
 from scipy.interpolate import (
     CloughTocher2DInterpolator,
-    #SmoothBivariateSpline,
     SmoothBivariateSpline,
 )
 
@@ -79,7 +78,6 @@ class WCSInversionInterpolator(object):
 
         x = np.atleast_1d(x)
         y = np.atleast_1d(y)
-        pts = np.stack([y, x]).T
 
         xout = self._x_int(x, y, grid=False)
         yout = self._y_int(x, y, grid=False)
@@ -89,6 +87,7 @@ class WCSInversionInterpolator(object):
             yout = yout[0]
 
         return xout, yout
+
 
 class WCSInversionInterpolatorOld(object):
     """Interpolator to quickly invert a WCS solution.

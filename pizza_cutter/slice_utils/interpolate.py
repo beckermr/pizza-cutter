@@ -6,7 +6,6 @@ from scipy.interpolate import (
 )
 
 
-
 def _interp_image_CT(*, image, good_msk, bad_msk, yx):
     img_interp = CloughTocher2DInterpolator(
         yx[good_msk, :],
@@ -15,6 +14,7 @@ def _interp_image_CT(*, image, good_msk, bad_msk, yx):
     interp_image = image.copy()
     interp_image[bad_msk] = img_interp(yx[bad_msk, :])
     return interp_image
+
 
 def _interp_image_spline(*, image, good_msk, bad_msk, y, x):
     """
@@ -85,19 +85,18 @@ def _interp_patch(*, image, bad_msk, i, j, size, buff):
             bad_msk=bm,
             yx=yx).reshape((ni, nj))
 
-        #y = np.zeros(ii.size)
-        #x = np.zeros(ii.size)
-        #y[:] = ii
-        #x[:] = jj
+        # y = np.zeros(ii.size)
+        # x = np.zeros(ii.size)
+        # y[:] = ii
+        # x[:] = jj
         #
-        #_interp_imr = _interp_image_spline(
-        #    image=imr,
-        #    good_msk=gm,
-        #    bad_msk=bm,
-        #    y=y,
-        #    x=x,
-        #).reshape((ni, nj))
-
+        # _interp_imr = _interp_image_spline(
+        #     image=imr,
+        #     good_msk=gm,
+        #     bad_msk=bm,
+        #     y=y,
+        #     x=x,
+        # ).reshape((ni, nj))
 
         return _interp_imr[ilow_s:ihigh_s, jlow_s:jhigh_s]
     else:
