@@ -29,6 +29,14 @@ def _read_image(path, ext):
     return fitsio.read(path, ext=ext)
 
 
+@functools.lru_cache(maxsize=16)
+def _get_noise_image(weight_path, weight_ext, scale, noise_seed):
+    """Cached generation of memory mapped noise images."""
+    wgt = _read_image(weight_path, ext=weight_ext)
+    return MemMappedNoiseImage(
+        seed=noise_seed, weight=wgt / scale**2, sx=1024, sy=1024)
+
+
 class SEImageSlice(object):
     """A single-epoch image w/ associated metadata from the DES.
 
@@ -176,14 +184,13 @@ class SEImageSlice(object):
         self.bmask = bmask[
             y_start:y_start+box_size, x_start:x_start+box_size].copy()
 
-        if not hasattr(self, '_noise'):
-            self._noise = MemMappedNoiseImage(
-                seed=self._noise_seed,
-                weight=wgt / scale**2,
-                sx=1024,
-                sy=1024)
-
-        self.noise = self._noise[
+        # this call rereads the weight image using the cached function
+        # so it does not do any extra i/o
+        # we are using the weight path and extension as part of the cache key
+        nse = _get_noise_image(
+            self.source_info['weight_path'], self.source_info['weight_ext'],
+            scale, self._noise_seed)
+        self.noise = nse[
             y_start:y_start+box_size, x_start:x_start+box_size].copy()
 
     def image2sky(self, x, y):
