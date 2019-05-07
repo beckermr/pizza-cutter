@@ -223,6 +223,10 @@ def _coadd_and_write_images(
     rng = np.random.RandomState(seed=seed)
     n_psf_pixels = int(np.sum(object_data['psf_box_size']**2))
 
+    # set the noise image seeds for each SE image via the RNG once
+    for i in range(len(info['src_info'])):
+        info['src_info'][i]['noise_seed'] = rng.randint(low=1, high=2**30)
+
     # some constraints
     # - we don't want to keep all of the data for each object in memory
     # - we also probably want to write the PSFs in another loop even though we
