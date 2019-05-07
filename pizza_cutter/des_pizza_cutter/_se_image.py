@@ -11,7 +11,11 @@ import piff
 from meds.bounds import Bounds
 from meds.util import radec_to_uv
 
-from ..coadding import WCSInversionInterpolator, lanczos_resample
+from ..coadding import (
+    WCSInversionInterpolator,
+    lanczos_resample,
+    lanczos_resample_two,
+)
 from ..memmappednoise import MemMappedNoiseImage
 from ._sky_bounds import get_rough_sky_bounds
 from ._constants import MAGZP_REF, BMASK_EDGE
@@ -645,11 +649,15 @@ class SEImageSlice(object):
         x_rs_se -= self.x_start
         y_rs_se -= self.y_start
 
+        rim, rn = lanczos_resample_two(
+            self.image,
+            self.noise,
+            y_rs_se,
+            x_rs_se
+        )
         resampled_data = {
-            'image': lanczos_resample(
-                self.image, y_rs_se, x_rs_se).reshape(box_size, box_size),
-            'noise': lanczos_resample(
-                self.noise, y_rs_se, x_rs_se).reshape(box_size, box_size),
+            'image': rim.reshape(box_size, box_size),
+            'noise': rn.reshape(box_size, box_size),
         }
 
         # 3. do the nearest pixel for the bit mask
