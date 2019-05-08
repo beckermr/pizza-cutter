@@ -124,6 +124,16 @@ def _get_nearby_good_pixels(image, bad_msk, buff=3):
                 row_end = row + buff
                 col_start = col - buff
                 col_end = col + buff
+
+                if row_start < 0:
+                    row_start=0
+                if row_end > (nrows-1):
+                    row_end = nrows-1
+                if col_start < 0:
+                    col_start=0
+                if col_end > (ncols-1):
+                    col_end = ncols-1
+
                 for rc in range(row_start, row_end+1):
                     if rc == row:
                         continue
