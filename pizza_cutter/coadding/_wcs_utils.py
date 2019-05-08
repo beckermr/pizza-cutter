@@ -1,8 +1,5 @@
 import numpy as np
-from scipy.interpolate import (
-    CloughTocher2DInterpolator,
-    SmoothBivariateSpline,
-)
+from scipy.interpolate import CloughTocher2DInterpolator
 
 
 class WCSInversionInterpolator(object):
