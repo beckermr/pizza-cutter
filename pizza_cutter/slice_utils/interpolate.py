@@ -6,27 +6,13 @@ from scipy.interpolate import (
 )
 
 
-def _interp_image_CT(*, image, good_msk, bad_msk, yx):
+def _interp_image(*, image, good_msk, bad_msk, yx):
     img_interp = CloughTocher2DInterpolator(
         yx[good_msk, :],
         image[good_msk],
         fill_value=0.0)
     interp_image = image.copy()
     interp_image[bad_msk] = img_interp(yx[bad_msk, :])
-    return interp_image
-
-
-def _interp_image_spline(*, image, good_msk, bad_msk, y, x):
-    """
-    this is actually slower because it is throwing warnings
-    """
-    img_interp = SmoothBivariateSpline(
-        y[good_msk],
-        x[good_msk],
-        image[good_msk],
-    )
-    interp_image = image.copy()
-    interp_image[bad_msk] = img_interp(y[bad_msk], x[bad_msk], grid=False)
     return interp_image
 
 
@@ -79,24 +65,11 @@ def _interp_patch(*, image, bad_msk, i, j, size, buff):
         yx[:, 1] = jj
 
         # now the real work begins
-        _interp_imr = _interp_image_CT(
+        _interp_imr = _interp_image(
             image=imr,
             good_msk=gm,
             bad_msk=bm,
             yx=yx).reshape((ni, nj))
-
-        # y = np.zeros(ii.size)
-        # x = np.zeros(ii.size)
-        # y[:] = ii
-        # x[:] = jj
-        #
-        # _interp_imr = _interp_image_spline(
-        #     image=imr,
-        #     good_msk=gm,
-        #     bad_msk=bm,
-        #     y=y,
-        #     x=x,
-        # ).reshape((ni, nj))
 
         return _interp_imr[ilow_s:ihigh_s, jlow_s:jhigh_s]
     else:
