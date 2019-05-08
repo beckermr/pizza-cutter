@@ -469,5 +469,6 @@ def test_wcs_inversion():
         coadd_pos = COADD_WCS.sky2image(*SE_WCS.image2sky(*se_pos))
         inv_se_pos = SE_WCS.sky2image(*COADD_WCS.image2sky(*coadd_pos))
         interp_se_pos = wcs_inv(*coadd_pos)
+
         assert np.allclose(inv_se_pos, interp_se_pos)
         assert np.allclose(se_pos, interp_se_pos)

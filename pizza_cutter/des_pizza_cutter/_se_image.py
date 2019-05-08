@@ -11,7 +11,11 @@ import piff
 from meds.bounds import Bounds
 from meds.util import radec_to_uv
 
-from ..coadding import WCSInversionInterpolator, lanczos_resample
+from ..coadding import (
+    WCSInversionInterpolator,
+    lanczos_resample,
+    lanczos_resample_two,
+)
 from ..memmappednoise import MemMappedNoiseImage
 from ._sky_bounds import get_rough_sky_bounds
 from ._constants import MAGZP_REF, BMASK_EDGE
@@ -37,7 +41,7 @@ def _get_noise_image(weight_path, weight_ext, scale, noise_seed):
         seed=noise_seed, weight=wgt / scale**2, sx=1024, sy=1024)
 
 
-@functools.lru_cache(maxsize=16)
+@functools.lru_cache(maxsize=8)
 def _get_wcs_inverse(wcs, wcs_position_offset, se_wcs):
 
     def _image2sky(x, y):
@@ -622,7 +626,6 @@ class SEImageSlice(object):
             A dictionary with the resampled data. It has keys
 
                 'image' : the resampled image
-                'weight' : the resampled weight map
                 'bmask' : an approximate bmask using the nearest SE image
                     pixel
                 'noise' : the resampled noise image
@@ -647,7 +650,7 @@ class SEImageSlice(object):
             wcs, wcs_position_offset, self._wcs)
         logger.debug('end wcs interp: %f', time.time() - t0)
 
-        # 2. using the lookup table, we resample each image/weight to the
+        # 2. using the lookup table, we resample each image to the
         # coadd coordinates
 
         # compute the SE image positions using the lookup table
@@ -663,15 +666,15 @@ class SEImageSlice(object):
         x_rs_se -= self.x_start
         y_rs_se -= self.y_start
 
+        rim, rn = lanczos_resample_two(
+            self.image,
+            self.noise,
+            y_rs_se,
+            x_rs_se
+        )
         resampled_data = {
-            'image': lanczos_resample(
-                self.image, y_rs_se, x_rs_se).reshape(box_size, box_size),
-            'weight': lanczos_resample(
-                self.weight, y_rs_se, x_rs_se).reshape(box_size, box_size),
-            'bmask': lanczos_resample(
-                self.image, y_rs_se, x_rs_se).reshape(box_size, box_size),
-            'noise': lanczos_resample(
-                self.noise, y_rs_se, x_rs_se).reshape(box_size, box_size),
+            'image': rim.reshape(box_size, box_size),
+            'noise': rn.reshape(box_size, box_size),
         }
 
         # 3. do the nearest pixel for the bit mask

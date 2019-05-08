@@ -97,7 +97,6 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
     # by setting it too
     rng = np.random.RandomState(seed=42)
     se_im.image = rng.normal(size=(600, 600)) + 100
-    se_im.weight = rng.normal(size=(600, 600)) + 100
     se_im.noise = rng.normal(size=(600, 600)) + 100
     se_im.bmask = (rng.normal(size=(600, 600)) * 100).astype(np.int32)
     se_im.x_start = x_start
@@ -143,7 +142,7 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
     final_y_start -= 1
     final_x_start -= x_start
     final_y_start -= y_start
-    for k in ['image', 'noise', 'weight', 'bmask']:
+    for k in ['image', 'noise', 'bmask']:
         assert np.allclose(
             resampled_data[k],
             getattr(se_im, k)[final_y_start:final_y_start+100,
