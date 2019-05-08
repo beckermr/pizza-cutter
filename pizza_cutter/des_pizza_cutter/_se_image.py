@@ -58,8 +58,8 @@ def _get_wcs_inverse(wcs, wcs_position_offset, se_wcs):
     dim_x = 2048
     delta = 8
     y_se, x_se = np.mgrid[:dim_y+delta:delta, :dim_x+delta:delta]
-    y_se = y_se.ravel() + 0.5
-    x_se = x_se.ravel() + 0.5
+    y_se = y_se.ravel() - 0.5
+    x_se = x_se.ravel() - 0.5
 
     x_coadd, y_coadd = wcs.sky2image(*_image2sky(x_se, y_se))
 
