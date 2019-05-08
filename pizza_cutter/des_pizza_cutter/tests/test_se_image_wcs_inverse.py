@@ -58,10 +58,10 @@ def test_se_image_get_wcs_inverse(se_image_data, coadd_image_data):
     y_se_pix = (y_se + 0.5).astype(np.int64)
     bmask_vals = bmask[y_se_pix, x_se_pix]
 
-    # we demand goo interpolations where there are
+    # we demand good interpolations where there are
     # 1) no suspect pixels (eg tape bumps for Y3, bit 2048)
     # 2) no edges (bit 512)
-    # 3) not in the ~64 pixels around the edge of the CCD
+    # 3) not in the 64 pixels around the edge of the CCD
     buff = 64
     ok_pix = (
         ((bmask_vals & 2048) == 0) &
