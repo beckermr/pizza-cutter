@@ -41,7 +41,7 @@ def _get_noise_image(weight_path, weight_ext, scale, noise_seed):
         seed=noise_seed, weight=wgt / scale**2, sx=1024, sy=1024)
 
 
-@functools.lru_cache(maxsize=16)
+@functools.lru_cache(maxsize=8)
 def _get_wcs_inverse(wcs, wcs_position_offset, se_wcs):
 
     def _image2sky(x, y):
