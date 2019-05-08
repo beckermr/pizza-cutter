@@ -55,12 +55,12 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
     y_start = 20
 
     def _se_sky2image(ra, dec):
-        return ra + x_start, dec + y_start
+        return ra + x_start + 1, dec + y_start + 1
 
     def _se_image2sky(x, y):
         # SE image location of (x_start, y_start) should map to
         # (0, 0) in the sky
-        return x - x_start, y - y_start
+        return x - x_start - 1, y - y_start - 1
 
     # coadd WCS defs
     # starts at (coadd_x_start, coadd_y_start) in image coords
@@ -90,8 +90,8 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
         wcs=se_image_data['eu_wcs'], noise_seed=10)
 
     # we are going to override these methods for testing
-    se_im.sky2image = _se_sky2image
-    se_im.image2sky = _se_image2sky
+    se_im._wcs.sky2image = _se_sky2image
+    se_im._wcs.image2sky = _se_image2sky
 
     # now make it seem as if the image data has been read in
     # by setting it too
@@ -139,6 +139,8 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
         coadd_x_start + pos_off + 250 + eps_x,
         coadd_y_start + pos_off + 250 + eps_y)
     final_x_start, final_y_start = _se_sky2image(ra, dec)
+    final_x_start -= 1
+    final_y_start -= 1
     final_x_start -= x_start
     final_y_start -= y_start
     for k in ['image', 'noise', 'weight', 'bmask']:
@@ -153,6 +155,8 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
         coadd_x_start + pos_off + 300 - 11 + eps_x,
         coadd_y_start + pos_off + 300 - 11 + eps_y)
     final_x_start, final_y_start = _se_sky2image(ra, dec)
+    final_x_start -= 1
+    final_y_start -= 1
     final_x_start -= (x_start + 300 - 27)
     final_y_start -= (y_start + 300 - 27)
     assert np.allclose(

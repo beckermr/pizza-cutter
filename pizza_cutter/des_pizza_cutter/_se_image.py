@@ -37,6 +37,34 @@ def _get_noise_image(weight_path, weight_ext, scale, noise_seed):
         seed=noise_seed, weight=wgt / scale**2, sx=1024, sy=1024)
 
 
+@functools.lru_cache(maxsize=16)
+def _get_wcs_inverse(wcs, wcs_position_offset, se_wcs):
+
+    def _image2sky(x, y):
+        try:
+            ra, dec = se_wcs._radec(
+                x - se_wcs.x0 + 1, y - se_wcs.y0 + 1)
+            np.degrees(ra, out=ra)
+            np.degrees(dec, out=dec)
+            return ra, dec
+        except AttributeError:
+            return se_wcs.image2sky(x+1, y+1)
+
+    dim_y = 4096
+    dim_x = 2048
+    delta = 8
+    y_se, x_se = np.mgrid[:dim_y+delta:delta, :dim_x+delta:delta]
+    y_se = y_se.ravel() + 0.5
+    x_se = x_se.ravel() + 0.5
+
+    x_coadd, y_coadd = wcs.sky2image(*_image2sky(x_se, y_se))
+
+    x_coadd -= wcs_position_offset
+    y_coadd -= wcs_position_offset
+
+    return WCSInversionInterpolator(x_coadd, y_coadd, x_se, y_se)
+
+
 class SEImageSlice(object):
     """A single-epoch image w/ associated metadata from the DES.
 
@@ -613,28 +641,10 @@ class SEImageSlice(object):
         # be more expensive since they typically have distortion/tree ring
         # terms which require a root finder
         # we use a buffer to make sure edge pixels are ok
-        buff = 10
-        y_se, x_se = np.mgrid[
-            0:self.box_size+2*buff:2, 0:self.box_size+2*buff:2]
-        y_se = y_se.ravel() - buff + self.y_start
-        x_se = x_se.ravel() - buff + self.x_start
-
-        logger.debug('start image2sky')
-        t0 = time.time()
-        ra_se, dec_se = self.image2sky(x_se, y_se)
-        logger.debug('end image2sky: %f', time.time() - t0)
-
-        logger.debug('start sky2image')
-        t0 = time.time()
-        x_coadd, y_coadd = wcs.sky2image(longitude=ra_se, latitude=dec_se)
-        logger.debug('end sky2image: %f', time.time() - t0)
-
-        x_coadd -= wcs_position_offset
-        y_coadd -= wcs_position_offset
-
         logger.debug('start wcs interp')
         t0 = time.time()
-        wcs_interp = WCSInversionInterpolator(x_coadd, y_coadd, x_se, y_se)
+        wcs_interp = _get_wcs_inverse(
+            wcs, wcs_position_offset, self._wcs)
         logger.debug('end wcs interp: %f', time.time() - t0)
 
         # 2. using the lookup table, we resample each image/weight to the
