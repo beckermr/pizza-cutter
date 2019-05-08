@@ -2,6 +2,9 @@ import copy
 import numpy as np
 from scipy.interpolate import CloughTocher2DInterpolator
 
+import numba
+from numba import njit
+
 
 def _interp_image(*, image, good_msk, bad_msk, yx):
     img_interp = CloughTocher2DInterpolator(
@@ -74,7 +77,128 @@ def _interp_patch(*, image, bad_msk, i, j, size, buff):
         return None
 
 
+@njit
+def _get_nearby_good_pixels(image, bad_msk, buff=3):
+    """
+    get the set of good pixels surrounding bad pixels.
+
+    Parameters
+    ----------
+    image: array
+        The image data
+    bad_msk: bool array
+        2d array of mask bits.  True means it is a bad
+        pixel
+
+    Returns
+    -------
+    bad_pix:
+        bad pix is the set of bad pixels, shape [nbad, 2]
+    good_pix:
+        good pix is the set of bood pixels around the bad
+        pixels, shape [ngood, 2]
+    good_im:
+        the set of good image values, shape [ngood]
+    good_ind:
+        the 1d indices of the good pixels row*ncol + col
+    """
+
+    nrows, ncols = bad_msk.shape
+
+    ngood = bad_msk.size
+    good_pix = np.zeros((ngood, 2), dtype=numba.int64)
+    good_ind = np.zeros(ngood, dtype=numba.int64)
+    bad_pix = np.zeros((ngood, 2), dtype=numba.int64)
+    good_im = np.zeros(ngood, dtype=image.dtype)
+
+    ibad = 0
+    igood = 0
+    for row in range(nrows):
+        for col in range(ncols):
+            val = bad_msk[row, col]
+            if val:
+                bad_pix[ibad] = (row, col)
+                ibad += 1
+
+                row_start = row - buff
+                row_end = row + buff
+                col_start = col - buff
+                col_end = col + buff
+                for rc in range(row_start, row_end+1):
+                    if rc == row:
+                        continue
+                    for cc in range(col_start, col_end+1):
+                        if cc == col:
+                            continue
+
+                        tval = bad_msk[rc, cc]
+                        if not tval:
+
+                            if igood == ngood:
+                                raise RuntimeError('good_pix too small')
+
+                            # got a good one, add it to the list
+                            good_pix[igood] = (rc, cc)
+                            good_im[igood] = image[rc, cc]
+
+                            # keep track of index
+                            ind = rc*ncols + cc
+                            good_ind[igood] = ind
+                            igood += 1
+
+    bad_pix = bad_pix[:ibad, :]
+
+    good_pix = good_pix[:igood, :]
+    good_ind = good_ind[:igood]
+    good_im = good_im[:igood]
+
+    return bad_pix, good_pix, good_im, good_ind
+
+
 def _grid_interp(*, image, bad_msk):
+    """
+    interpolate the bad pixels in an image
+
+    Parameters
+    ----------
+    image: array
+        the pixel data
+    bad_msk: array
+        boolean array, True means it is a bad pixel
+    """
+
+    nrows, ncols = image.shape
+    npix = bad_msk.size
+
+    bad_pix, good_pix, good_im, good_ind = \
+        _get_nearby_good_pixels(image, bad_msk)
+
+    nbad = bad_pix.shape[0]
+    bm_frac = nbad/npix
+
+    if bm_frac < 0.90 and npix - nbad > 10:
+
+        # extract unique ones
+        gi, ind = np.unique(good_ind, return_index=True)
+
+        good_pix = good_pix[ind, :]
+        good_im = good_im[ind]
+
+        img_interp = CloughTocher2DInterpolator(
+            good_pix,
+            good_im,
+            fill_value=0.0,
+        )
+        interp_image = image.copy()
+        interp_image[bad_msk] = img_interp(bad_pix)
+
+        return interp_image
+
+    else:
+        return None
+
+
+def _grid_interp_chunked(*, image, bad_msk):
     # this scale is a compromise between speed
     # - for images with very few pixels that require interpolation, smaller
     #    patches are better since we can skip more pixels
