@@ -1,9 +1,6 @@
 import copy
 import numpy as np
-from scipy.interpolate import (
-    CloughTocher2DInterpolator,
-    SmoothBivariateSpline,
-)
+from scipy.interpolate import CloughTocher2DInterpolator
 
 
 def _interp_image(*, image, good_msk, bad_msk, yx):
