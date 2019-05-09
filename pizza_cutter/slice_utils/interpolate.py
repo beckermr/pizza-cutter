@@ -78,7 +78,7 @@ def _interp_patch(*, image, bad_msk, i, j, size, buff):
 
 
 @njit
-def _get_nearby_good_pixels(image, bad_msk, buff=4):
+def _get_nearby_good_pixels(image, bad_msk, nbad, buff=4):
     """
     get the set of good pixels surrounding bad pixels.
 
@@ -105,7 +105,7 @@ def _get_nearby_good_pixels(image, bad_msk, buff=4):
 
     nrows, ncols = bad_msk.shape
 
-    ngood = bad_msk.size*3
+    ngood = nbad*(2*buff+1)**2
     good_pix = np.zeros((ngood, 2), dtype=numba.int64)
     good_ind = np.zeros(ngood, dtype=numba.int64)
     bad_pix = np.zeros((ngood, 2), dtype=numba.int64)
@@ -135,12 +135,7 @@ def _get_nearby_good_pixels(image, bad_msk, buff=4):
                     col_end = ncols-1
 
                 for rc in range(row_start, row_end+1):
-                    if rc == row:
-                        continue
                     for cc in range(col_start, col_end+1):
-                        if cc == col:
-                            continue
-
                         tval = bad_msk[rc, cc]
                         if not tval:
 
@@ -180,13 +175,13 @@ def _grid_interp(*, image, bad_msk):
     nrows, ncols = image.shape
     npix = bad_msk.size
 
-    bad_pix, good_pix, good_im, good_ind = \
-        _get_nearby_good_pixels(image, bad_msk)
-
-    nbad = bad_pix.shape[0]
+    nbad = bad_msk.sum()
     bm_frac = nbad/npix
 
     if bm_frac < 0.90 and npix - nbad > 10:
+
+        bad_pix, good_pix, good_im, good_ind = \
+            _get_nearby_good_pixels(image, bad_msk, nbad)
 
         # extract unique ones
         gi, ind = np.unique(good_ind, return_index=True)
