@@ -51,3 +51,26 @@ def test_se_image_ccd_bnds_out(se_image_data, out_bnds):
         wcs=se_image_data['eu_wcs'], noise_seed=10)
 
     assert not se_im.ccd_contains_bounds(out_bnds)
+
+
+@pytest.mark.parametrize('buffer', [0, 5, 10])
+def test_se_image_ccd_bnds_buffer_in(se_image_data, buffer):
+    se_im = SEImageSlice(
+        source_info=None, psf_model=None,
+        wcs=se_image_data['eu_wcs'], noise_seed=10)
+
+    in_bnds = Bounds(20, 4075, 20, 2027)
+    assert se_im.ccd_contains_bounds(in_bnds, buffer=buffer)
+
+
+@pytest.mark.parametrize('out_bnds', [
+    Bounds(10, 4075, 20, 2027),
+    Bounds(20, 4085, 20, 2027),
+    Bounds(20, 4075, 10, 2027),
+    Bounds(20, 4075, 20, 2037)])
+def test_se_image_ccd_bnds_buffer_out(se_image_data, out_bnds):
+    se_im = SEImageSlice(
+        source_info=None, psf_model=None,
+        wcs=se_image_data['eu_wcs'], noise_seed=10)
+
+    assert not se_im.ccd_contains_bounds(out_bnds, buffer=15)

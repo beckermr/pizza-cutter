@@ -51,6 +51,7 @@ def _build_slice_inputs(
         bad_image_flags,
         max_masked_fraction,
         max_unmasked_trail_fraction,
+        edge_buffer,
         wcs_type,
         psf_type,
         rng):
@@ -96,6 +97,9 @@ def _build_slice_inputs(
     max_unmasked_trail_fraction : float
         See the documentation of `make_des_pizza_slices` in
         `pizza_cutter.des_pizz_cutter`.
+    edge_buffer : int
+        See the documentation of `make_des_pizza_slices` in
+        `pizza_cutter.des_pizz_cutter`.
     wcs_type : str
         See the documentation of `make_des_pizza_slices` in
         `pizza_cutter.des_pizz_cutter`.
@@ -134,7 +138,8 @@ def _build_slice_inputs(
                 # intersection test
                 patch_bnds = se_slice.compute_slice_bounds(
                     ra, dec, box_size)
-                if se_slice.ccd_contains_bounds(patch_bnds):
+                if se_slice.ccd_contains_bounds(
+                        patch_bnds, buffer=edge_buffer):
                     # we found one - set the slice (also does i/o of image
                     # data products)
                     se_slice.set_slice(

@@ -522,7 +522,7 @@ class SEImageSlice(object):
 
         return psf_im
 
-    def ccd_contains_bounds(self, bounds):
+    def ccd_contains_bounds(self, bounds, buffer=0):
         """Uses the CCD bounds in image coordinates to test for an intersection
         with another bounds object.
 
@@ -530,6 +530,9 @@ class SEImageSlice(object):
         ----------
         bounds : meds.bounds.Bounds
             A bounds object to test with.
+        buffer : int, optional
+            An optional buffer amount by which to shrink the CCD boundry. This
+            can be useful to exclude edge effects in the CCD.
 
         Returns
         -------
@@ -537,7 +540,17 @@ class SEImageSlice(object):
             True if the SE image intersects with this bounds object, False
             otherwise.
         """
-        return self._ccd_bnds.contains_bounds(bounds)
+
+        if buffer > 0:
+            ccd_bnds = Bounds(
+                self._ccd_bnds.rowmin + buffer,
+                self._ccd_bnds.rowmax - buffer,
+                self._ccd_bnds.colmin + buffer,
+                self._ccd_bnds.colmax - buffer)
+        else:
+            ccd_bnds = self._ccd_bnds
+
+        return ccd_bnds.contains_bounds(bounds)
 
     def compute_slice_bounds(self, ra, dec, box_size):
         """Compute the patch bounds for a given ra,dec image and box size.
