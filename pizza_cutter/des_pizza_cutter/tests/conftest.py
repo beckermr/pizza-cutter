@@ -104,6 +104,8 @@ def se_image_data():
             ext=source_info['image_ext'])
         se_wcs_data = {
             k.lower(): _se_wcs_data[k] for k in _se_wcs_data.keys()}
+
+        source_info['position_offset'] = 1.0
     else:
         source_info = None
 

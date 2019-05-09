@@ -42,31 +42,49 @@ def _get_noise_image(weight_path, weight_ext, scale, noise_seed):
 
 
 @functools.lru_cache(maxsize=8)
-def _get_wcs_inverse(wcs, wcs_position_offset, se_wcs):
+def _get_wcs_inverse(wcs, wcs_position_offset, se_wcs, se_wcs_position_offset):
 
-    def _image2sky(x, y):
-        try:
-            ra, dec = se_wcs._radec(
-                x - se_wcs.x0 + 1, y - se_wcs.y0 + 1)
-            np.degrees(ra, out=ra)
-            np.degrees(dec, out=dec)
-            return ra, dec
-        except AttributeError:
-            return se_wcs.image2sky(x+1, y+1)
+    if isinstance(se_wcs, galsim.BaseWCS):
+        def _image2sky(x, y):
+            try:
+                ra, dec = se_wcs._radec(
+                    x - se_wcs.x0 + se_wcs_position_offset,
+                    y - se_wcs.y0 + se_wcs_position_offset)
+                np.degrees(ra, out=ra)
+                np.degrees(dec, out=dec)
+                return ra, dec
+            except AttributeError:
+                return se_wcs.image2sky(
+                    x+se_wcs_position_offset,
+                    y+se_wcs_position_offset)
 
-    dim_y = 4096
-    dim_x = 2048
-    delta = 8
-    y_se, x_se = np.mgrid[:dim_y+delta:delta, :dim_x+delta:delta]
-    y_se = y_se.ravel() + 0.5
-    x_se = x_se.ravel() + 0.5
+        dim_y = 4096
+        dim_x = 2048
+        delta = 8
+        y_se, x_se = np.mgrid[:dim_y+delta:delta, :dim_x+delta:delta]
+        y_se = y_se.ravel() - 0.5
+        x_se = x_se.ravel() - 0.5
 
-    x_coadd, y_coadd = wcs.sky2image(*_image2sky(x_se, y_se))
+        x_coadd, y_coadd = wcs.sky2image(*_image2sky(x_se, y_se))
 
-    x_coadd -= wcs_position_offset
-    y_coadd -= wcs_position_offset
+        x_coadd -= wcs_position_offset
+        y_coadd -= wcs_position_offset
 
-    return WCSInversionInterpolator(x_coadd, y_coadd, x_se, y_se)
+        return WCSInversionInterpolator(x_coadd, y_coadd, x_se, y_se)
+
+    elif isinstance(se_wcs, eu.wcsutil.WCS):
+        # return a closure here
+        def _inv(x_coadd, y_coadd):
+            x, y = se_wcs.sky2image(
+                *wcs.image2sky(
+                    x_coadd+wcs_position_offset,
+                    y_coadd+wcs_position_offset),
+                find=False)  # set find = False to make it fast!
+            return x - se_wcs_position_offset, y - se_wcs_position_offset
+
+        return _inv
+    else:
+        raise ValueError('WCS %s not recognized!' % se_wcs)
 
 
 class SEImageSlice(object):
@@ -647,7 +665,8 @@ class SEImageSlice(object):
         logger.debug('start wcs interp')
         t0 = time.time()
         wcs_interp = _get_wcs_inverse(
-            wcs, wcs_position_offset, self._wcs)
+            wcs, wcs_position_offset,
+            self._wcs, self.source_info['position_offset'])
         logger.debug('end wcs interp: %f', time.time() - t0)
 
         # 2. using the lookup table, we resample each image to the
