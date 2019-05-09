@@ -1,5 +1,7 @@
 # pizza-cutter
 
+[![CircleCI](https://circleci.com/gh/beckermr/pizza-cutter.svg?style=svg)](https://circleci.com/gh/beckermr/pizza-cutter)
+
 yummy survey slices!
 
 ## Running the tests w/ actual data
