@@ -21,7 +21,6 @@ wcs_type: pixmappy
 reject_outliers: False
 symmetrize_masking: True
 coadding_weight: 'noise'
-coadding_interp: 'lanczos3'
 max_masked_fraction: 0.1
 max_unmasked_trail_fraction: 0.05
 edge_buffer: 64
