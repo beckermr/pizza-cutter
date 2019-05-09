@@ -178,7 +178,7 @@ def _grid_interp(*, image, bad_msk):
     nbad = bad_msk.sum()
     bm_frac = nbad/npix
 
-    if bm_frac < 0.90 and npix - nbad > 10:
+    if bm_frac < 0.90:
 
         bad_pix, good_pix, good_im, good_ind = \
             _get_nearby_good_pixels(image, bad_msk, nbad)
