@@ -54,7 +54,7 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
     x_start = 10
     y_start = 20
 
-    def _se_sky2image(ra, dec):
+    def _se_sky2image(ra, dec, find=None):
         return ra + x_start + 1, dec + y_start + 1
 
     def _se_image2sky(x, y):
