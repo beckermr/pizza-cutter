@@ -20,7 +20,7 @@ def symmetrize_weight(*, weight):
         weight[msk] = 0.0
 
 
-def symmetrize_bmask(*, bmask, bad_flags):
+def symmetrize_bmask(*, bmask):
     """Symmetrize masked pixels.
 
     WARNING: This function operates in-place!
@@ -29,14 +29,8 @@ def symmetrize_bmask(*, bmask, bad_flags):
     ----------
     bmask : array-like
         The bit mask for the slice.
-    bad_flags : int
-        The flags to symmetrize in the bit mask using
-        `(bmask & bad_flags) != 0`.
     """
     if bmask.shape[0] != bmask.shape[1]:
         raise ValueError("Only square images can be symmetrized!")
 
-    bm_rot = np.rot90(bmask)
-    msk = (bm_rot & bad_flags) != 0
-    if np.any(msk):
-        bmask[msk] |= bm_rot[msk]
+    bmask |= np.rot90(bmask)

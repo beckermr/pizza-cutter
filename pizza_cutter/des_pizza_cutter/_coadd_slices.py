@@ -180,7 +180,7 @@ def _build_slice_inputs(
         # this operates in place on references
         if symmetrize_masking:
             logger.debug('symmetrizing the masks')
-            symmetrize_bmask(bmask=se_slice.bmask, bad_flags=bad_flags)
+            symmetrize_bmask(bmask=se_slice.bmask)
             symmetrize_weight(weight=se_slice.weight)
 
         skip_edge_masked = slice_full_edge_masked(
