@@ -1,7 +1,7 @@
 numpy
 scipy
 galsim
-fitsio
+fitsio~=1.0
 pyyaml
 numba
 easyaccess
