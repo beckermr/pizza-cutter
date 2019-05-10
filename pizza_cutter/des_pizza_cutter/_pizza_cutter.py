@@ -367,7 +367,7 @@ def _coadd_and_write_images(
         if weights.size > 0:
             object_data['ncutout'][i] = 1
             object_data['nepoch'][i] = weights.size
-            object_data['nepoch_eff'][i] = weights.sum()
+            object_data['nepoch_eff'][i] = weights.sum()/weights.max()
 
             epochs_info.append(tepochs_info)
 
