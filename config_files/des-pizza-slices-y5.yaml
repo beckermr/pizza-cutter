@@ -20,7 +20,12 @@ psf_box_size: 21
 psf_type: psfex
 
 # which SE WCS to use - one of pixmappy or scamp
-wcs_type: pixmappy
+
+# we get pixmappy solutions from piff, and we don't have piff yet
+# for y5
+#wcs_type: pixmappy
+
+wcs_type: scamp
 
 reject_outliers: False
 symmetrize_masking: True
