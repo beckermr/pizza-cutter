@@ -1,3 +1,4 @@
+import os
 import esutil as eu
 import galsim.des
 import fitsio
@@ -5,11 +6,47 @@ import logging
 
 import pixmappy
 import desmeds
+import joblib
 
 from ._constants import MAGZP_REF, POSITION_OFFSET
 from ._piff_tools import load_piff_from_image_path
 
 logger = logging.getLogger(__name__)
+
+# we could alternatively use a sub-directory of the output dir
+_TMPDIR = os.environ.get('TMPDIR', '/tmp')
+memory = joblib.Memory(location=_TMPDIR, verbose=0)
+
+
+@memory.cache
+def _run_queries(*,
+                 tilename,
+                 band,
+                 campaign,
+                 medsconf):
+    """
+    run the desmeds queries to get info about the tile
+    and the SE images that overlap it
+
+    These queries can be quite slow at times, so we
+    may be cacheing them
+    """
+    coadd_srcs = desmeds.coaddsrc.CoaddSrc(
+        medsconf,
+        tilename,
+        band,
+        campaign=campaign,
+    )
+
+    coadd = desmeds.coaddinfo.Coadd(
+        medsconf,
+        tilename,
+        band,
+        campaign=campaign,
+        sources=coadd_srcs,
+    )
+    info = coadd.get_info()
+    return info
 
 
 def get_des_y3_coadd_tile_info(
@@ -85,22 +122,13 @@ def get_des_y3_coadd_tile_info(
             'image_flags' : any flags for the SE image
     """
 
-    coadd_srcs = desmeds.coaddsrc.CoaddSrc(
-        medsconf,
-        tilename,
-        band,
+    info = _run_queries(
+        tilename=tilename,
+        band=band,
         campaign=campaign,
+        medsconf=medsconf,
     )
 
-    coadd = desmeds.coaddinfo.Coadd(
-        medsconf,
-        tilename,
-        band,
-        campaign=campaign,
-        sources=coadd_srcs,
-    )
-
-    info = coadd.get_info()
     info['wcs'] = eu.wcsutil.WCS(
         _munge_fits_header(fitsio.read_header(info['image_path'], ext='sci')))
     info['position_offset'] = POSITION_OFFSET
