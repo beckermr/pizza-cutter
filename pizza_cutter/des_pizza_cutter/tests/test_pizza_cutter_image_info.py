@@ -10,7 +10,7 @@ def test_pizza_cutter_build_image_info():
         'magzp': 32,
         'scale': 0.5,
         'position_offset': 3,
-        'wcs': "{'key1': 'val1'}",
+        'image_wcs': "{'key1': 'val1'}",
         'src_info': [
             {
                 'image_id': 1,
