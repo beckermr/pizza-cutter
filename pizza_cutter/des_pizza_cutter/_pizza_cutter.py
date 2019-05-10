@@ -212,11 +212,27 @@ def make_des_pizza_slices(
     validate_meds(meds_path + '.fz')
 
 
-def _make_epochs_info(object_data, weights, all_se_info):
+def _make_epochs_info(object_data, weights, all_slices, all_se_info):
+    """
+    record info for each epoch we considered
+
+    object_data: array
+        object is really a coadd
+    weights: array
+        The weights for used images, can be zero length
+    all_slices: list of slices
+        All the considered slices
+    all_se_info: list of dict
+        info for all considered slices
+    """
     dt = [
         ('id', 'i8'),
         ('file_id', 'i8'),  # index into image info
         ('flags', 'i4'),
+        ('row_start', 'i8'),
+        ('col_start', 'i8'),
+        ('box_size', 'i8'),
+        ('psf_box_size', 'i8'),
         ('fname', 'U45'),
         ('weight', 'f8'),
     ]
@@ -229,6 +245,12 @@ def _make_epochs_info(object_data, weights, all_se_info):
         data['flags'][i] = se_info['flags']
         data['fname'][i] = se_info['filename']
         data['file_id'][i] = se_info['file_id']
+
+        sl = all_slices[i]
+        data['row_start'][i] = sl.y_start
+        data['col_start'][i] = sl.x_start
+        data['box_size'][i] = sl.box_size
+        data['psf_box_size'][i] = sl.psf_box_size
 
         if se_info['flags'] == 0:
             data['weight'][i] = weights[iused]
@@ -282,7 +304,9 @@ def _coadd_and_write_images(
     psf_start_row = 0
     epochs_info = []
 
-    for i in prange(len(object_data)):
+    # for i in prange(len(object_data)):
+
+    for i in prange(10):
         logger.info('processing object %d', i)
 
         # we center the PSF at the nearest pixel center near the patch center
@@ -305,7 +329,7 @@ def _coadd_and_write_images(
         psf_orig_start_col = col - half
         psf_orig_start_row = row - half
 
-        se_image_slices, weights, se_info = _build_slice_inputs(
+        bsres = _build_slice_inputs(
             ra=object_data['ra'][i],
             dec=object_data['dec'][i],
             ra_psf=ra_psf,
@@ -326,16 +350,25 @@ def _coadd_and_write_images(
             edge_buffer=edge_buffer,
             wcs_type=wcs_type,
             psf_type=psf_type,
-            rng=rng)
+            rng=rng,
+        )
+
+        se_image_slices, weights, possible_slices, se_info = bsres
 
         logger.debug('using nepoch: %d' % len(weights))
+        tepochs_info = _make_epochs_info(
+            object_data[i],
+            weights,
+            possible_slices,
+            se_info,
+        )
 
         # did we get anything?
-        if len(weights) > 0:
+        if weights.size > 0:
             object_data['ncutout'][i] = 1
-            object_data['nepoch'][i] = len(weights)
+            object_data['nepoch'][i] = weights.size
+            object_data['nepoch_eff'][i] = weights.sum()
 
-            tepochs_info = _make_epochs_info(object_data[i], weights, se_info)
             epochs_info.append(tepochs_info)
 
             image, bmask, ormask, noise, psf, weight = _coadd_slice_inputs(
@@ -474,6 +507,7 @@ def _build_object_data(
     # extra metadata not stored in standard meds files
     meta_extra = [
         ('nepoch', 'i4'),
+        ('nepoch_eff', 'f8'),
     ]
     output_info = get_meds_output_struct(
         len(rows),

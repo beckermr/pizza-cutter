@@ -151,6 +151,12 @@ def _build_slice_inputs(
                         patch_bnds.colmin,
                         patch_bnds.rowmin,
                         box_size)
+
+                    # we will want this for storing in the meds file,
+                    # even if this slice doesn't ultimately get used
+                    logger.debug('drawing the PSF')
+                    se_slice.set_psf(ra_psf, dec_psf)
+
                     slices_to_use.append(se_slice)
                     se_info_to_use.append(se_info)
 
@@ -265,9 +271,6 @@ def _build_slice_inputs(
             se_slice.image = interp_image
             se_slice.noise = interp_noise
 
-            logger.debug('drawing the PSF')
-            se_slice.set_psf(ra_psf, dec_psf)
-
             slices.append(se_slice)
 
             weights.append(_build_coadd_weight(
@@ -279,7 +282,8 @@ def _build_slice_inputs(
         weights = np.array(weights)
         weights /= np.sum(weights)
 
-    return slices, weights, se_info_to_use
+    possible_slices = slices_to_use
+    return slices, weights, possible_slices, se_info_to_use
 
 
 def _coadd_slice_inputs(
