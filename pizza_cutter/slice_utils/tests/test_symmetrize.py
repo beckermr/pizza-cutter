@@ -16,14 +16,13 @@ def test_symmetrize_weight():
 
 def test_symmetrize_bmask():
     bmask = np.zeros((4, 4), dtype=np.int32)
-    bad_flags = 1
-    bmask[:, 0] = bad_flags
+    bmask[:, 0] = 1
     bmask[:, -2] = 2
-    symmetrize_bmask(bmask=bmask, bad_flags=bad_flags)
+    symmetrize_bmask(bmask=bmask)
 
     assert np.array_equal(
         bmask,
         [[1, 0, 2, 0],
-         [1, 0, 2, 0],
+         [3, 2, 2, 2],
          [1, 0, 2, 0],
          [1, 1, 3, 1]])

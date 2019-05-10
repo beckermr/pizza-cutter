@@ -104,8 +104,7 @@ def apply_bmask_symmetrize_and_interp(
     """
     # maybe symmetrize the bmask and weight
     if symmetrize_masking:
-        bad_flags = se_interp_flags | noise_interp_flags
-        symmetrize_bmask(bmask=bmask, bad_flags=bad_flags)
+        symmetrize_bmask(bmask=bmask)
         symmetrize_weight(weight=weight)
 
     # first we do the noise interp
