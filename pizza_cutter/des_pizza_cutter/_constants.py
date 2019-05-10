@@ -10,6 +10,7 @@ MAGZP_REF = 30.0
 OBJECT_DATA_EXTNAME = 'object_data'
 IMAGE_INFO_EXTNAME = 'image_info'
 METADATA_EXTNAME = 'metadata'
+EPOCHS_INFO_EXTNAME = 'epochs_info'
 
 IMAGE_CUTOUT_EXTNAME = 'image_cutouts'
 WEIGHT_CUTOUT_EXTNAME = 'weight_cutouts'

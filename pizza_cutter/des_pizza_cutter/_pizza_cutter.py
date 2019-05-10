@@ -30,6 +30,7 @@ from ._constants import (
     ORMASK_CUTOUT_EXTNAME,
     NOISE_CUTOUT_EXTNAME,
     PSF_CUTOUT_EXTNAME,
+    EPOCHS_INFO_EXTNAME,
     CUTOUT_DTYPES,
     CUTOUT_DEFAULT_VALUES)
 from ..slice_utils.locate import build_slice_locations
@@ -196,7 +197,8 @@ def make_des_pizza_slices(
         except FileNotFoundError:
             pass
         cmd = 'fpack %s' % staged_meds_path
-        print("fpacking:\n    command: '%s'" % cmd, flush=True)
+        logger.info('fpacking:')
+        logger.info("    command: '%s'" % cmd)
         try:
             subprocess.check_call(cmd, shell=True)
         except Exception:
@@ -206,8 +208,33 @@ def make_des_pizza_slices(
                 os.remove(staged_meds_path)
 
     # validate the fpacked file
-    print('validating:', flush=True)
+    logger.info('validating:')
     validate_meds(meds_path + '.fz')
+
+
+def _make_epochs_info(object_data, weights, all_se_info):
+    dt = [
+        ('id', 'i8'),
+        ('file_id', 'i8'),  # index into image info
+        ('flags', 'i4'),
+        ('fname', 'U45'),
+        ('weight', 'f8'),
+    ]
+
+    data = np.zeros(len(all_se_info), dtype=dt)
+    data['id'] = object_data['id']
+
+    iused = 0
+    for i, se_info in enumerate(all_se_info):
+        data['flags'][i] = se_info['flags']
+        data['fname'][i] = se_info['filename']
+        data['file_id'][i] = se_info['file_id']
+
+        if se_info['flags'] == 0:
+            data['weight'][i] = weights[iused]
+            iused += 1
+
+    return data
 
 
 def _coadd_and_write_images(
@@ -224,7 +251,8 @@ def _coadd_and_write_images(
         wcs_type,
         psf_type,
         seed):
-    print('reserving mosaic images...', flush=True)
+
+    logger.info('reserving mosaic images...')
     n_pixels = int(np.sum(object_data['box_size']**2))
     _reserve_images(fits, n_pixels, fpack_pars)
 
@@ -252,7 +280,10 @@ def _coadd_and_write_images(
     psf_data += CUTOUT_DEFAULT_VALUES[PSF_CUTOUT_EXTNAME]
     start_row = 0
     psf_start_row = 0
-    for i in prange(len(object_data)):
+    epochs_info = []
+
+    # for i in prange(len(object_data)):
+    for i in prange(1000, 1000+10):
         logger.info('processing object %d', i)
 
         # we center the PSF at the nearest pixel center near the patch center
@@ -275,7 +306,7 @@ def _coadd_and_write_images(
         psf_orig_start_col = col - half
         psf_orig_start_row = row - half
 
-        se_image_slices, weights = _build_slice_inputs(
+        se_image_slices, weights, se_info = _build_slice_inputs(
             ra=object_data['ra'][i],
             dec=object_data['dec'][i],
             ra_psf=ra_psf,
@@ -304,6 +335,9 @@ def _coadd_and_write_images(
         if len(weights) > 0:
             object_data['ncutout'][i] = 1
             object_data['nepoch'][i] = len(weights)
+
+            tepochs_info = _make_epochs_info(object_data[i], weights, se_info)
+            epochs_info.append(tepochs_info)
 
             image, bmask, ormask, noise, psf, weight = _coadd_slice_inputs(
                 wcs=info['wcs'],
@@ -367,6 +401,9 @@ def _coadd_and_write_images(
     # also need to write the header...IDK why...
     fits[PSF_CUTOUT_EXTNAME].write_keys(fpack_pars, clean=False)
     fits[PSF_CUTOUT_EXTNAME].write(psf_data, start=0)
+
+    epochs_info = eu.numpy_util.combine_arrlist(epochs_info)
+    fits.write(epochs_info, extname=EPOCHS_INFO_EXTNAME)
 
 
 def _reserve_images(fits, n_pixels, fpack_pars):

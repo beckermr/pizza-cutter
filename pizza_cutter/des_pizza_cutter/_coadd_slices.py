@@ -4,6 +4,8 @@ import numpy as np
 
 import meds.meds
 
+from ..slice_utils import procflags
+
 from ._slice_flagging import (
     compute_unmasked_trail_fraction)
 from ..slice_utils.flag import (
@@ -116,12 +118,15 @@ def _build_slice_inputs(
     weights : np.ndarray
         The relative weights to be applied to the SE images when
         coadding.
+    se_info: list
+        list of se info for used epochs
     """
 
     # we first do a rough cut of the images
     # this is fast and lets us stop if nothing can be used
     logger.debug('generating slice objects')
     slices_to_use = []
+    se_info_to_use = []
     for se_info in se_src_info:
         if se_info['image_flags'] == 0:
             # no flags so init the object
@@ -147,11 +152,13 @@ def _build_slice_inputs(
                         patch_bnds.rowmin,
                         box_size)
                     slices_to_use.append(se_slice)
+                    se_info_to_use.append(se_info)
+
     logger.debug('images found in rough cut: %d', len(slices_to_use))
 
     # just stop now if we find nothing
     if not slices_to_use:
-        return [], []
+        return [], [], []
 
     # we reject outliers after scaling the images to the same zero points
     # every here is passed by reference so this just works
@@ -167,8 +174,10 @@ def _build_slice_inputs(
     # and we call the PSF reconstruction
     slices = []
     weights = []
-    for se_slice in slices_to_use:
+    for se_slice, se_info in zip(slices_to_use, se_info_to_use):
         logger.debug('proccseeing image %s', se_slice.source_info['filename'])
+
+        se_info['flags'] = 0
 
         # the test for interpolating a full edge is done only with the
         # non-noise flags (se_interp_flags)
@@ -203,14 +212,24 @@ def _build_slice_inputs(
             skip_unmasked_trail_too_big)
 
         if skip:
+            msg = []
             if skip_edge_masked:
-                msg = 'full edge masked'
-            elif skip_has_flags:
-                msg = 'bad image flags'
-            elif skip_masked_fraction:
-                msg = 'masked fraction too high'
-            elif skip_unmasked_trail_too_big:
-                msg = 'unmasked bleed trail too big'
+                msg.append('full edge masked')
+                se_info['flags'] |= procflags.FULL_EDGE_MASKED
+
+            if skip_has_flags:
+                msg.append('bad image flags')
+                se_info['flags'] |= procflags.SLICE_HAS_FLAGS
+
+            if skip_masked_fraction:
+                msg.append('masked fraction too high')
+                se_info['flags'] |= procflags.HIGH_MASKED_FRAC
+
+            if skip_unmasked_trail_too_big:
+                msg.append('unmasked bleed trail too big')
+                se_info['flags'] |= procflags.HIGH_UNMASKED_TRAIL_FRAC
+
+            msg = '; '.join(msg)
             logger.debug('rejecting image %s: %s',
                          se_slice.source_info['filename'], msg)
         else:
@@ -236,6 +255,8 @@ def _build_slice_inputs(
                 rng=rng)
 
             if interp_image is None or interp_noise is None:
+                se_info['flags'] |= procflags.HIGH_INTERP_MASKED_FRAC
+
                 logger.debug(
                     'rejecting image %s: interpolated region too big',
                     se_slice.source_info['filename'])
@@ -258,7 +279,7 @@ def _build_slice_inputs(
         weights = np.array(weights)
         weights /= np.sum(weights)
 
-    return slices, weights
+    return slices, weights, se_info_to_use
 
 
 def _coadd_slice_inputs(
