@@ -298,9 +298,12 @@ def _coadd_and_write_images(
             psf_type=psf_type,
             rng=rng)
 
+        logger.debug('using nepoch: %d' % len(weights))
+
         # did we get anything?
         if len(weights) > 0:
             object_data['ncutout'][i] = 1
+            object_data['nepoch'][i] = len(weights)
 
             image, bmask, ormask, noise, psf, weight = _coadd_slice_inputs(
                 wcs=info['wcs'],
@@ -430,9 +433,17 @@ def _build_object_data(
         ('psf_cutout_row', 'f8', nmax),
         ('psf_cutout_col', 'f8', nmax),
         ('psf_sigma', 'f4', nmax),
-        ('psf_start_row', 'i8', nmax)]
+        ('psf_start_row', 'i8', nmax),
+    ]
+    # extra metadata not stored in standard meds files
+    meta_extra = [
+        ('nepoch', 'i4'),
+    ]
     output_info = get_meds_output_struct(
-        len(rows), nmax, extra_fields=psf_dtype)
+        len(rows),
+        nmax,
+        extra_fields=meta_extra + psf_dtype,
+    )
 
     # and fill!
     output_info['id'] = np.arange(len(rows))
