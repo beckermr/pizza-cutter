@@ -51,9 +51,10 @@ def test_se_image_slice_read(monkeypatch, se_image_data):
         ext=se_image_data['source_info']['bmask_ext'])
     assert np.array_equal(bmask[50:82, 10:42], se_im.bmask)
 
+    zmsk = wgt <= 0
     nse = MemMappedNoiseImage(
         seed=10,
-        weight=wgt,
+        weight=wgt * (~zmsk) + zmsk * np.median(wgt[~zmsk]),
         sx=1024,
         sy=1024)
     assert np.array_equal(nse[50:82, 10:42], se_im.noise)
