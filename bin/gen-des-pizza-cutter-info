@@ -29,7 +29,7 @@ from pizza_cutter.files import makedir_fromfile
         'python logging level [one of critical error, '
         'warning, info, or debug]'))
 def main(config, tilename, band, log_level):
-    """Generate the information needed for pizza slicing a DES Y3 coadd tile.
+    """Generate the information needed for pizza slicing a DES Y3+ coadd tile.
     """
 
     logging.basicConfig(stream=sys.stdout)
