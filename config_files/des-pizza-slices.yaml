@@ -15,7 +15,7 @@ psf_box_size: 21
 psf_type: piff
 piff_run: y3a1-v29
 
-# which SE WCS to use - one of pixmappy or scamp
+# which SE WCS to use - one of pixmappy or image
 wcs_type: pixmappy
 
 reject_outliers: False
