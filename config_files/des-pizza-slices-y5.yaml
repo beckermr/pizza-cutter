@@ -12,8 +12,10 @@ psf_box_size: 21
 
 # set this to either piff or psfex
 # if using piff, you need to set the piff_run too
-psf_type: piff
-piff_run: y3a1-v29
+#psf_type: piff
+#piff_run: y3a1-v29
+# we don't have piff yet
+psf_type: psfex
 
 # which SE WCS to use - one of pixmappy or scamp
 wcs_type: pixmappy
@@ -47,8 +49,9 @@ se_interp_flags:
   - 1     # BPM
   - 2     # SATURATE
   - 16    # CRAY
-  - 1024  # STREAK
   - 64    # TRAIL
+  - 1024  # STREAK
+  - 2048  # SUSPECT for y3 this includes TAPEBUMP
 
 noise_interp_flags:
   - 4     # INTERP. Already interpolated; is this ever set?
@@ -56,7 +59,7 @@ noise_interp_flags:
   - 128   # EDGEBLEED
   - 256   # SSXTALK
   - 512   # EDGE
-  - 2048  # SUSPECT for y3 this includes TAPEBUMP
+  - 16384 # TAPEBUMP
 
 bad_image_flags:
   - 0
