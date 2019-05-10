@@ -155,7 +155,7 @@ def make_des_pizza_slices(
             coadd_image_path=info['image_path'],
             coadd_image_ext=info['image_ext']),
         psf_box_size=psf_box_size,
-        wcs=info['wcs'],
+        wcs=info['image_wcs'],
         position_offset=info['position_offset'])
 
     eu.ostools.makedirs_fromfile(meds_path)
@@ -261,7 +261,7 @@ def _coadd_and_write_images(
         logger.info('processing object %d', i)
 
         # we center the PSF at the nearest pixel center near the patch center
-        col, row = info['wcs'].sky2image(
+        col, row = info['image_wcs'].sky2image(
             longitude=object_data['ra'][i], latitude=object_data['dec'][i])
         # this col, row includes the position offset
         # we don't need to remove it when putting them back into the WCS
@@ -269,7 +269,7 @@ def _coadd_and_write_images(
         col = int(col + 0.5)
         row = int(row + 0.5)
         # ra, dec of the pixel center
-        ra_psf, dec_psf = info['wcs'].image2sky(col, row)
+        ra_psf, dec_psf = info['image_wcs'].image2sky(col, row)
 
         # now we find the lower left location of the PSF image
         half = (object_data['psf_box_size'][i] - 1) / 2
@@ -322,7 +322,7 @@ def _coadd_and_write_images(
             object_data['nepoch_eff'][i] = weights.sum()/weights.max()
 
             image, bmask, ormask, noise, psf, weight = _coadd_slice_inputs(
-                wcs=info['wcs'],
+                wcs=info['image_wcs'],
                 wcs_position_offset=info['position_offset'],
                 start_row=object_data['orig_start_row'][i, 0],
                 start_col=object_data['orig_start_col'][i, 0],
@@ -576,8 +576,8 @@ def _build_image_info(*, info):
 
     # we need to get the maximum WCS length here
     max_wcs_len = max(
-        [len(json.dumps(eval(str(info['wcs']))))] + [
-            len(json.dumps(eval(str(se['scamp_wcs']))))
+        [len(json.dumps(eval(str(info['image_wcs']))))] + [
+            len(json.dumps(eval(str(se['image_wcs']))))
             for se in info['src_info']])
 
     # we need to get the maximum string length here too
@@ -600,12 +600,15 @@ def _build_image_info(*, info):
         ext_len=3)
 
     # first we do the coadd since it is special
-    ii['image_id'][0] = 0
+    ii['image_id'][0] = info['image_id']
+    assert info['image_id'] == 0, (
+        "The coadd image should always have image_id == 0 in the info dict!"
+    )
     ii['image_flags'][0] = info['image_flags']
     ii['magzp'][0] = info['magzp']
     ii['scale'][0] = info['scale']
     ii['position_offset'][0] = info['position_offset']
-    ii['wcs'][0] = json.dumps(eval(str(info['wcs'])))
+    ii['wcs'][0] = json.dumps(eval(str(info['image_wcs'])))
 
     # now do the epochs
     for i, se_info in enumerate(info['src_info']):
@@ -614,12 +617,15 @@ def _build_image_info(*, info):
                 'image_path', 'image_ext', 'weight_path', 'weight_ext',
                 'bmask_path', 'bmask_ext', 'bkg_path', 'bkg_ext']:
             ii[key][loc] = se_info[key]
-        ii['image_id'][loc] = loc
+        ii['image_id'][loc] = se_info['image_id']
+        assert se_info['image_id'] == loc, (
+            "image_id is not set properly in the SE source info data! "
+            "It should be the index into the 'src_info' list plus one!")
         ii['image_flags'][loc] = se_info['image_flags']
         ii['magzp'][loc] = se_info['magzp']
         ii['scale'][loc] = se_info['scale']
         ii['position_offset'][loc] = se_info['position_offset']
-        ii['wcs'][loc] = json.dumps(eval(str(se_info['scamp_wcs'])))
+        ii['wcs'][loc] = json.dumps(eval(str(se_info['image_wcs'])))
 
     return ii
 

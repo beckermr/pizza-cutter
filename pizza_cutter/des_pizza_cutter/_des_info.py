@@ -1,13 +1,9 @@
-import esutil as eu
-import galsim.des
-import fitsio
 import logging
 
-import pixmappy
 import desmeds
 
 from ._constants import MAGZP_REF, POSITION_OFFSET
-from ._piff_tools import load_piff_from_image_path
+from ._piff_tools import load_piff_path_from_image_path
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +32,6 @@ def get_des_y3_coadd_tile_info(
     info : dict
         A dictionary with at least the following keys:
 
-            'wcs' : the coadd `esutil.wcsutil.WCS` object
             'position_offset' : the offset to add to zero-indexed image
                 coordinates to get transform them to the convention assumed
                 by the WCS.
@@ -60,9 +55,6 @@ def get_des_y3_coadd_tile_info(
         The dictionaries in the 'src_info' list have at least the
         following keys:
 
-            'scamp_wcs' : the SE `esutil.wcsutil.WCS` object with the
-                scamp solution
-            'pixmappy_wcs' : the SE pixmappy WCS solution
             'image_path' : the path to the FITS file with the SE image
             'image_ext' : the name of the FITS extension with the SE image
             'bkg_path' : the path to the FITS file with the SE background image
@@ -73,11 +65,8 @@ def get_des_y3_coadd_tile_info(
                 map
             'bmask_path' : the path to the FITS file with the SE bit mask
             'bmask_ext' : the name of the FITS extension with the SE bit mask
-            'psfex_psf' : a galsim.des.DES_PSFEx object with the PSFEx
-                PSF reconstruction.
-            'psf_path' : the path to the PSFEx PSF model
+            'psfex_path' : the path to the PSFEx PSF model
             'piff_path' : the path to the Piff PSF model
-            'piff_psf' : a piff.PSF object with the Piff PSF reconstruction.
             'scale' : a multiplicative factor to apply to the image
                 (`*= scale`) and weight map (`/= scale**2`) for magnitude
                 zero-point calibration
@@ -101,8 +90,8 @@ def get_des_y3_coadd_tile_info(
     )
 
     info = coadd.get_info()
-    info['wcs'] = eu.wcsutil.WCS(
-        _munge_fits_header(fitsio.read_header(info['image_path'], ext='sci')))
+    info['tilename'] = tilename
+    info['band'] = band
     info['position_offset'] = POSITION_OFFSET
 
     info['image_ext'] = 'sci'
@@ -121,9 +110,13 @@ def get_des_y3_coadd_tile_info(
 
     info['image_flags'] = 0  # TODO set this properly for the coadd?
 
+    # this is to keep track where it will be in image info extension
+    info['image_id'] = 0
+
     for index, ii in enumerate(info['src_info']):
-        # this is to keep track where it will be in image info
-        ii['file_id'] = index+1
+        # this is to keep track where it will be in image info extension
+        ii['image_id'] = index+1
+
         ii['image_flags'] = 0
 
         ii['image_ext'] = 'sci'
@@ -137,51 +130,22 @@ def get_des_y3_coadd_tile_info(
         ii['bkg_ext'] = 'sci'
 
         # wcs info
-        ii['scamp_wcs'] = eu.wcsutil.WCS(
-            _munge_fits_header(
-                fitsio.read_header(ii['image_path'], ext='sci')))
         ii['position_offset'] = POSITION_OFFSET
 
         # psfex psf
-        ii['psfex_psf'] = galsim.des.DES_PSFEx(ii['psf_path'])
+        ii['psfex_path'] = ii['psf_path']
 
         # piff
-        piff_data = load_piff_from_image_path(
-            image_path=ii['image_path'],
-            piff_run=piff_run,
-        )
-
-        ii['piff_path'] = piff_data['psf_path']
-        ii['piff_psf'] = piff_data['psf']
-        ii['image_flags'] |= piff_data['flags']
-
-        # pixmappy we get from the psf object
-        if ii['piff_psf'] is None:
-            ii['pixmappy_wcs'] = None
-        else:
-            ii['pixmappy_wcs'] = ii['piff_psf'].wcs[0]
-            assert isinstance(ii['pixmappy_wcs'], pixmappy.GalSimWCS), (
-                "We did not find a pixmappy WCS object for this SE image!"
+        if piff_run is not None:
+            piff_data = load_piff_path_from_image_path(
+                image_path=ii['image_path'],
+                piff_run=piff_run,
             )
 
-            # HACK at the internals to code around a bug!
-            if isinstance(ii['pixmappy_wcs'].origin, galsim._galsim.PositionD):
-                logger.debug("adjusting the pixmappy origin to fix a bug!")
-                ii['pixmappy_wcs']._origin = galsim.PositionD(
-                    ii['pixmappy_wcs']._origin.x,
-                    ii['pixmappy_wcs']._origin.y)
+            ii['piff_path'] = piff_data['psf_path']
+            ii['image_flags'] |= piff_data['flags']
 
         # image scale
         ii['scale'] = 10.0**(0.4*(MAGZP_REF - ii['magzp']))
 
     return info
-
-
-def _munge_fits_header(hdr):
-    dct = {}
-    for k in hdr.keys():
-        try:
-            dct[k.lower()] = hdr[k]
-        except Exception:
-            pass
-    return dct
