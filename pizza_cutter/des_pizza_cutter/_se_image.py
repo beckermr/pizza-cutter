@@ -38,11 +38,11 @@ def _get_noise_image(weight_path, weight_ext, scale, noise_seed):
     """Cached generation of memory mapped noise images."""
     wgt = _read_image(weight_path, ext=weight_ext)
     zwgt_msk = wgt <= 0.0
-    med_wgt = np.median(wgt[~zwgt_msk])
+    max_wgt = np.max(wgt[~zwgt_msk])
 
     return MemMappedNoiseImage(
         seed=noise_seed,
-        weight=(wgt * (~zwgt_msk) + zwgt_msk * med_wgt) / scale**2,
+        weight=(wgt * (~zwgt_msk) + zwgt_msk * max_wgt) / scale**2,
         sx=1024, sy=1024)
 
 
