@@ -110,7 +110,7 @@ class StagedOutFile(object):
 
             makedir_fromfile(self.final_path)
 
-            logger.debug(
+            logger.info(
                 "staging out '%s' -> '%s'", self.path, self.final_path)
             shutil.move(self.path, self.final_path)
 
