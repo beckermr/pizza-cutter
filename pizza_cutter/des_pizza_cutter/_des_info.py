@@ -121,7 +121,9 @@ def get_des_y3_coadd_tile_info(
 
     info['image_flags'] = 0  # TODO set this properly for the coadd?
 
-    for ii in info['src_info']:
+    for index, ii in enumerate(info['src_info']):
+        # this is to keep track where it will be in image info
+        ii['file_id'] = index+1
         ii['image_flags'] = 0
 
         ii['image_ext'] = 'sci'
