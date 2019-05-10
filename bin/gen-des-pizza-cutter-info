@@ -6,7 +6,7 @@ import logging
 import click
 import jinja2
 import yaml
-from pizza_cutter.des_pizza_cutter import get_des_y3_coadd_tile_info
+from pizza_cutter.des_pizza_cutter import get_des_coadd_tile_info
 from pizza_cutter.files import makedir_fromfile
 
 
@@ -56,7 +56,7 @@ def main(config, tilename, band, log_level):
     print('tile info file: "%s"' % output_path, flush=True)
 
     print('querying DESDM for tile information...', flush=True)
-    info = get_des_y3_coadd_tile_info(
+    info = get_des_coadd_tile_info(
         tilename=tilename,
         band=band,
         campaign=cfg['campaign'],

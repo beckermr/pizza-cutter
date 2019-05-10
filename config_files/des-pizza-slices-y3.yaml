@@ -8,7 +8,7 @@ buffer_size: 125  # size of the buffer on each size
 
 # this should be odd and bigger than any stamp returned by the
 # PSF reconstruction
-psf_box_size: 21
+psf_box_size: 51
 
 # set this to either piff or psfex
 # if using piff, you need to set the piff_run too

@@ -8,10 +8,10 @@ from ._piff_tools import load_piff_path_from_image_path
 logger = logging.getLogger(__name__)
 
 
-def get_des_y3_coadd_tile_info(
+def get_des_coadd_tile_info(
         *, tilename, band, campaign, medsconf, piff_run):
     """Read the coadd tile info, load WCS info, and load PSF info for
-    the DES Y3 DESDM layout.
+    the DES Y3+ DESDM layout.
 
     Parameters
     ----------
