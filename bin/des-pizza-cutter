@@ -74,7 +74,8 @@ def main(
         band=band,
         campaign=cfg['campaign'],
         medsconf=sname,
-        piff_run=cfg['piff_run'])
+        piff_run=cfg.get('piff_run',None),
+    )
 
     make_des_pizza_slices(
         use_tmpdir=use_tmpdir,

@@ -11,10 +11,12 @@ buffer_size: 125  # size of the buffer on each size
 psf_box_size: 21
 
 # set this to either piff or psfex
-# if using piff, you need to set the piff_run too
+
+# if using piff, you need to set the piff_run too, e.g.
 #psf_type: piff
 #piff_run: y3a1-v29
-# we don't have piff yet
+
+# we don't have piff for Y5 yet
 psf_type: psfex
 
 # which SE WCS to use - one of pixmappy or scamp

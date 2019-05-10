@@ -146,14 +146,18 @@ def get_des_y3_coadd_tile_info(
         ii['psfex_psf'] = galsim.des.DES_PSFEx(ii['psf_path'])
 
         # piff
-        piff_data = load_piff_from_image_path(
-            image_path=ii['image_path'],
-            piff_run=piff_run,
-        )
+        if piff_run is None:
+            ii['piff_path'] = None
+            ii['piff_psf'] = None
+        else:
+            piff_data = load_piff_from_image_path(
+                image_path=ii['image_path'],
+                piff_run=piff_run,
+            )
 
-        ii['piff_path'] = piff_data['psf_path']
-        ii['piff_psf'] = piff_data['psf']
-        ii['image_flags'] |= piff_data['flags']
+            ii['piff_path'] = piff_data['psf_path']
+            ii['piff_psf'] = piff_data['psf']
+            ii['image_flags'] |= piff_data['flags']
 
         # pixmappy we get from the psf object
         if ii['piff_psf'] is None:
