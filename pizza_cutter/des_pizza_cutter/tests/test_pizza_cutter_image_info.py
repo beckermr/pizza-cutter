@@ -6,12 +6,14 @@ from .._pizza_cutter import _build_image_info
 def test_pizza_cutter_build_image_info():
     info = {
         'image_flags': 10,
+        'file_id': 0,
         'magzp': 32,
         'scale': 0.5,
         'position_offset': 3,
-        'wcs': "{'key1': 'val1'}",
+        'image_wcs': "{'key1': 'val1'}",
         'src_info': [
             {
+                'file_id': 1,
                 'image_path': 'a',
                 'image_ext': 'b',
                 'weight_path': 'c',
@@ -24,9 +26,10 @@ def test_pizza_cutter_build_image_info():
                 'magzp': 31,
                 'scale': 0.75,
                 'position_offset': 2,
-                'scamp_wcs': "{'key2': 'val2'}"
+                'image_wcs': "{'key2': 'val2'}"
             },
             {
+                'file_id': 2,
                 'image_path': 'aa',
                 'image_ext': 'bb',
                 'weight_path': 'cc',
@@ -39,7 +42,7 @@ def test_pizza_cutter_build_image_info():
                 'magzp': 30,
                 'scale': 0.6,
                 'position_offset': -1,
-                'scamp_wcs': "{'key3': 'val3'}"
+                'image_wcs': "{'key3': 'val3'}"
             }]
     }
 

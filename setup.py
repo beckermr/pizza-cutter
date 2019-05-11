@@ -4,6 +4,7 @@ from setuptools import setup, find_packages
 scripts = [
     'bin/run-metadetect-on-slices',
     'bin/des-pizza-cutter',
+    'bin/gen-des-pizza-cutter-info',
     'bin/run-metadetect-on-coadd-sim']
 
 __version__ = None

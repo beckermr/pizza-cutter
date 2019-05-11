@@ -4,12 +4,12 @@ import logging
 import numpy as np
 import piff
 import fitsio
-from ._constants import PSF_IN_BLACKLIST
+from ._constants import PIFF_PSF_IN_BLACKLIST
 
 logger = logging.getLogger(__name__)
 
 
-def load_piff_from_image_path(*, image_path, piff_run):
+def load_piff_path_from_image_path(*, image_path, piff_run):
     """Load a piff object based on the input image path.
 
     Parameters
@@ -22,8 +22,7 @@ def load_piff_from_image_path(*, image_path, piff_run):
     Returns
     -------
     A dict
-        {'psf': piff.PSF,
-         'flags': int,
+        {'flags': int,
          'psf_path': str}
     """
 
@@ -41,15 +40,14 @@ def load_piff_from_image_path(*, image_path, piff_run):
 
     piff_flags = 0
     if not _check_and_log(this_info):
-        piff_flags |= PSF_IN_BLACKLIST
-        psf = None
+        piff_flags |= PIFF_PSF_IN_BLACKLIST
+        psf_path = None
     else:
-        psf = _get_piff_psf(paths['psf_path'])
+        psf_path = paths['psf_path']
 
     return {
-        'psf': psf,
         'flags': piff_flags,
-        'psf_path': paths['psf_path'],
+        'psf_path': psf_path,
     }
 
 
@@ -72,7 +70,7 @@ def _check_and_log(info):
 
 
 @lru_cache(maxsize=128)
-def _get_piff_psf(psf_path):
+def get_piff_psf(psf_path):
     """load a piff.PSF object from the specified file"""
     logger.info('reading: %s' % psf_path)
     return piff.read(psf_path)

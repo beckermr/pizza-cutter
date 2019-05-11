@@ -4,10 +4,9 @@ import sys
 import logging
 
 import click
-import jinja2
 import yaml
 from pizza_cutter.des_pizza_cutter import (
-    make_des_pizza_slices, get_des_y3_coadd_tile_info)
+    make_des_pizza_slices, load_objects_into_info)
 
 
 @click.command()
@@ -16,12 +15,8 @@ from pizza_cutter.des_pizza_cutter import (
     help='configuration file',
     required=True)
 @click.option(
-    '--tilename', default=None, type=str,
-    help='tile to process',
-    required=True)
-@click.option(
-    '--band', default=None, type=str,
-    help='band to process',
+    '--info', default=None, type=str,
+    help='the path to the coadd information for processing',
     required=True)
 @click.option(
     '--tag', default=None, type=str,
@@ -32,7 +27,9 @@ from pizza_cutter.des_pizza_cutter import (
     required=True)
 @click.option(
     '--log-level', default='warning', type=str,
-    help='python logging level')
+    help=(
+        'python logging level [one of critical error, '
+        'warning, info, or debug]'))
 @click.option(
     '--seed', default=-1, type=int,
     help='seed for the RNG',
@@ -41,7 +38,7 @@ from pizza_cutter.des_pizza_cutter import (
     '--use-tmpdir', is_flag=True,
     help='use a temporary directory to stage data')
 def main(
-        config, tilename, band, tag, output_path, log_level, seed,
+        config, info, tag, output_path, log_level, seed,
         use_tmpdir):
     """Create a metadetection MEDS file from a DES coadd tile."""
 
@@ -49,13 +46,19 @@ def main(
     logging.getLogger('pizza_cutter').setLevel(
         getattr(logging, log_level.upper()))
 
-    print('tilename:', tilename, flush=True)
-    print('band:', band, flush=True)
     with open(config, 'r') as fp:
         _config = fp.read()
-    cfg = yaml.load(
-        jinja2.Template(_config).render(tilename=tilename, band=band),
-        Loader=yaml.Loader)
+    cfg = yaml.load(_config, Loader=yaml.Loader)
+
+    with open(info, 'r') as fp:
+        info = yaml.load(fp, Loader=yaml.Loader)
+
+    print('tilename:', info['tilename'], flush=True)
+    print('band:', info['band'], flush=True)
+
+    # this loads all of the data we need into the info dict
+    print('loading PSF and WCS data...', flush=True)
+    load_objects_into_info(info=info)
 
     sname = os.path.basename(config).replace('.yaml', '')
     if tag is not None:
@@ -63,19 +66,12 @@ def main(
     meds_path = os.path.join(
         output_path,
         "%s_%s_%s_meds-pizza-slices.fits" % (
-            tilename,
-            band,
+            info['tilename'],
+            info['band'],
             sname))
     print('output meds file:', meds_path, flush=True)
 
-    print('querying DESDM for tile information...', flush=True)
-    info = get_des_y3_coadd_tile_info(
-        tilename=tilename,
-        band=band,
-        campaign=cfg['campaign'],
-        medsconf=sname,
-        piff_run=cfg['piff_run'])
-
+    print('making pizza slices!', flush=True)
     make_des_pizza_slices(
         use_tmpdir=use_tmpdir,
         config=_config,
