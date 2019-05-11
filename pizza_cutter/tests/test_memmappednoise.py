@@ -21,9 +21,10 @@ def test_memmappednoise_smoke():
     assert np.all(ns1[0, :] == ns2)
 
 
-def test_memmappednoise_fill():
+@pytest.mark.parametrize('bad_value', [0.0, -10])
+def test_memmappednoise_fill(bad_value):
     weight = np.ones((100, 100)) * 0.0001
-    weight[0:50, :] = 0.0
+    weight[0:50, :] = bad_value
     ns = MemMappedNoiseImage(
         seed=10, weight=weight, sx=10, sy=10, fill_weight=1/9)
 
