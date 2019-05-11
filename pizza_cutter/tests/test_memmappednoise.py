@@ -87,10 +87,22 @@ def test_memmappednoise_sizes_different():
     assert np.all(ns1[0, :] == ns2)
 
 
-def test_memmappednoise_sizes_raises():
+def test_memmappednoise_sizes_weird():
     weight = np.ones((100, 100)) * 0.0001
-    with pytest.raises(AssertionError):
-        MemMappedNoiseImage(seed=10, weight=weight, sx=10, sy=13)
+    ns = MemMappedNoiseImage(seed=10, weight=weight, sx=74, sy=1000)
 
-    with pytest.raises(AssertionError):
-        MemMappedNoiseImage(seed=10, weight=weight, sx=13, sy=10)
+    ns1 = ns[0, 0]
+    ns2 = ns[0, 0]
+    assert ns1 == ns2
+
+    ns1 = ns[0, 0:10]
+    ns2 = ns[0, 0:10]
+    assert np.all(ns1 == ns2)
+
+    ns1 = ns[0:5, 0:93]
+    ns2 = ns[0, 0:93]
+    assert np.all(ns1[0, :] == ns2)
+
+    # if we missed any elements, they would b xactly zero
+    ns1 = ns[:, :]
+    assert not np.any(ns1 == 0)
