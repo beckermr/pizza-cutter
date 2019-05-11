@@ -251,7 +251,7 @@ def _build_slice_inputs(
                 zmsk = se_slice.weight <= 0.0
                 se_wgt = (
                     se_slice.weight * (~zmsk) +
-                    np.max(se_slice.weight[zmsk]) * zmsk)
+                    np.max(se_slice.weight[~zmsk]) * zmsk)
                 noise = (
                     rng.normal(size=se_slice.weight.shape) *
                     np.sqrt(1.0/se_wgt))
