@@ -212,31 +212,6 @@ def make_des_pizza_slices(
     validate_meds(meds_path + '.fz')
 
 
-def _make_epochs_info(object_data, weights, all_se_info):
-    dt = [
-        ('id', 'i8'),
-        ('file_id', 'i8'),  # index into image info
-        ('flags', 'i4'),
-        ('fname', 'U45'),
-        ('weight', 'f8'),
-    ]
-
-    data = np.zeros(len(all_se_info), dtype=dt)
-    data['id'] = object_data['id']
-
-    iused = 0
-    for i, se_info in enumerate(all_se_info):
-        data['flags'][i] = se_info['flags']
-        data['fname'][i] = se_info['filename']
-        data['file_id'][i] = se_info['file_id']
-
-        if se_info['flags'] == 0:
-            data['weight'][i] = weights[iused]
-            iused += 1
-
-    return data
-
-
 def _coadd_and_write_images(
         *, fits, fpack_pars, object_data, info,
         reject_outliers,
@@ -305,7 +280,7 @@ def _coadd_and_write_images(
         psf_orig_start_col = col - half
         psf_orig_start_row = row - half
 
-        se_image_slices, weights, se_info = _build_slice_inputs(
+        bsres = _build_slice_inputs(
             ra=object_data['ra'][i],
             dec=object_data['dec'][i],
             ra_psf=ra_psf,
@@ -326,17 +301,25 @@ def _coadd_and_write_images(
             edge_buffer=edge_buffer,
             wcs_type=wcs_type,
             psf_type=psf_type,
-            rng=rng)
+            rng=rng,
+        )
+
+        se_image_slices, weights, slices_not_used, flags_not_used = bsres
 
         logger.debug('using nepoch: %d' % len(weights))
+        epochs_info.append(_make_epochs_info(
+            object_data=object_data[i],
+            weights=weights,
+            slices=se_image_slices,
+            slices_not_used=slices_not_used,
+            flags_not_used=flags_not_used
+        ))
 
         # did we get anything?
-        if len(weights) > 0:
+        if np.array(weights).size > 0:
             object_data['ncutout'][i] = 1
-            object_data['nepoch'][i] = len(weights)
-
-            tepochs_info = _make_epochs_info(object_data[i], weights, se_info)
-            epochs_info.append(tepochs_info)
+            object_data['nepoch'][i] = weights.size
+            object_data['nepoch_eff'][i] = weights.sum()/weights.max()
 
             image, bmask, ormask, noise, psf, weight = _coadd_slice_inputs(
                 wcs=info['wcs'],
@@ -440,6 +423,79 @@ def _get_image_width(*, coadd_image_path, coadd_image_ext):
     return h['znaxis1']
 
 
+def _make_epochs_info(
+        *, object_data, weights, slices, slices_not_used, flags_not_used):
+    """Record info for each epoch we considered for a given slice.
+
+    Parameters
+    ----------
+    object_data : np.ndarray
+        The object_data entry for the slice.
+    weights : np.ndarray
+        The weights for used images, can be zero length.
+    slices : list of SEImageSlices
+        The image slices used for the coadd.
+    slices_not_used : list of SEImageSlices
+        The image slices not used for the coadd.
+    flags_not_used : list of SEImageSlices
+        The flag values for the slices not used.
+
+    Returns
+    -------
+    epoch_info : structured np.ndarray
+        A structured array with the epoch info.
+    """
+    dt = [
+        ('id', 'i8'),
+        ('file_id', 'i8'),  # index into image info
+        ('flags', 'i4'),
+        ('row_start', 'i8'),
+        ('col_start', 'i8'),
+        ('box_size', 'i8'),
+        ('psf_row_start', 'i8'),
+        ('psf_col_start', 'i8'),
+        ('psf_box_size', 'i8'),
+        ('weight', 'f8'),
+    ]
+
+    data = np.zeros(len(slices) + len(slices_not_used), dtype=dt)
+    data['id'] = object_data['id']
+
+    loc = 0
+
+    for weight, se_slice in zip(weights, slices):
+        data['flags'][loc] = 0  # we used it, so flags are zero
+        data['file_id'][loc] = se_slice.source_info['file_id']
+
+        data['row_start'][loc] = se_slice.y_start
+        data['col_start'][loc] = se_slice.x_start
+        data['box_size'][loc] = se_slice.box_size
+
+        data['psf_row_start'][loc] = se_slice.psf_y_start
+        data['psf_col_start'][loc] = se_slice.psf_x_start
+        data['psf_box_size'][loc] = se_slice.psf_box_size
+        data['weight'][loc] = weight
+
+        loc += 1
+
+    for flags, se_slice in zip(flags_not_used, slices_not_used):
+        data['flags'][loc] = flags
+        data['file_id'][loc] = se_slice.source_info['file_id']
+
+        data['row_start'][loc] = se_slice.y_start
+        data['col_start'][loc] = se_slice.x_start
+        data['box_size'][loc] = se_slice.box_size
+
+        data['psf_row_start'][loc] = se_slice.psf_y_start
+        data['psf_col_start'][loc] = se_slice.psf_x_start
+        data['psf_box_size'][loc] = se_slice.psf_box_size
+        data['weight'][loc] = 0.0  # we did not use this slice, so zero
+
+        loc += 1
+
+    return data
+
+
 def _build_object_data(
         *,
         central_size,
@@ -474,6 +530,7 @@ def _build_object_data(
     # extra metadata not stored in standard meds files
     meta_extra = [
         ('nepoch', 'i4'),
+        ('nepoch_eff', 'f8'),
     ]
     output_info = get_meds_output_struct(
         len(rows),

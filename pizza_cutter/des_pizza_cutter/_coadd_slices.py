@@ -118,15 +118,16 @@ def _build_slice_inputs(
     weights : np.ndarray
         The relative weights to be applied to the SE images when
         coadding.
-    se_info: list
-        list of se info for used epochs
+    slices_not_used : list of SEImageSlice objects
+        A list of the slices not used.
+    flags_not_used : list of int
+        List of flag values for the slices not used.
     """
 
     # we first do a rough cut of the images
     # this is fast and lets us stop if nothing can be used
     logger.debug('generating slice objects')
-    slices_to_use = []
-    se_info_to_use = []
+    possible_slices = []
     for se_info in se_src_info:
         if se_info['image_flags'] == 0:
             # no flags so init the object
@@ -151,22 +152,27 @@ def _build_slice_inputs(
                         patch_bnds.colmin,
                         patch_bnds.rowmin,
                         box_size)
-                    slices_to_use.append(se_slice)
-                    se_info_to_use.append(se_info)
 
-    logger.debug('images found in rough cut: %d', len(slices_to_use))
+                    # we will want this for storing in the meds file,
+                    # even if this slice doesn't ultimately get used
+                    logger.debug('drawing the PSF')
+                    se_slice.set_psf(ra_psf, dec_psf)
+
+                    possible_slices.append(se_slice)
+
+    logger.debug('images found in rough cut: %d', len(possible_slices))
 
     # just stop now if we find nothing
-    if not slices_to_use:
-        return [], [], []
+    if not possible_slices:
+        return [], [], [], []
 
     # we reject outliers after scaling the images to the same zero points
     # every here is passed by reference so this just works
     if reject_outliers:
         logger.debug('rejecting outliers')
         nreject = meds.meds.reject_outliers(
-            [s.image for s in slices_to_use],
-            [s.weight for s in slices_to_use])
+            [s.image for s in possible_slices],
+            [s.weight for s in possible_slices])
         logger.debug('# of rejected pixels: %d', nreject)
 
     # finally, we do the final set of cuts and interpolation
@@ -174,10 +180,12 @@ def _build_slice_inputs(
     # and we call the PSF reconstruction
     slices = []
     weights = []
-    for se_slice, se_info in zip(slices_to_use, se_info_to_use):
+    slices_not_used = []
+    flags_not_used = []
+    for se_slice in possible_slices:
         logger.debug('proccseeing image %s', se_slice.source_info['filename'])
 
-        se_info['flags'] = 0
+        flags = 0
 
         # the test for interpolating a full edge is done only with the
         # non-noise flags (se_interp_flags)
@@ -215,23 +223,26 @@ def _build_slice_inputs(
             msg = []
             if skip_edge_masked:
                 msg.append('full edge masked')
-                se_info['flags'] |= procflags.FULL_EDGE_MASKED
+                flags |= procflags.FULL_EDGE_MASKED
 
             if skip_has_flags:
                 msg.append('bad image flags')
-                se_info['flags'] |= procflags.SLICE_HAS_FLAGS
+                flags |= procflags.SLICE_HAS_FLAGS
 
             if skip_masked_fraction:
                 msg.append('masked fraction too high')
-                se_info['flags'] |= procflags.HIGH_MASKED_FRAC
+                flags |= procflags.HIGH_MASKED_FRAC
 
             if skip_unmasked_trail_too_big:
                 msg.append('unmasked bleed trail too big')
-                se_info['flags'] |= procflags.HIGH_UNMASKED_TRAIL_FRAC
+                flags |= procflags.HIGH_UNMASKED_TRAIL_FRAC
 
             msg = '; '.join(msg)
             logger.debug('rejecting image %s: %s',
                          se_slice.source_info['filename'], msg)
+
+            slices_not_used.append(se_slice)
+            flags_not_used.append(flags)
         else:
             # first we do the noise interp
             logger.debug('doing noise interpolation')
@@ -255,7 +266,9 @@ def _build_slice_inputs(
                 rng=rng)
 
             if interp_image is None or interp_noise is None:
-                se_info['flags'] |= procflags.HIGH_INTERP_MASKED_FRAC
+                flags |= procflags.HIGH_INTERP_MASKED_FRAC
+                slices_not_used.append(se_slice)
+                flags_not_used.append(flags)
 
                 logger.debug(
                     'rejecting image %s: interpolated region too big',
@@ -264,9 +277,6 @@ def _build_slice_inputs(
 
             se_slice.image = interp_image
             se_slice.noise = interp_noise
-
-            logger.debug('drawing the PSF')
-            se_slice.set_psf(ra_psf, dec_psf)
 
             slices.append(se_slice)
 
@@ -279,7 +289,7 @@ def _build_slice_inputs(
         weights = np.array(weights)
         weights /= np.sum(weights)
 
-    return slices, weights, se_info_to_use
+    return slices, weights, slices_not_used, flags_not_used
 
 
 def _coadd_slice_inputs(
