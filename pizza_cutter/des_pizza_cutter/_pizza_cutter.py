@@ -212,53 +212,6 @@ def make_des_pizza_slices(
     validate_meds(meds_path + '.fz')
 
 
-def _make_epochs_info(object_data, weights, all_slices, all_se_info):
-    """
-    record info for each epoch we considered
-
-    object_data: array
-        object is really a coadd
-    weights: array
-        The weights for used images, can be zero length
-    all_slices: list of slices
-        All the considered slices
-    all_se_info: list of dict
-        info for all considered slices
-    """
-    dt = [
-        ('id', 'i8'),
-        ('file_id', 'i8'),  # index into image info
-        ('flags', 'i4'),
-        ('row_start', 'i8'),
-        ('col_start', 'i8'),
-        ('box_size', 'i8'),
-        ('psf_box_size', 'i8'),
-        ('fname', 'U45'),
-        ('weight', 'f8'),
-    ]
-
-    data = np.zeros(len(all_se_info), dtype=dt)
-    data['id'] = object_data['id']
-
-    iused = 0
-    for i, se_info in enumerate(all_se_info):
-        data['flags'][i] = se_info['flags']
-        data['fname'][i] = se_info['filename']
-        data['file_id'][i] = se_info['file_id']
-
-        sl = all_slices[i]
-        data['row_start'][i] = sl.y_start
-        data['col_start'][i] = sl.x_start
-        data['box_size'][i] = sl.box_size
-        data['psf_box_size'][i] = sl.psf_box_size
-
-        if se_info['flags'] == 0:
-            data['weight'][i] = weights[iused]
-            iused += 1
-
-    return data
-
-
 def _coadd_and_write_images(
         *, fits, fpack_pars, object_data, info,
         reject_outliers,
@@ -351,23 +304,22 @@ def _coadd_and_write_images(
             rng=rng,
         )
 
-        se_image_slices, weights, possible_slices, se_info = bsres
+        se_image_slices, weights, slices_not_used, flags_not_used = bsres
 
         logger.debug('using nepoch: %d' % len(weights))
-        tepochs_info = _make_epochs_info(
-            object_data[i],
-            weights,
-            possible_slices,
-            se_info,
-        )
+        epochs_info.append(_make_epochs_info(
+            object_data=object_data[i],
+            weights=weights,
+            slices=se_image_slices,
+            slices_not_used=slices_not_used,
+            flags_not_used=flags_not_used
+        ))
 
         # did we get anything?
-        if weights.size > 0:
+        if np.array(weights).size > 0:
             object_data['ncutout'][i] = 1
             object_data['nepoch'][i] = weights.size
             object_data['nepoch_eff'][i] = weights.sum()/weights.max()
-
-            epochs_info.append(tepochs_info)
 
             image, bmask, ormask, noise, psf, weight = _coadd_slice_inputs(
                 wcs=info['wcs'],
@@ -469,6 +421,79 @@ def _write_single_image(*, fits, data, ext, start_row):
 def _get_image_width(*, coadd_image_path, coadd_image_ext):
     h = fitsio.read_header(coadd_image_path, ext=coadd_image_ext)
     return h['znaxis1']
+
+
+def _make_epochs_info(
+        *, object_data, weights, slices, slices_not_used, flags_not_used):
+    """Record info for each epoch we considered for a given slice.
+
+    Parameters
+    ----------
+    object_data : np.ndarray
+        The object_data entry for the slice.
+    weights : np.ndarray
+        The weights for used images, can be zero length.
+    slices : list of SEImageSlices
+        The image slices used for the coadd.
+    slices_not_used : list of SEImageSlices
+        The image slices not used for the coadd.
+    flags_not_used : list of SEImageSlices
+        The flag values for the slices not used.
+
+    Returns
+    -------
+    epoch_info : structured np.ndarray
+        A structured array with the epoch info.
+    """
+    dt = [
+        ('id', 'i8'),
+        ('file_id', 'i8'),  # index into image info
+        ('flags', 'i4'),
+        ('row_start', 'i8'),
+        ('col_start', 'i8'),
+        ('box_size', 'i8'),
+        ('psf_row_start', 'i8'),
+        ('psf_col_start', 'i8'),
+        ('psf_box_size', 'i8'),
+        ('weight', 'f8'),
+    ]
+
+    data = np.zeros(len(slices) + len(slices_not_used), dtype=dt)
+    data['id'] = object_data['id']
+
+    loc = 0
+
+    for weight, se_slice in zip(weights, slices):
+        data['flags'][loc] = 0  # we used it, so flags are zero
+        data['file_id'][loc] = se_slice.source_info['file_id']
+
+        data['row_start'][loc] = se_slice.y_start
+        data['col_start'][loc] = se_slice.x_start
+        data['box_size'][loc] = se_slice.box_size
+
+        data['psf_row_start'][loc] = se_slice.psf_y_start
+        data['psf_col_start'][loc] = se_slice.psf_x_start
+        data['psf_box_size'][loc] = se_slice.psf_box_size
+        data['weight'][loc] = weight
+
+        loc += 1
+
+    for flags, se_slice in zip(flags_not_used, slices_not_used):
+        data['flags'][loc] = flags
+        data['file_id'][loc] = se_slice.source_info['file_id']
+
+        data['row_start'][loc] = se_slice.y_start
+        data['col_start'][loc] = se_slice.x_start
+        data['box_size'][loc] = se_slice.box_size
+
+        data['psf_row_start'][loc] = se_slice.psf_y_start
+        data['psf_col_start'][loc] = se_slice.psf_x_start
+        data['psf_box_size'][loc] = se_slice.psf_box_size
+        data['weight'][loc] = 0.0  # we did not use this slice, so zero
+
+        loc += 1
+
+    return data
 
 
 def _build_object_data(
