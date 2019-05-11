@@ -248,9 +248,13 @@ def _build_slice_inputs(
             logger.debug('doing noise interpolation')
             msk = (se_slice.bmask & noise_interp_flags) != 0
             if np.any(msk):
+                zmsk = se_slice.weight <= 0.0
+                se_wgt = (
+                    se_slice.weight * (~zmsk) +
+                    np.max(se_slice.weight[~zmsk]) * zmsk)
                 noise = (
                     rng.normal(size=se_slice.weight.shape) *
-                    np.sqrt(1.0/se_slice.weight))
+                    np.sqrt(1.0/se_wgt))
                 se_slice.image[msk] = noise[msk]
 
             # now do the cubic interp - note that this will use the noise

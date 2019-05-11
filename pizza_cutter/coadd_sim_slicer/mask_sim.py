@@ -112,9 +112,9 @@ def apply_bmask_symmetrize_and_interp(
     # we always generate an image to make the RNG use more predictable
     _nse = rng.normal(size=image.shape)
     if np.any(msk):
-        zwgt_msk = weight == 0.0
-        med_wgt = np.median(weight[~zwgt_msk])
-        _nse *= np.sqrt(1.0 / (weight * (~zwgt_msk) + zwgt_msk * med_wgt))
+        zwgt_msk = weight <= 0.0
+        max_wgt = np.max(weight[~zwgt_msk])
+        _nse *= np.sqrt(1.0 / (weight * (~zwgt_msk) + zwgt_msk * max_wgt))
         image[msk] = _nse[msk]
 
     # now do the cubic interp - note that this will use the noise
