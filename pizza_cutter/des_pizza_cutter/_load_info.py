@@ -49,11 +49,17 @@ def load_objects_into_info(*, info):
         _munge_fits_header(fitsio.read_header(
             info['image_path'], ext=info['image_ext'])))
 
+    # this is to keep track where it will be in image info extension
+    info['image_id'] = 0
+
     for index, ii in enumerate(info['src_info']):
         # wcs info
         ii['image_wcs'] = eu.wcsutil.WCS(
             _munge_fits_header(
                 fitsio.read_header(ii['image_path'], ext=ii['image_ext'])))
+
+        # this is to keep track where it will be in image info extension
+        ii['image_id'] = index+1
 
         # psfex
         if 'psfex_path' in ii and ii['psfex_path'] is not None:
