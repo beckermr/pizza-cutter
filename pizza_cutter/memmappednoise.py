@@ -12,13 +12,15 @@ class MemMappedNoiseImage(object):
         The seed for the RNG.
     weight : array-like
         The weight map for the noise field.
+    fill_weight : float, optional
+        Value used to fill zero-weight pixels.
     sx : int, optional
         Size of patches to generate the noise in the x direction.
     sy : int, optional
         Size of patches to generate the noise in the y direction.
     """
 
-    def __init__(self, *, seed, weight, sx=1000, sy=1000):
+    def __init__(self, *, seed, weight, fill_weight=None, sx=1000, sy=1000):
         rng = np.random.RandomState(seed=seed)
 
         # generate in chunks so that we don't use a ton of memory
@@ -51,8 +53,13 @@ class MemMappedNoiseImage(object):
                 yl = isy * sy
 
                 wgt = weight[xl:xl+sx, yl:yl+sy]
+                if fill_weight is not None:
+                    zmsk = wgt <= 0
+                    zwgt = wgt * (~zmsk) + fill_weight * zmsk
+                else:
+                    zwgt = wgt
                 self._noise[xl:xl+sx, yl:yl+sy] = rng.normal(
-                    size=(sx, sy)) * np.sqrt(1.0 / wgt)
+                    size=(sx, sy)) * np.sqrt(1.0 / zwgt)
         self._noise.flush()
 
     def __getitem__(self, slices):

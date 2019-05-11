@@ -21,6 +21,18 @@ def test_memmappednoise_smoke():
     assert np.all(ns1[0, :] == ns2)
 
 
+def test_memmappednoise_fill():
+    weight = np.ones((100, 100)) * 0.0001
+    weight[0:50, :] = 0.0
+    ns = MemMappedNoiseImage(
+        seed=10, weight=weight, sx=10, sy=10, fill_weight=1/9)
+
+    assert np.std(ns[0:50, :]) < np.std(ns[50:, :])
+
+    # the noise should be close to 3, but ofc it is noise so withib 0,1 is fine
+    assert np.abs(np.std(ns[0:50, :]) - 3) < 0.1
+
+
 def test_memmappednoise_seeding():
     weight = np.ones((100, 100)) * 0.0001
     ns1 = MemMappedNoiseImage(seed=10, weight=weight, sx=10, sy=10)

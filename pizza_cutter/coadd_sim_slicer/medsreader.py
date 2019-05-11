@@ -155,9 +155,11 @@ class CoaddSimSliceMEDS(NGMixMEDS):
             self._fits_objs['seg'] = fitsio.FITS(
                 seg_path)
             self._seg_ext = seg_ext
+        max_wgt = np.max(self._fits_objs['weight'][self._weight_ext].read())
         self._noise_obj = MemMappedNoiseImage(
             seed=seed,
             weight=self._fits_objs['weight'][self._weight_ext],
+            fill_weight=max_wgt,
             sx=noise_size, sy=noise_size)
 
         # set metadata just in case
