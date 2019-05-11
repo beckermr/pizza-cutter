@@ -53,7 +53,7 @@ def main(config, tilename, band, log_level):
         '%s_%s_pizza_cutter_info.yaml' % (tilename, band)
     )
 
-    print('tile info file: "%s"' % output_path, flush=True)
+    print('tile info file: %s' % output_path, flush=True)
 
     print('querying DESDM for tile information...', flush=True)
     info = get_des_coadd_tile_info(
