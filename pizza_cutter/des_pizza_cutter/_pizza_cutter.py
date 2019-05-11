@@ -600,10 +600,7 @@ def _build_image_info(*, info):
         ext_len=3)
 
     # first we do the coadd since it is special
-    ii['image_id'][0] = info['image_id']
-    assert info['image_id'] == 0, (
-        "The coadd image should always have image_id == 0 in the info dict!"
-    )
+    ii['image_id'][0] = info['file_id']
     ii['image_flags'][0] = info['image_flags']
     ii['magzp'][0] = info['magzp']
     ii['scale'][0] = info['scale']
@@ -617,10 +614,7 @@ def _build_image_info(*, info):
                 'image_path', 'image_ext', 'weight_path', 'weight_ext',
                 'bmask_path', 'bmask_ext', 'bkg_path', 'bkg_ext']:
             ii[key][loc] = se_info[key]
-        ii['image_id'][loc] = se_info['image_id']
-        assert se_info['image_id'] == loc, (
-            "image_id is not set properly in the SE source info data! "
-            "It should be the index into the 'src_info' list plus one!")
+        ii['image_id'][loc] = se_info['file_id']
         ii['image_flags'][loc] = se_info['image_flags']
         ii['magzp'][loc] = se_info['magzp']
         ii['scale'][loc] = se_info['scale']
