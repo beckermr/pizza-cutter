@@ -103,6 +103,6 @@ def test_memmappednoise_sizes_weird():
     ns2 = ns[0, 0:93]
     assert np.all(ns1[0, :] == ns2)
 
-    # if we missed any elements, they would b xactly zero
+    # if we missed any elements, they would be xactly zero
     ns1 = ns[:, :]
     assert not np.any(ns1 == 0)
