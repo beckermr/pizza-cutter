@@ -60,6 +60,7 @@ def make_des_pizza_slices(
         bad_image_flags,
         max_masked_fraction,
         max_unmasked_trail_fraction,
+        mask_tape_bumps,
         edge_buffer,
         psf_box_size,
         wcs_type,
@@ -128,6 +129,8 @@ def make_des_pizza_slices(
         fraction of the subset of the SE image that overlaps the coadd. See
         the function `compute_unmasked_trail_fraction` in
         `pizza_cutter.des_pizz_cutter._slice_flagging.` for details.
+    mask_tape_bumps: boold
+        If True, turn on TAPEBUMP flag and turn off SUSPECT in bmask
     edge_buffer : int
         A buffer region of this many pixels will be excluded from the coadds.
         Note that any SE image whose relevant region for a given coadd
@@ -182,6 +185,7 @@ def make_des_pizza_slices(
                 bad_image_flags=bad_image_flags,
                 max_masked_fraction=max_masked_fraction,
                 max_unmasked_trail_fraction=max_unmasked_trail_fraction,
+                mask_tape_bumps=mask_tape_bumps,
                 edge_buffer=edge_buffer,
                 wcs_type=wcs_type,
                 psf_type=psf_type,
@@ -223,6 +227,7 @@ def _coadd_and_write_images(
         max_masked_fraction,
         max_unmasked_trail_fraction,
         edge_buffer,
+        mask_tape_bumps,
         wcs_type,
         psf_type,
         seed):
@@ -298,6 +303,7 @@ def _coadd_and_write_images(
             bad_image_flags=bad_image_flags,
             max_masked_fraction=max_masked_fraction,
             max_unmasked_trail_fraction=max_unmasked_trail_fraction,
+            mask_tape_bumps=mask_tape_bumps,
             edge_buffer=edge_buffer,
             wcs_type=wcs_type,
             psf_type=psf_type,

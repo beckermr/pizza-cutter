@@ -53,6 +53,7 @@ def _build_slice_inputs(
         bad_image_flags,
         max_masked_fraction,
         max_unmasked_trail_fraction,
+        mask_tape_bumps,
         edge_buffer,
         wcs_type,
         psf_type,
@@ -99,6 +100,8 @@ def _build_slice_inputs(
     max_unmasked_trail_fraction : float
         See the documentation of `make_des_pizza_slices` in
         `pizza_cutter.des_pizz_cutter`.
+    mask_tape_bumps: boold
+        If True, turn on TAPEBUMP flag and turn off SUSPECT in bmask
     edge_buffer : int
         See the documentation of `make_des_pizza_slices` in
         `pizza_cutter.des_pizz_cutter`.
@@ -135,7 +138,9 @@ def _build_slice_inputs(
                 source_info=se_info,
                 psf_model=se_info['%s_psf' % psf_type],
                 wcs=se_info['%s_wcs' % wcs_type],
-                noise_seed=se_info['noise_seed'])
+                noise_seed=se_info['noise_seed'],
+                mask_tape_bumps=mask_tape_bumps,
+            )
 
             # first try a very rough cut on the patch center
             if se_slice.ccd_contains_radec(ra, dec):

@@ -6,8 +6,12 @@ from .._se_image import SEImageSlice
 @pytest.mark.parametrize('eps', [-0.5, -0.1, 0, 0.1, 0.499999])
 def test_se_image_slice_bnds_odd(se_image_data, eps):
     se_im = SEImageSlice(
-        source_info=None, psf_model=None,
-        wcs=se_image_data['eu_wcs'], noise_seed=10)
+        source_info=None,
+        psf_model=None,
+        wcs=se_image_data['eu_wcs'],
+        noise_seed=10,
+        mask_tape_bumps=False,
+    )
 
     row_cen = 16
     col_cen = 19
@@ -25,8 +29,12 @@ def test_se_image_slice_bnds_odd(se_image_data, eps):
 @pytest.mark.parametrize('eps', [0.0000001, 0.1, 0.5, 0.7, 0.99999])
 def test_se_image_slice_bnds_even(se_image_data, eps):
     se_im = SEImageSlice(
-        source_info=None, psf_model=None,
-        wcs=se_image_data['eu_wcs'], noise_seed=10)
+        source_info=None,
+        psf_model=None,
+        wcs=se_image_data['eu_wcs'],
+        noise_seed=10,
+        mask_tape_bumps=False,
+    )
 
     row_cen = 16
     col_cen = 19

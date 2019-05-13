@@ -1,0 +1,434 @@
+1:
+- {ccd: 1, col1: 1, col2: 129, flag: 16384, row1: 1, row2: 88}
+- {ccd: 1, col1: 1, col2: 132, flag: 16384, row1: 2005, row2: 2120}
+- {ccd: 1, col1: 1, col2: 147, flag: 16384, row1: 4005, row2: 4096}
+- {ccd: 1, col1: 1902, col2: 2048, flag: 16384, row1: 1, row2: 114}
+- {ccd: 1, col1: 1911, col2: 2048, flag: 16384, row1: 3993, row2: 4096}
+- {ccd: 1, col1: 1917, col2: 2048, flag: 16384, row1: 2031, row2: 2143}
+2:
+- {ccd: 2, col1: 1, col2: 139, flag: 16384, row1: 3983, row2: 4096}
+- {ccd: 2, col1: 1, col2: 148, flag: 16384, row1: 1, row2: 116}
+- {ccd: 2, col1: 1, col2: 149, flag: 16384, row1: 2070, row2: 2205}
+- {ccd: 2, col1: 1915, col2: 2048, flag: 16384, row1: 1, row2: 133}
+- {ccd: 2, col1: 1918, col2: 2048, flag: 16384, row1: 2020, row2: 2165}
+- {ccd: 2, col1: 1927, col2: 2048, flag: 16384, row1: 3986, row2: 4096}
+3:
+- {ccd: 3, col1: 1, col2: 153, flag: 16384, row1: 2019, row2: 2169}
+- {ccd: 3, col1: 1, col2: 155, flag: 16384, row1: 3977, row2: 4096}
+- {ccd: 3, col1: 1, col2: 164, flag: 16384, row1: 1, row2: 128}
+- {ccd: 3, col1: 1899, col2: 2048, flag: 16384, row1: 3959, row2: 4096}
+- {ccd: 3, col1: 1905, col2: 2048, flag: 16384, row1: 1, row2: 89}
+- {ccd: 3, col1: 1906, col2: 2048, flag: 16384, row1: 2049, row2: 2188}
+4:
+- {ccd: 4, col1: 1, col2: 138, flag: 16384, row1: 1, row2: 126}
+- {ccd: 4, col1: 1, col2: 159, flag: 16384, row1: 2024, row2: 2174}
+- {ccd: 4, col1: 1, col2: 164, flag: 16384, row1: 3981, row2: 4096}
+- {ccd: 4, col1: 1904, col2: 2048, flag: 16384, row1: 1, row2: 120}
+- {ccd: 4, col1: 1907, col2: 2048, flag: 16384, row1: 1941, row2: 2072}
+- {ccd: 4, col1: 1918, col2: 2048, flag: 16384, row1: 3993, row2: 4096}
+5:
+- {ccd: 5, col1: 1, col2: 141, flag: 16384, row1: 1992, row2: 2144}
+- {ccd: 5, col1: 1, col2: 144, flag: 16384, row1: 1, row2: 121}
+- {ccd: 5, col1: 1, col2: 149, flag: 16384, row1: 3979, row2: 4096}
+- {ccd: 5, col1: 1896, col2: 2048, flag: 16384, row1: 3967, row2: 4096}
+- {ccd: 5, col1: 1905, col2: 2048, flag: 16384, row1: 1, row2: 126}
+- {ccd: 5, col1: 1909, col2: 2048, flag: 16384, row1: 1937, row2: 2083}
+6:
+- {ccd: 6, col1: 1, col2: 143, flag: 16384, row1: 1, row2: 109}
+- {ccd: 6, col1: 1, col2: 152, flag: 16384, row1: 2074, row2: 2205}
+- {ccd: 6, col1: 1, col2: 152, flag: 16384, row1: 3989, row2: 4096}
+- {ccd: 6, col1: 1896, col2: 2048, flag: 16384, row1: 1, row2: 119}
+- {ccd: 6, col1: 1896, col2: 2048, flag: 16384, row1: 1823, row2: 1965}
+- {ccd: 6, col1: 1905, col2: 2048, flag: 16384, row1: 3979, row2: 4096}
+7:
+- {ccd: 7, col1: 1, col2: 138, flag: 16384, row1: 2036, row2: 2175}
+- {ccd: 7, col1: 1, col2: 146, flag: 16384, row1: 1, row2: 108}
+- {ccd: 7, col1: 1, col2: 146, flag: 16384, row1: 3975, row2: 4096}
+- {ccd: 7, col1: 1898, col2: 2048, flag: 16384, row1: 1956, row2: 2098}
+- {ccd: 7, col1: 1907, col2: 2048, flag: 16384, row1: 3970, row2: 4096}
+- {ccd: 7, col1: 1909, col2: 2048, flag: 16384, row1: 1, row2: 108}
+8:
+- {ccd: 8, col1: 1, col2: 154, flag: 16384, row1: 1, row2: 138}
+- {ccd: 8, col1: 1, col2: 157, flag: 16384, row1: 2024, row2: 2166}
+- {ccd: 8, col1: 1, col2: 164, flag: 16384, row1: 3976, row2: 4096}
+- {ccd: 8, col1: 1872, col2: 2048, flag: 16384, row1: 3968, row2: 4096}
+- {ccd: 8, col1: 1877, col2: 2048, flag: 16384, row1: 1906, row2: 2082}
+- {ccd: 8, col1: 1893, col2: 2048, flag: 16384, row1: 1, row2: 122}
+9:
+- {ccd: 9, col1: 1, col2: 151, flag: 16384, row1: 3971, row2: 4096}
+- {ccd: 9, col1: 1, col2: 157, flag: 16384, row1: 1, row2: 132}
+- {ccd: 9, col1: 1, col2: 175, flag: 16384, row1: 1971, row2: 2127}
+- {ccd: 9, col1: 1873, col2: 2048, flag: 16384, row1: 1942, row2: 2091}
+- {ccd: 9, col1: 1903, col2: 2048, flag: 16384, row1: 3975, row2: 4096}
+- {ccd: 9, col1: 1908, col2: 2048, flag: 16384, row1: 1, row2: 120}
+10:
+- {ccd: 10, col1: 1, col2: 134, flag: 16384, row1: 1, row2: 110}
+- {ccd: 10, col1: 1, col2: 141, flag: 16384, row1: 3977, row2: 4096}
+- {ccd: 10, col1: 1, col2: 158, flag: 16384, row1: 2087, row2: 2251}
+- {ccd: 10, col1: 1888, col2: 2048, flag: 16384, row1: 1937, row2: 2103}
+- {ccd: 10, col1: 1918, col2: 2048, flag: 16384, row1: 1, row2: 117}
+- {ccd: 10, col1: 1918, col2: 2048, flag: 16384, row1: 3972, row2: 4096}
+11:
+- {ccd: 11, col1: 1, col2: 153, flag: 16384, row1: 1, row2: 121}
+- {ccd: 11, col1: 1, col2: 153, flag: 16384, row1: 3957, row2: 4096}
+- {ccd: 11, col1: 1, col2: 158, flag: 16384, row1: 2034, row2: 2184}
+- {ccd: 11, col1: 1918, col2: 2048, flag: 16384, row1: 1, row2: 117}
+- {ccd: 11, col1: 1918, col2: 2048, flag: 16384, row1: 3972, row2: 4096}
+- {ccd: 11, col1: 1922, col2: 2048, flag: 16384, row1: 1958, row2: 2098}
+12:
+- {ccd: 12, col1: 1, col2: 134, flag: 16384, row1: 1, row2: 128}
+- {ccd: 12, col1: 1, col2: 135, flag: 16384, row1: 3987, row2: 4096}
+- {ccd: 12, col1: 1, col2: 136, flag: 16384, row1: 1912, row2: 2046}
+- {ccd: 12, col1: 1907, col2: 2048, flag: 16384, row1: 4000, row2: 4096}
+- {ccd: 12, col1: 1918, col2: 2048, flag: 16384, row1: 1, row2: 113}
+- {ccd: 12, col1: 1918, col2: 2048, flag: 16384, row1: 1949, row2: 2076}
+13:
+- {ccd: 13, col1: 1, col2: 138, flag: 16384, row1: 1976, row2: 2124}
+- {ccd: 13, col1: 1, col2: 144, flag: 16384, row1: 1, row2: 81}
+- {ccd: 13, col1: 1, col2: 175, flag: 16384, row1: 3963, row2: 4096}
+- {ccd: 13, col1: 1896, col2: 2048, flag: 16384, row1: 1, row2: 123}
+- {ccd: 13, col1: 1903, col2: 2048, flag: 16384, row1: 1996, row2: 2145}
+- {ccd: 13, col1: 1907, col2: 2048, flag: 16384, row1: 3986, row2: 4096}
+14:
+- {ccd: 14, col1: 1, col2: 144, flag: 16384, row1: 1, row2: 113}
+- {ccd: 14, col1: 1, col2: 148, flag: 16384, row1: 1942, row2: 2101}
+- {ccd: 14, col1: 1, col2: 154, flag: 16384, row1: 3969, row2: 4096}
+- {ccd: 14, col1: 1909, col2: 2048, flag: 16384, row1: 3982, row2: 4096}
+- {ccd: 14, col1: 1912, col2: 2048, flag: 16384, row1: 1, row2: 123}
+- {ccd: 14, col1: 1912, col2: 2048, flag: 16384, row1: 1914, row2: 2072}
+15:
+- {ccd: 15, col1: 1, col2: 136, flag: 16384, row1: 1, row2: 133}
+- {ccd: 15, col1: 1, col2: 141, flag: 16384, row1: 3970, row2: 4096}
+- {ccd: 15, col1: 1, col2: 152, flag: 16384, row1: 1826, row2: 1961}
+- {ccd: 15, col1: 1909, col2: 2048, flag: 16384, row1: 1841, row2: 1993}
+- {ccd: 15, col1: 1913, col2: 2048, flag: 16384, row1: 1, row2: 136}
+- {ccd: 15, col1: 1917, col2: 2048, flag: 16384, row1: 3979, row2: 4096}
+16:
+- {ccd: 16, col1: 1, col2: 135, flag: 16384, row1: 3971, row2: 4096}
+- {ccd: 16, col1: 1, col2: 148, flag: 16384, row1: 2167, row2: 2301}
+- {ccd: 16, col1: 1, col2: 150, flag: 16384, row1: 1, row2: 108}
+- {ccd: 16, col1: 1890, col2: 2048, flag: 16384, row1: 1, row2: 113}
+- {ccd: 16, col1: 1900, col2: 2048, flag: 16384, row1: 2020, row2: 2171}
+- {ccd: 16, col1: 1901, col2: 2048, flag: 16384, row1: 3964, row2: 4096}
+17:
+- {ccd: 17, col1: 1, col2: 154, flag: 16384, row1: 3978, row2: 4096}
+- {ccd: 17, col1: 1, col2: 162, flag: 16384, row1: 1, row2: 142}
+- {ccd: 17, col1: 1, col2: 163, flag: 16384, row1: 1877, row2: 2012}
+- {ccd: 17, col1: 1894, col2: 2048, flag: 16384, row1: 3993, row2: 4096}
+- {ccd: 17, col1: 1895, col2: 2048, flag: 16384, row1: 1947, row2: 2101}
+- {ccd: 17, col1: 1896, col2: 2048, flag: 16384, row1: 1, row2: 148}
+18:
+- {ccd: 18, col1: 1, col2: 120, flag: 16384, row1: 1, row2: 104}
+- {ccd: 18, col1: 1, col2: 127, flag: 16384, row1: 1926, row2: 2058}
+- {ccd: 18, col1: 1, col2: 135, flag: 16384, row1: 3972, row2: 4096}
+- {ccd: 18, col1: 1892, col2: 2048, flag: 16384, row1: 1, row2: 110}
+- {ccd: 18, col1: 1922, col2: 2048, flag: 16384, row1: 2016, row2: 2160}
+- {ccd: 18, col1: 1928, col2: 2048, flag: 16384, row1: 3984, row2: 4096}
+19:
+- {ccd: 19, col1: 1, col2: 137, flag: 16384, row1: 2056, row2: 2200}
+- {ccd: 19, col1: 1, col2: 141, flag: 16384, row1: 3974, row2: 4096}
+- {ccd: 19, col1: 1, col2: 145, flag: 16384, row1: 1, row2: 121}
+- {ccd: 19, col1: 1892, col2: 2048, flag: 16384, row1: 1944, row2: 2085}
+- {ccd: 19, col1: 1913, col2: 2048, flag: 16384, row1: 3987, row2: 4096}
+- {ccd: 19, col1: 1917, col2: 2048, flag: 16384, row1: 1, row2: 121}
+20:
+- {ccd: 20, col1: 1, col2: 136, flag: 16384, row1: 3975, row2: 4096}
+- {ccd: 20, col1: 1, col2: 151, flag: 16384, row1: 2053, row2: 2202}
+- {ccd: 20, col1: 1, col2: 153, flag: 16384, row1: 1, row2: 124}
+- {ccd: 20, col1: 1903, col2: 2048, flag: 16384, row1: 1, row2: 113}
+- {ccd: 20, col1: 1903, col2: 2048, flag: 16384, row1: 3970, row2: 4096}
+- {ccd: 20, col1: 1910, col2: 2048, flag: 16384, row1: 1935, row2: 2094}
+21:
+- {ccd: 21, col1: 1, col2: 126, flag: 16384, row1: 2023, row2: 2168}
+- {ccd: 21, col1: 1, col2: 126, flag: 16384, row1: 3971, row2: 4096}
+- {ccd: 21, col1: 1, col2: 147, flag: 16384, row1: 1, row2: 129}
+- {ccd: 21, col1: 1897, col2: 2048, flag: 16384, row1: 1855, row2: 2003}
+- {ccd: 21, col1: 1901, col2: 2048, flag: 16384, row1: 1, row2: 122}
+- {ccd: 21, col1: 1917, col2: 2048, flag: 16384, row1: 3946, row2: 4096}
+22:
+- {ccd: 22, col1: 1, col2: 155, flag: 16384, row1: 1930, row2: 2087}
+- {ccd: 22, col1: 1, col2: 158, flag: 16384, row1: 1, row2: 138}
+- {ccd: 22, col1: 1, col2: 167, flag: 16384, row1: 3967, row2: 4096}
+- {ccd: 22, col1: 1895, col2: 2048, flag: 16384, row1: 1, row2: 127}
+- {ccd: 22, col1: 1901, col2: 2048, flag: 16384, row1: 3974, row2: 4096}
+- {ccd: 22, col1: 1904, col2: 2048, flag: 16384, row1: 1863, row2: 1995}
+23:
+- {ccd: 23, col1: 1, col2: 139, flag: 16384, row1: 1, row2: 120}
+- {ccd: 23, col1: 1, col2: 145, flag: 16384, row1: 2049, row2: 2193}
+- {ccd: 23, col1: 1, col2: 149, flag: 16384, row1: 3971, row2: 4096}
+- {ccd: 23, col1: 1893, col2: 2048, flag: 16384, row1: 1925, row2: 2083}
+- {ccd: 23, col1: 1912, col2: 2048, flag: 16384, row1: 1, row2: 130}
+- {ccd: 23, col1: 1914, col2: 2048, flag: 16384, row1: 3978, row2: 4096}
+24:
+- {ccd: 24, col1: 1, col2: 111, flag: 16384, row1: 2086, row2: 2214}
+- {ccd: 24, col1: 1, col2: 132, flag: 16384, row1: 1, row2: 107}
+- {ccd: 24, col1: 1, col2: 138, flag: 16384, row1: 3981, row2: 4096}
+- {ccd: 24, col1: 1910, col2: 2048, flag: 16384, row1: 1, row2: 105}
+- {ccd: 24, col1: 1913, col2: 2048, flag: 16384, row1: 3981, row2: 4096}
+- {ccd: 24, col1: 1914, col2: 2048, flag: 16384, row1: 2054, row2: 2185}
+25:
+- {ccd: 25, col1: 1, col2: 127, flag: 16384, row1: 1, row2: 118}
+- {ccd: 25, col1: 1, col2: 133, flag: 16384, row1: 2037, row2: 2177}
+- {ccd: 25, col1: 1, col2: 142, flag: 16384, row1: 3983, row2: 4096}
+- {ccd: 25, col1: 1885, col2: 2048, flag: 16384, row1: 1, row2: 122}
+- {ccd: 25, col1: 1897, col2: 2048, flag: 16384, row1: 3971, row2: 4096}
+- {ccd: 25, col1: 1915, col2: 2048, flag: 16384, row1: 1996, row2: 2143}
+26:
+- {ccd: 26, col1: 1, col2: 146, flag: 16384, row1: 1, row2: 106}
+- {ccd: 26, col1: 1, col2: 152, flag: 16384, row1: 3970, row2: 4096}
+- {ccd: 26, col1: 1, col2: 154, flag: 16384, row1: 2051, row2: 2206}
+- {ccd: 26, col1: 1894, col2: 2048, flag: 16384, row1: 2013, row2: 2150}
+- {ccd: 26, col1: 1911, col2: 2048, flag: 16384, row1: 1, row2: 115}
+- {ccd: 26, col1: 1913, col2: 2048, flag: 16384, row1: 3970, row2: 4096}
+27:
+- {ccd: 27, col1: 1, col2: 121, flag: 16384, row1: 2083, row2: 2222}
+- {ccd: 27, col1: 1, col2: 134, flag: 16384, row1: 3973, row2: 4096}
+- {ccd: 27, col1: 1, col2: 140, flag: 16384, row1: 1, row2: 139}
+- {ccd: 27, col1: 1900, col2: 2048, flag: 16384, row1: 1, row2: 125}
+- {ccd: 27, col1: 1914, col2: 2048, flag: 16384, row1: 4000, row2: 4096}
+- {ccd: 27, col1: 1920, col2: 2048, flag: 16384, row1: 1998, row2: 2160}
+28:
+- {ccd: 28, col1: 1, col2: 142, flag: 16384, row1: 2181, row2: 2315}
+- {ccd: 28, col1: 1, col2: 142, flag: 16384, row1: 3983, row2: 4096}
+- {ccd: 28, col1: 1, col2: 161, flag: 16384, row1: 1, row2: 117}
+- {ccd: 28, col1: 1889, col2: 2048, flag: 16384, row1: 1937, row2: 2081}
+- {ccd: 28, col1: 1897, col2: 2048, flag: 16384, row1: 3953, row2: 4096}
+- {ccd: 28, col1: 1921, col2: 2048, flag: 16384, row1: 1, row2: 114}
+29:
+- {ccd: 29, col1: 1, col2: 131, flag: 16384, row1: 1968, row2: 2107}
+- {ccd: 29, col1: 1, col2: 146, flag: 16384, row1: 1, row2: 101}
+- {ccd: 29, col1: 1, col2: 157, flag: 16384, row1: 3983, row2: 4096}
+- {ccd: 29, col1: 1897, col2: 2048, flag: 16384, row1: 1, row2: 110}
+- {ccd: 29, col1: 1900, col2: 2048, flag: 16384, row1: 1981, row2: 2138}
+- {ccd: 29, col1: 1900, col2: 2048, flag: 16384, row1: 3952, row2: 4096}
+30:
+- {ccd: 30, col1: 1, col2: 127, flag: 16384, row1: 2174, row2: 2326}
+- {ccd: 30, col1: 1, col2: 134, flag: 16384, row1: 1, row2: 110}
+- {ccd: 30, col1: 1, col2: 149, flag: 16384, row1: 3962, row2: 4096}
+- {ccd: 30, col1: 1899, col2: 2048, flag: 16384, row1: 3965, row2: 4096}
+- {ccd: 30, col1: 1904, col2: 2048, flag: 16384, row1: 1, row2: 138}
+- {ccd: 30, col1: 1907, col2: 2048, flag: 16384, row1: 1964, row2: 2110}
+31:
+- {ccd: 31, col1: 1, col2: 153, flag: 16384, row1: 2071, row2: 2215}
+- {ccd: 31, col1: 1, col2: 165, flag: 16384, row1: 3967, row2: 4096}
+- {ccd: 31, col1: 1, col2: 185, flag: 16384, row1: 1, row2: 112}
+- {ccd: 31, col1: 1904, col2: 2048, flag: 16384, row1: 3968, row2: 4096}
+- {ccd: 31, col1: 1905, col2: 2048, flag: 16384, row1: 1, row2: 102}
+- {ccd: 31, col1: 1908, col2: 2048, flag: 16384, row1: 1992, row2: 2141}
+32:
+- {ccd: 32, col1: 1, col2: 136, flag: 16384, row1: 1, row2: 112}
+- {ccd: 32, col1: 1, col2: 136, flag: 16384, row1: 1938, row2: 2097}
+- {ccd: 32, col1: 1, col2: 149, flag: 16384, row1: 3970, row2: 4096}
+- {ccd: 32, col1: 1900, col2: 2048, flag: 16384, row1: 1940, row2: 2081}
+- {ccd: 32, col1: 1906, col2: 2048, flag: 16384, row1: 3959, row2: 4096}
+- {ccd: 32, col1: 1922, col2: 2048, flag: 16384, row1: 1, row2: 140}
+33:
+- {ccd: 33, col1: 1, col2: 131, flag: 16384, row1: 3996, row2: 4096}
+- {ccd: 33, col1: 1, col2: 138, flag: 16384, row1: 1, row2: 115}
+- {ccd: 33, col1: 1, col2: 140, flag: 16384, row1: 2089, row2: 2233}
+- {ccd: 33, col1: 1903, col2: 2048, flag: 16384, row1: 1, row2: 114}
+- {ccd: 33, col1: 1913, col2: 2048, flag: 16384, row1: 3974, row2: 4096}
+- {ccd: 33, col1: 1918, col2: 2048, flag: 16384, row1: 2048, row2: 2179}
+34:
+- {ccd: 34, col1: 1, col2: 125, flag: 16384, row1: 1, row2: 116}
+- {ccd: 34, col1: 1, col2: 139, flag: 16384, row1: 2011, row2: 2161}
+- {ccd: 34, col1: 1, col2: 142, flag: 16384, row1: 3962, row2: 4096}
+- {ccd: 34, col1: 1901, col2: 2048, flag: 16384, row1: 3982, row2: 4096}
+- {ccd: 34, col1: 1906, col2: 2048, flag: 16384, row1: 1915, row2: 2058}
+- {ccd: 34, col1: 1907, col2: 2048, flag: 16384, row1: 1, row2: 133}
+35:
+- {ccd: 35, col1: 1, col2: 136, flag: 16384, row1: 2072, row2: 2219}
+- {ccd: 35, col1: 1, col2: 137, flag: 16384, row1: 1, row2: 113}
+- {ccd: 35, col1: 1, col2: 156, flag: 16384, row1: 3938, row2: 4096}
+- {ccd: 35, col1: 1886, col2: 2048, flag: 16384, row1: 2121, row2: 2263}
+- {ccd: 35, col1: 1901, col2: 2048, flag: 16384, row1: 1, row2: 107}
+- {ccd: 35, col1: 1913, col2: 2048, flag: 16384, row1: 3987, row2: 4096}
+36:
+- {ccd: 36, col1: 1, col2: 132, flag: 16384, row1: 2037, row2: 2188}
+- {ccd: 36, col1: 1, col2: 150, flag: 16384, row1: 1, row2: 131}
+- {ccd: 36, col1: 1, col2: 154, flag: 16384, row1: 3981, row2: 4096}
+- {ccd: 36, col1: 1907, col2: 2048, flag: 16384, row1: 1998, row2: 2142}
+- {ccd: 36, col1: 1913, col2: 2048, flag: 16384, row1: 3980, row2: 4096}
+- {ccd: 36, col1: 1915, col2: 2048, flag: 16384, row1: 1, row2: 131}
+37:
+- {ccd: 37, col1: 1, col2: 133, flag: 16384, row1: 1, row2: 129}
+- {ccd: 37, col1: 1, col2: 136, flag: 16384, row1: 2026, row2: 2171}
+- {ccd: 37, col1: 1, col2: 136, flag: 16384, row1: 3970, row2: 4096}
+- {ccd: 37, col1: 1872, col2: 2048, flag: 16384, row1: 3941, row2: 4096}
+- {ccd: 37, col1: 1890, col2: 2048, flag: 16384, row1: 1970, row2: 2125}
+- {ccd: 37, col1: 1899, col2: 2048, flag: 16384, row1: 1, row2: 135}
+38:
+- {ccd: 38, col1: 1, col2: 135, flag: 16384, row1: 3972, row2: 4096}
+- {ccd: 38, col1: 1, col2: 142, flag: 16384, row1: 1984, row2: 2121}
+- {ccd: 38, col1: 1, col2: 147, flag: 16384, row1: 1, row2: 120}
+- {ccd: 38, col1: 1897, col2: 2048, flag: 16384, row1: 3981, row2: 4096}
+- {ccd: 38, col1: 1917, col2: 2048, flag: 16384, row1: 1956, row2: 2114}
+- {ccd: 38, col1: 1927, col2: 2048, flag: 16384, row1: 1, row2: 102}
+39:
+- {ccd: 39, col1: 1, col2: 129, flag: 16384, row1: 2026, row2: 2170}
+- {ccd: 39, col1: 1, col2: 143, flag: 16384, row1: 1, row2: 129}
+- {ccd: 39, col1: 1, col2: 155, flag: 16384, row1: 3999, row2: 4096}
+- {ccd: 39, col1: 1891, col2: 2048, flag: 16384, row1: 2001, row2: 2153}
+- {ccd: 39, col1: 1896, col2: 2048, flag: 16384, row1: 1, row2: 144}
+- {ccd: 39, col1: 1902, col2: 2048, flag: 16384, row1: 3980, row2: 4096}
+40:
+- {ccd: 40, col1: 1, col2: 142, flag: 16384, row1: 3957, row2: 4096}
+- {ccd: 40, col1: 1, col2: 148, flag: 16384, row1: 1, row2: 113}
+- {ccd: 40, col1: 1, col2: 161, flag: 16384, row1: 2069, row2: 2225}
+- {ccd: 40, col1: 1895, col2: 2048, flag: 16384, row1: 2000, row2: 2142}
+- {ccd: 40, col1: 1898, col2: 2048, flag: 16384, row1: 3958, row2: 4096}
+- {ccd: 40, col1: 1906, col2: 2048, flag: 16384, row1: 1, row2: 113}
+41:
+- {ccd: 41, col1: 1, col2: 138, flag: 16384, row1: 1, row2: 121}
+- {ccd: 41, col1: 1, col2: 138, flag: 16384, row1: 3976, row2: 4096}
+- {ccd: 41, col1: 1, col2: 143, flag: 16384, row1: 1917, row2: 2064}
+- {ccd: 41, col1: 1886, col2: 2048, flag: 16384, row1: 3969, row2: 4096}
+- {ccd: 41, col1: 1889, col2: 2048, flag: 16384, row1: 1794, row2: 1984}
+- {ccd: 41, col1: 1913, col2: 2048, flag: 16384, row1: 1, row2: 130}
+42:
+- {ccd: 42, col1: 1, col2: 147, flag: 16384, row1: 2069, row2: 2217}
+- {ccd: 42, col1: 1, col2: 154, flag: 16384, row1: 1, row2: 117}
+- {ccd: 42, col1: 1, col2: 156, flag: 16384, row1: 3964, row2: 4096}
+- {ccd: 42, col1: 1902, col2: 2048, flag: 16384, row1: 1, row2: 137}
+- {ccd: 42, col1: 1903, col2: 2048, flag: 16384, row1: 1982, row2: 2142}
+- {ccd: 42, col1: 1910, col2: 2048, flag: 16384, row1: 3974, row2: 4096}
+43:
+- {ccd: 43, col1: 1, col2: 142, flag: 16384, row1: 1, row2: 115}
+- {ccd: 43, col1: 1, col2: 149, flag: 16384, row1: 3951, row2: 4096}
+- {ccd: 43, col1: 1, col2: 162, flag: 16384, row1: 2044, row2: 2196}
+- {ccd: 43, col1: 1901, col2: 2048, flag: 16384, row1: 3961, row2: 4096}
+- {ccd: 43, col1: 1902, col2: 2048, flag: 16384, row1: 1966, row2: 2125}
+- {ccd: 43, col1: 1909, col2: 2048, flag: 16384, row1: 1, row2: 111}
+44:
+- {ccd: 44, col1: 1, col2: 140, flag: 16384, row1: 2068, row2: 2206}
+- {ccd: 44, col1: 1, col2: 152, flag: 16384, row1: 1, row2: 126}
+- {ccd: 44, col1: 1, col2: 159, flag: 16384, row1: 3964, row2: 4096}
+- {ccd: 44, col1: 1888, col2: 2048, flag: 16384, row1: 1, row2: 128}
+- {ccd: 44, col1: 1894, col2: 2048, flag: 16384, row1: 3963, row2: 4096}
+- {ccd: 44, col1: 1904, col2: 2048, flag: 16384, row1: 1974, row2: 2119}
+45:
+- {ccd: 45, col1: 1, col2: 151, flag: 16384, row1: 3983, row2: 4096}
+- {ccd: 45, col1: 1, col2: 153, flag: 16384, row1: 1, row2: 134}
+- {ccd: 45, col1: 1, col2: 164, flag: 16384, row1: 1912, row2: 2065}
+- {ccd: 45, col1: 1876, col2: 2048, flag: 16384, row1: 3966, row2: 4096}
+- {ccd: 45, col1: 1877, col2: 2048, flag: 16384, row1: 1, row2: 141}
+- {ccd: 45, col1: 1895, col2: 2048, flag: 16384, row1: 1886, row2: 2041}
+46:
+- {ccd: 46, col1: 1, col2: 145, flag: 16384, row1: 3967, row2: 4096}
+- {ccd: 46, col1: 1, col2: 159, flag: 16384, row1: 1, row2: 127}
+- {ccd: 46, col1: 1, col2: 201, flag: 16384, row1: 2006, row2: 2154}
+- {ccd: 46, col1: 1894, col2: 2048, flag: 16384, row1: 3955, row2: 4096}
+- {ccd: 46, col1: 1897, col2: 2048, flag: 16384, row1: 1950, row2: 2110}
+- {ccd: 46, col1: 1899, col2: 2048, flag: 16384, row1: 1, row2: 100}
+47:
+- {ccd: 47, col1: 1, col2: 130, flag: 16384, row1: 1, row2: 122}
+- {ccd: 47, col1: 1, col2: 134, flag: 16384, row1: 3980, row2: 4096}
+- {ccd: 47, col1: 1, col2: 150, flag: 16384, row1: 1910, row2: 2072}
+- {ccd: 47, col1: 1893, col2: 2048, flag: 16384, row1: 1, row2: 120}
+- {ccd: 47, col1: 1902, col2: 2048, flag: 16384, row1: 3969, row2: 4096}
+- {ccd: 47, col1: 1913, col2: 2048, flag: 16384, row1: 1880, row2: 2030}
+48:
+- {ccd: 48, col1: 1, col2: 136, flag: 16384, row1: 1, row2: 123}
+- {ccd: 48, col1: 1, col2: 143, flag: 16384, row1: 3988, row2: 4096}
+- {ccd: 48, col1: 1, col2: 151, flag: 16384, row1: 2034, row2: 2195}
+- {ccd: 48, col1: 1888, col2: 2048, flag: 16384, row1: 1, row2: 121}
+- {ccd: 48, col1: 1902, col2: 2048, flag: 16384, row1: 4002, row2: 4096}
+- {ccd: 48, col1: 1904, col2: 2048, flag: 16384, row1: 1974, row2: 2120}
+49:
+- {ccd: 49, col1: 1, col2: 139, flag: 16384, row1: 3980, row2: 4096}
+- {ccd: 49, col1: 1, col2: 141, flag: 16384, row1: 1, row2: 117}
+- {ccd: 49, col1: 1, col2: 150, flag: 16384, row1: 1998, row2: 2144}
+- {ccd: 49, col1: 1891, col2: 2048, flag: 16384, row1: 1, row2: 129}
+- {ccd: 49, col1: 1901, col2: 2048, flag: 16384, row1: 3990, row2: 4096}
+- {ccd: 49, col1: 1905, col2: 2048, flag: 16384, row1: 1865, row2: 2015}
+50:
+- {ccd: 50, col1: 1, col2: 140, flag: 16384, row1: 1, row2: 122}
+- {ccd: 50, col1: 1, col2: 142, flag: 16384, row1: 2123, row2: 2280}
+- {ccd: 50, col1: 1, col2: 154, flag: 16384, row1: 3971, row2: 4096}
+- {ccd: 50, col1: 1895, col2: 2048, flag: 16384, row1: 2066, row2: 2209}
+- {ccd: 50, col1: 1896, col2: 2048, flag: 16384, row1: 3963, row2: 4096}
+- {ccd: 50, col1: 1899, col2: 2048, flag: 16384, row1: 1, row2: 121}
+51:
+- {ccd: 51, col1: 1, col2: 141, flag: 16384, row1: 1, row2: 122}
+- {ccd: 51, col1: 1, col2: 148, flag: 16384, row1: 3964, row2: 4096}
+- {ccd: 51, col1: 1, col2: 156, flag: 16384, row1: 2010, row2: 2147}
+- {ccd: 51, col1: 1903, col2: 2048, flag: 16384, row1: 2038, row2: 2178}
+- {ccd: 51, col1: 1906, col2: 2048, flag: 16384, row1: 1, row2: 113}
+- {ccd: 51, col1: 1913, col2: 2048, flag: 16384, row1: 3980, row2: 4096}
+52:
+- {ccd: 52, col1: 1, col2: 137, flag: 16384, row1: 1, row2: 115}
+- {ccd: 52, col1: 1, col2: 142, flag: 16384, row1: 3962, row2: 4096}
+- {ccd: 52, col1: 1, col2: 145, flag: 16384, row1: 1852, row2: 2004}
+- {ccd: 52, col1: 1893, col2: 2048, flag: 16384, row1: 1, row2: 131}
+- {ccd: 52, col1: 1895, col2: 2048, flag: 16384, row1: 3957, row2: 4096}
+- {ccd: 52, col1: 1908, col2: 2048, flag: 16384, row1: 1822, row2: 1954}
+53:
+- {ccd: 53, col1: 1, col2: 146, flag: 16384, row1: 1, row2: 161}
+- {ccd: 53, col1: 1, col2: 150, flag: 16384, row1: 1895, row2: 2038}
+- {ccd: 53, col1: 1, col2: 152, flag: 16384, row1: 3977, row2: 4096}
+- {ccd: 53, col1: 1903, col2: 2048, flag: 16384, row1: 3965, row2: 4096}
+- {ccd: 53, col1: 1907, col2: 2048, flag: 16384, row1: 1863, row2: 2010}
+- {ccd: 53, col1: 1909, col2: 2048, flag: 16384, row1: 1, row2: 123}
+54:
+- {ccd: 54, col1: 1, col2: 146, flag: 16384, row1: 1, row2: 130}
+- {ccd: 54, col1: 1, col2: 161, flag: 16384, row1: 1967, row2: 2123}
+- {ccd: 54, col1: 1, col2: 162, flag: 16384, row1: 3968, row2: 4096}
+- {ccd: 54, col1: 1895, col2: 2048, flag: 16384, row1: 1, row2: 134}
+- {ccd: 54, col1: 1898, col2: 2048, flag: 16384, row1: 1941, row2: 2079}
+- {ccd: 54, col1: 1904, col2: 2048, flag: 16384, row1: 3974, row2: 4096}
+55:
+- {ccd: 55, col1: 1, col2: 148, flag: 16384, row1: 3971, row2: 4096}
+- {ccd: 55, col1: 1, col2: 149, flag: 16384, row1: 1966, row2: 2126}
+- {ccd: 55, col1: 1, col2: 151, flag: 16384, row1: 1, row2: 126}
+- {ccd: 55, col1: 1898, col2: 2048, flag: 16384, row1: 3964, row2: 4096}
+- {ccd: 55, col1: 1903, col2: 2048, flag: 16384, row1: 1964, row2: 2113}
+- {ccd: 55, col1: 1908, col2: 2048, flag: 16384, row1: 1, row2: 145}
+56:
+- {ccd: 56, col1: 1, col2: 134, flag: 16384, row1: 1, row2: 93}
+- {ccd: 56, col1: 1, col2: 140, flag: 16384, row1: 2063, row2: 2217}
+- {ccd: 56, col1: 1, col2: 145, flag: 16384, row1: 3951, row2: 4096}
+- {ccd: 56, col1: 1902, col2: 2048, flag: 16384, row1: 1955, row2: 2095}
+- {ccd: 56, col1: 1916, col2: 2048, flag: 16384, row1: 1, row2: 108}
+- {ccd: 56, col1: 1919, col2: 2048, flag: 16384, row1: 3973, row2: 4096}
+57:
+- {ccd: 57, col1: 1, col2: 127, flag: 16384, row1: 2105, row2: 2263}
+- {ccd: 57, col1: 1, col2: 140, flag: 16384, row1: 1, row2: 108}
+- {ccd: 57, col1: 1, col2: 143, flag: 16384, row1: 3962, row2: 4096}
+- {ccd: 57, col1: 1895, col2: 2048, flag: 16384, row1: 1968, row2: 2127}
+- {ccd: 57, col1: 1913, col2: 2048, flag: 16384, row1: 1, row2: 111}
+- {ccd: 57, col1: 1917, col2: 2048, flag: 16384, row1: 3974, row2: 4096}
+58:
+- {ccd: 58, col1: 1, col2: 122, flag: 16384, row1: 3996, row2: 4096}
+- {ccd: 58, col1: 1, col2: 131, flag: 16384, row1: 1834, row2: 1969}
+- {ccd: 58, col1: 1, col2: 137, flag: 16384, row1: 1, row2: 98}
+- {ccd: 58, col1: 1900, col2: 2048, flag: 16384, row1: 1, row2: 124}
+- {ccd: 58, col1: 1903, col2: 2048, flag: 16384, row1: 4003, row2: 4096}
+- {ccd: 58, col1: 1905, col2: 2048, flag: 16384, row1: 1967, row2: 2093}
+59:
+- {ccd: 59, col1: 1, col2: 130, flag: 16384, row1: 1, row2: 121}
+- {ccd: 59, col1: 1, col2: 139, flag: 16384, row1: 2120, row2: 2278}
+- {ccd: 59, col1: 1, col2: 145, flag: 16384, row1: 3970, row2: 4096}
+- {ccd: 59, col1: 1894, col2: 2048, flag: 16384, row1: 1966, row2: 2125}
+- {ccd: 59, col1: 1896, col2: 2048, flag: 16384, row1: 1, row2: 115}
+- {ccd: 59, col1: 1899, col2: 2048, flag: 16384, row1: 3968, row2: 4096}
+60:
+- {ccd: 60, col1: 1, col2: 146, flag: 16384, row1: 1884, row2: 2036}
+- {ccd: 60, col1: 1, col2: 151, flag: 16384, row1: 1, row2: 138}
+- {ccd: 60, col1: 1, col2: 153, flag: 16384, row1: 3967, row2: 4096}
+- {ccd: 60, col1: 1882, col2: 2048, flag: 16384, row1: 3963, row2: 4096}
+- {ccd: 60, col1: 1893, col2: 2048, flag: 16384, row1: 1910, row2: 2048}
+- {ccd: 60, col1: 1897, col2: 2048, flag: 16384, row1: 1, row2: 138}
+61:
+- {ccd: 61, col1: 1, col2: 131, flag: 16384, row1: 1, row2: 144}
+- {ccd: 61, col1: 1, col2: 143, flag: 16384, row1: 1873, row2: 2033}
+- {ccd: 61, col1: 1, col2: 160, flag: 16384, row1: 3983, row2: 4096}
+- {ccd: 61, col1: 1883, col2: 2048, flag: 16384, row1: 1880, row2: 2033}
+- {ccd: 61, col1: 1894, col2: 2048, flag: 16384, row1: 3985, row2: 4096}
+- {ccd: 61, col1: 1908, col2: 2048, flag: 16384, row1: 1, row2: 121}
+62:
+- {ccd: 62, col1: 1, col2: 133, flag: 16384, row1: 1, row2: 109}
+- {ccd: 62, col1: 1, col2: 139, flag: 16384, row1: 1914, row2: 2060}
+- {ccd: 62, col1: 1, col2: 147, flag: 16384, row1: 3975, row2: 4096}
+- {ccd: 62, col1: 1905, col2: 2048, flag: 16384, row1: 1, row2: 135}
+- {ccd: 62, col1: 1906, col2: 2048, flag: 16384, row1: 1931, row2: 2071}
+- {ccd: 62, col1: 1908, col2: 2048, flag: 16384, row1: 3977, row2: 4096}
