@@ -14,7 +14,10 @@ def test_se_image_set_psf(se_image_data, eps_x, eps_y):
     se_im = SEImageSlice(
         source_info=se_image_data['source_info'],
         psf_model=galsim.Gaussian(fwhm=0.8),
-        wcs=se_image_data['eu_wcs'], noise_seed=10)
+        wcs=se_image_data['eu_wcs'],
+        noise_seed=10,
+        mask_tape_bumps=False,
+    )
 
     # do the WCS inversion in the function (and it not being exact),
     # we take the coordinates through a round trip to make sure things are

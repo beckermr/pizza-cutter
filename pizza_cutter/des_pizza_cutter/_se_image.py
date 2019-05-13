@@ -115,6 +115,8 @@ class SEImageSlice(object):
         The WCS model to use.
     noise_seed : int
         A seed to use for the noise field.
+    mask_tape_bumps: boold
+        If True, turn on TAPEBUMP flag and turn off SUSPECT in bmask
 
     Methods
     -------
@@ -176,11 +178,19 @@ class SEImageSlice(object):
     psf_box_size : int
         The size of the PSF image. Set by calling `set_psf`.
     """
-    def __init__(self, *, source_info, psf_model, wcs, noise_seed):
+    def __init__(self,
+                 *,
+                 source_info,
+                 psf_model,
+                 wcs,
+                 noise_seed,
+                 mask_tape_bumps):
+
         self.source_info = source_info
         self._psf_model = psf_model
         self._wcs = wcs
         self._noise_seed = noise_seed
+        self._mask_tape_bumps = mask_tape_bumps
 
         # init the sky bounds
         sky_bnds, ra_ccd, dec_ccd = get_rough_sky_bounds(
@@ -239,7 +249,8 @@ class SEImageSlice(object):
             self.source_info['bmask_path'],
             ext=self.source_info['bmask_ext'])
 
-        self._set_tape_bump_mask(bmask)
+        if self._mask_tape_bumps:
+            self._set_tape_bump_mask(bmask)
 
         self.bmask = bmask[
             y_start:y_start+box_size, x_start:x_start+box_size].copy()
@@ -268,9 +279,11 @@ class SEImageSlice(object):
         The TAPEBUMP bit is set and SUSPECT is unset
         """
 
+        logger.debug('masking tape bumps')
+
         ccdnum = self.source_info['ccdnum']
         bumps = TAPE_BUMPS[ccdnum]
-        SUSPECT=2048
+        SUSPECT = 2048
         for bump in bumps:
             bmask[
                 bump['row1']:bump['row2']+1,
@@ -280,7 +293,6 @@ class SEImageSlice(object):
                 bump['row1']:bump['row2']+1,
                 bump['col1']:bump['col2']+1,
             ] &= ~SUSPECT
-
 
     def image2sky(self, x, y):
         """Compute ra, dec for a given set of pixel coordinates.

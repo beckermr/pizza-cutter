@@ -13,8 +13,12 @@ from .._se_image import SEImageSlice
     (np.ones((10, 10)), 10)])
 def test_se_image_psf_array(se_image_data, x, y):
     se_im = SEImageSlice(
-        source_info=None, psf_model=None,
-        wcs=se_image_data['eu_wcs'], noise_seed=10)
+        source_info=None,
+        psf_model=None,
+        wcs=se_image_data['eu_wcs'],
+        noise_seed=10,
+        mask_tape_bumps=False,
+    )
 
     with pytest.raises(AssertionError):
         se_im.get_psf_image(x, y)
@@ -42,7 +46,10 @@ def test_se_image_psf_gsobject(se_image_data, eps_x, eps_y):
     se_im = SEImageSlice(
         source_info=se_image_data['source_info'],
         psf_model=galsim.Gaussian(fwhm=0.8),
-        wcs=se_image_data['eu_wcs'], noise_seed=10)
+        wcs=se_image_data['eu_wcs'],
+        noise_seed=10,
+        mask_tape_bumps=False,
+    )
 
     psf_im = se_im.get_psf_image(x, y)
     cen = (psf_im.shape[0] - 1) / 2
@@ -92,7 +99,10 @@ def test_se_image_psf_psfex(se_image_data, use_wcs, eps_x, eps_y):
     se_im = SEImageSlice(
         source_info=se_image_data['source_info'],
         psf_model=psfex,
-        wcs=se_image_data['eu_wcs'], noise_seed=10)
+        wcs=se_image_data['eu_wcs'],
+        noise_seed=10,
+        mask_tape_bumps=False,
+    )
 
     if use_wcs:
         wcs = se_im.get_wcs_jacobian(x, y)
@@ -141,7 +151,10 @@ def test_se_image_psf_piff(se_image_data, eps_x, eps_y):
     se_im = SEImageSlice(
         source_info=se_image_data['source_info'],
         psf_model=psf_mod,
-        wcs=se_image_data['eu_wcs'], noise_seed=10)
+        wcs=se_image_data['eu_wcs'],
+        noise_seed=10,
+        mask_tape_bumps=False,
+    )
 
     psf_im = se_im.get_psf_image(x, y)
     cen = (psf_im.shape[0] - 1) / 2

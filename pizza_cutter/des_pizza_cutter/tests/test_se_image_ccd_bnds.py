@@ -6,8 +6,12 @@ from .._se_image import SEImageSlice
 
 def test_se_image_ccd_bnds_in(se_image_data):
     se_im = SEImageSlice(
-        source_info=None, psf_model=None,
-        wcs=se_image_data['eu_wcs'], noise_seed=10)
+        source_info=None,
+        psf_model=None,
+        wcs=se_image_data['eu_wcs'],
+        noise_seed=10,
+        mask_tape_bumps=False,
+    )
 
     in_bnds = Bounds(10, 20, 50, 60)
     assert se_im.ccd_contains_bounds(in_bnds)
@@ -20,8 +24,12 @@ def test_se_image_ccd_bnds_in(se_image_data):
     Bounds(10, 20, 50, 2047)])
 def test_se_image_ccd_bnds_in_edge(se_image_data, in_bnds):
     se_im = SEImageSlice(
-        source_info=None, psf_model=None,
-        wcs=se_image_data['eu_wcs'], noise_seed=10)
+        source_info=None,
+        psf_model=None,
+        wcs=se_image_data['eu_wcs'],
+        noise_seed=10,
+        mask_tape_bumps=False,
+    )
 
     assert se_im.ccd_contains_bounds(in_bnds)
 
@@ -34,8 +42,12 @@ def test_se_image_ccd_bnds_in_edge(se_image_data, in_bnds):
     Bounds(-10, 8000, -50, 6000)])
 def test_se_image_ccd_bnds_over(se_image_data, over_bnds):
     se_im = SEImageSlice(
-        source_info=None, psf_model=None,
-        wcs=se_image_data['eu_wcs'], noise_seed=10)
+        source_info=None,
+        psf_model=None,
+        wcs=se_image_data['eu_wcs'],
+        noise_seed=10,
+        mask_tape_bumps=False,
+    )
 
     assert not se_im.ccd_contains_bounds(over_bnds)
 
@@ -47,8 +59,12 @@ def test_se_image_ccd_bnds_over(se_image_data, over_bnds):
     Bounds(10000, 20000, 50000, 60000)])
 def test_se_image_ccd_bnds_out(se_image_data, out_bnds):
     se_im = SEImageSlice(
-        source_info=None, psf_model=None,
-        wcs=se_image_data['eu_wcs'], noise_seed=10)
+        source_info=None,
+        psf_model=None,
+        wcs=se_image_data['eu_wcs'],
+        noise_seed=10,
+        mask_tape_bumps=False,
+    )
 
     assert not se_im.ccd_contains_bounds(out_bnds)
 
@@ -56,8 +72,12 @@ def test_se_image_ccd_bnds_out(se_image_data, out_bnds):
 @pytest.mark.parametrize('buffer', [0, 5, 10])
 def test_se_image_ccd_bnds_buffer_in(se_image_data, buffer):
     se_im = SEImageSlice(
-        source_info=None, psf_model=None,
-        wcs=se_image_data['eu_wcs'], noise_seed=10)
+        source_info=None,
+        psf_model=None,
+        wcs=se_image_data['eu_wcs'],
+        noise_seed=10,
+        mask_tape_bumps=False,
+    )
 
     in_bnds = Bounds(20, 4075, 20, 2027)
     assert se_im.ccd_contains_bounds(in_bnds, buffer=buffer)
@@ -70,7 +90,11 @@ def test_se_image_ccd_bnds_buffer_in(se_image_data, buffer):
     Bounds(20, 4075, 20, 2037)])
 def test_se_image_ccd_bnds_buffer_out(se_image_data, out_bnds):
     se_im = SEImageSlice(
-        source_info=None, psf_model=None,
-        wcs=se_image_data['eu_wcs'], noise_seed=10)
+        source_info=None,
+        psf_model=None,
+        wcs=se_image_data['eu_wcs'],
+        noise_seed=10,
+        mask_tape_bumps=False,
+    )
 
     assert not se_im.ccd_contains_bounds(out_bnds, buffer=15)
