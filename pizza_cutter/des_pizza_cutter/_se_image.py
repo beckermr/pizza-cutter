@@ -20,6 +20,8 @@ from ..memmappednoise import MemMappedNoiseImage
 from ._sky_bounds import get_rough_sky_bounds
 from ._constants import MAGZP_REF, BMASK_EDGE
 
+from ._tape_bumps import TAPE_BUMPS
+
 logger = logging.getLogger(__name__)
 
 
@@ -236,6 +238,9 @@ class SEImageSlice(object):
         bmask = _read_image(
             self.source_info['bmask_path'],
             ext=self.source_info['bmask_ext'])
+
+        self._set_tape_bump_mask(bmask)
+
         self.bmask = bmask[
             y_start:y_start+box_size, x_start:x_start+box_size].copy()
 
@@ -247,6 +252,28 @@ class SEImageSlice(object):
             scale, self._noise_seed)
         self.noise = nse[
             y_start:y_start+box_size, x_start:x_start+box_size].copy()
+
+    def _set_tape_bump_mask(self, bmask):
+        """
+        set the tape bump flag on the input bmask
+
+        Parameters
+        ----------
+        bmask: array
+            This must be the original array before trimming
+
+        Effects
+        ------------
+        The TAPEBUMP bit is set
+        """
+
+        ccdnum = self.source_info['ccdnum']
+        bumps = TAPE_BUMPS[ccdnum]
+        for bump in bumps:
+            bmask[
+                bump['row1']:bump['row2']+1,
+                bump['col1']:bump['col2']+1,
+            ] |= bump['flag']
 
     def image2sky(self, x, y):
         """Compute ra, dec for a given set of pixel coordinates.
