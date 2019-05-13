@@ -1,4 +1,5 @@
 import os
+from glob import glob
 from setuptools import setup, find_packages
 
 scripts = [
@@ -15,6 +16,13 @@ pth = os.path.join(
 with open(pth, 'r') as fp:
     exec(fp.read())
 
+ofiles = glob('data/*')
+data_files = []
+for f in ofiles:
+    if '~' not in f:
+        data_files.append(('share/pizza-cutter', [f]))
+
+
 setup(
     name='pizza_cutter',
     version=__version__,
@@ -22,5 +30,6 @@ setup(
     author="MRB and ESS",
     packages=find_packages(),
     include_package_data=True,
+    data_files=data_files,
     scripts=scripts,
 )
