@@ -1,7 +1,4 @@
 import logging
-
-import desmeds
-
 from ._constants import MAGZP_REF, POSITION_OFFSET
 from ._piff_tools import load_piff_path_from_image_path
 
@@ -64,27 +61,6 @@ def add_extra_des_coadd_tile_info(*, info, piff_run):
                 zero-point calibration
             'magzp' : the magnitude zero point for the image
             'image_flags' : any flags for the SE image
-    """
-
-    """
-    coadd_srcs = desmeds.coaddsrc.CoaddSrc(
-        medsconf,
-        tilename,
-        band,
-        campaign=campaign,
-    )
-
-    coadd = desmeds.coaddinfo.Coadd(
-        medsconf,
-        tilename,
-        band,
-        campaign=campaign,
-        sources=coadd_srcs,
-    )
-
-    info = coadd.get_info()
-    info['tilename'] = tilename
-    info['band'] = band
     """
 
     info['position_offset'] = POSITION_OFFSET
