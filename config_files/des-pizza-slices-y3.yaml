@@ -49,8 +49,9 @@ se_interp_flags:
   - 1     # BPM
   - 2     # SATURATE
   - 16    # CRAY
-  - 1024  # STREAK
   - 64    # TRAIL
+  - 1024  # STREAK
+  - 2048  # SUSPECT for y3 this includes TAPEBUMP but we fix that
 
 noise_interp_flags:
   - 4     # INTERP. Already interpolated; is this ever set?
@@ -58,7 +59,6 @@ noise_interp_flags:
   - 128   # EDGEBLEED
   - 256   # SSXTALK
   - 512   # EDGE
-  - 2048  # SUSPECT for y3 this includes TAPEBUMP but we fix that
 
 bad_image_flags:
   - 0
