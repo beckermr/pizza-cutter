@@ -126,7 +126,6 @@ def apply_bmask_symmetrize_and_interp(
         weight=weight,
         bmask=bmask,
         bad_flags=se_interp_flags,
-        rng=None,
         noise=noise)
 
     return interp_image, weight, bmask, interp_noise
