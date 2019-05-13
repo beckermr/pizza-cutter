@@ -269,11 +269,17 @@ class SEImageSlice(object):
 
         ccdnum = self.source_info['ccdnum']
         bumps = TAPE_BUMPS[ccdnum]
+        SUSPECT=2048
         for bump in bumps:
             bmask[
                 bump['row1']:bump['row2']+1,
                 bump['col1']:bump['col2']+1,
             ] |= bump['flag']
+            bmask[
+                bump['row1']:bump['row2']+1,
+                bump['col1']:bump['col2']+1,
+            ] &= ~SUSPECT
+
 
     def image2sky(self, x, y):
         """Compute ra, dec for a given set of pixel coordinates.
