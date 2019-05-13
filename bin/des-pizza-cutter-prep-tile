@@ -64,6 +64,7 @@ def main():
 
     cfg['medsconf'] = os.path.basename(args.config).replace('.yaml', '')
 
+    # Preparator uses campaign, source_type from config
     prep = desmeds.desdm_maker.Preparator(
         cfg,
         args.tilename,
