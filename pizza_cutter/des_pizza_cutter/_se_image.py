@@ -255,7 +255,8 @@ class SEImageSlice(object):
 
     def _set_tape_bump_mask(self, bmask):
         """
-        set the tape bump flag on the input bmask
+        set the TAPEBUMP flag on the input bmask, unset
+        SUSPECT
 
         Parameters
         ----------
@@ -264,7 +265,7 @@ class SEImageSlice(object):
 
         Effects
         ------------
-        The TAPEBUMP bit is set
+        The TAPEBUMP bit is set and SUSPECT is unset
         """
 
         ccdnum = self.source_info['ccdnum']
