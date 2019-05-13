@@ -89,7 +89,6 @@ def main():
             args.tilename,
             args.band,
         )
-        print('tile info file: %s' % output_path, flush=True)
 
         print('dumping tile information:', output_path, flush=True)
         makedir_fromfile(output_path)
