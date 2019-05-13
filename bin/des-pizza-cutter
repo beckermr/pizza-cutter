@@ -89,6 +89,7 @@ def main(
         bad_image_flags=sum(cfg['bad_image_flags']),
         max_masked_fraction=cfg['max_masked_fraction'],
         max_unmasked_trail_fraction=cfg['max_unmasked_trail_fraction'],
+        mask_tape_bumps=cfg['mask_tape_bumps'],
         edge_buffer=cfg['edge_buffer'],
         wcs_type=cfg['wcs_type'],
         psf_type=cfg['psf_type'],
