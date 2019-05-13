@@ -5,6 +5,27 @@ import shutil
 logger = logging.getLogger(__name__)
 
 
+def get_des_info_file(medsconf, tilename, band):
+    """
+    get the path to the pizza cutter info file for a DES tile
+
+    Paramters
+    ---------
+    medsconf: string
+        The name for the pizza cutter meds dir under $MEDS_DIR
+    tilename: string
+        e.g. DES0225-1041
+    band: string
+        e.g. 'r'
+    """
+    return os.path.join(
+        os.environ['MEDS_DIR'],
+        medsconf,
+        'pizza_cutter_info',
+        '%s_%s_pizza_cutter_info.yaml' % (tilename, band),
+    )
+
+
 def expandpath(path):
     """Expand environment variables, user home directories (~), and convert
     to an absolute path.
