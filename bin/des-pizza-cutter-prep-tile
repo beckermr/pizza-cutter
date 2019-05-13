@@ -70,9 +70,12 @@ def main():
         args.band,
     )
     if args.clean:
+        # remove the source-${band} tree. This leaves the PSFs and list files
+        # in place
         prep.clean()
 
     else:
+        # download the data
         prep.go()
 
         info = prep.coadd.get_info()
