@@ -24,6 +24,9 @@ max_masked_fraction: 0.1
 max_unmasked_trail_fraction: 0.02
 edge_buffer: 64
 
+# Y5 already deals with tapebump in a sensible way
+mask_tape_bumps: False
+
 # DES Y5 bit mask flags
 # "BPM":          1,  #/* set in bpm (hot/dead pixel/column)        */
 # "SATURATE":     2,  #/* saturated pixel                           */
@@ -55,7 +58,11 @@ noise_interp_flags:
   - 128   # EDGEBLEED
   - 256   # SSXTALK
   - 512   # EDGE
-  - 16384 # TAPEBUMP
+
+# make the judgment call that it is better to use the somewhat
+# suspect TAPEBUMP areas than fill with noise, because they are
+# fairly large
+#  - 16384 # TAPEBUMP
 
 bad_image_flags:
   - 0

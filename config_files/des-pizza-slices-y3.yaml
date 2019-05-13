@@ -25,6 +25,9 @@ max_masked_fraction: 0.1
 max_unmasked_trail_fraction: 0.02
 edge_buffer: 64
 
+# For TAPEBUMP regions, turn off SUSPECT and turn on TAPEBUMP=16384
+mask_tape_bumps: True
+
 # DES Y3 bit mask flags
 # "BPM":          1,  #/* set in bpm (hot/dead pixel/column)        */
 # "SATURATE":     2,  #/* saturated pixel                           */
@@ -55,7 +58,7 @@ noise_interp_flags:
   - 128   # EDGEBLEED
   - 256   # SSXTALK
   - 512   # EDGE
-  - 2048  # SUSPECT for y3 this includes TAPEBUMP
+  - 2048  # SUSPECT for y3 this includes TAPEBUMP but we fix that
 
 bad_image_flags:
   - 0
