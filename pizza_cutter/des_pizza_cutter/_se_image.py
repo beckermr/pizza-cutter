@@ -53,45 +53,33 @@ def _get_wcs_inverse(wcs, wcs_position_offset, se_wcs, se_wcs_position_offset):
 
     if isinstance(se_wcs, galsim.BaseWCS):
         def _image2sky(x, y):
-            try:
-                ra, dec = se_wcs._radec(
-                    x - se_wcs.x0 + se_wcs_position_offset,
-                    y - se_wcs.y0 + se_wcs_position_offset)
-                np.degrees(ra, out=ra)
-                np.degrees(dec, out=dec)
-                return ra, dec
-            except AttributeError:
-                return se_wcs.image2sky(
-                    x+se_wcs_position_offset,
-                    y+se_wcs_position_offset)
-
-        dim_y = 4096
-        dim_x = 2048
-        delta = 8
-        y_se, x_se = np.mgrid[:dim_y+delta:delta, :dim_x+delta:delta]
-        y_se = y_se.ravel() - 0.5
-        x_se = x_se.ravel() - 0.5
-
-        x_coadd, y_coadd = wcs.sky2image(*_image2sky(x_se, y_se))
-
-        x_coadd -= wcs_position_offset
-        y_coadd -= wcs_position_offset
-
-        return WCSInversionInterpolator(x_coadd, y_coadd, x_se, y_se)
-
+            ra, dec = se_wcs._radec(
+                x - se_wcs.x0 + se_wcs_position_offset,
+                y - se_wcs.y0 + se_wcs_position_offset)
+            np.degrees(ra, out=ra)
+            np.degrees(dec, out=dec)
+            return ra, dec
     elif isinstance(se_wcs, eu.wcsutil.WCS):
-        # return a closure here
-        def _inv(x_coadd, y_coadd):
-            x, y = se_wcs.sky2image(
-                *wcs.image2sky(
-                    x_coadd+wcs_position_offset,
-                    y_coadd+wcs_position_offset),
-                find=False)  # set find = False to make it fast!
-            return x - se_wcs_position_offset, y - se_wcs_position_offset
-
-        return _inv
+        def _image2sky(x, y):
+            return se_wcs.image2sky(
+                x + se_wcs_position_offset,
+                y + se_wcs_position_offset)
     else:
         raise ValueError('WCS %s not recognized!' % se_wcs)
+
+    dim_y = 4096
+    dim_x = 2048
+    delta = 8
+    y_se, x_se = np.mgrid[:dim_y+delta:delta, :dim_x+delta:delta]
+    y_se = y_se.ravel() - 0.5
+    x_se = x_se.ravel() - 0.5
+
+    x_coadd, y_coadd = wcs.sky2image(*_image2sky(x_se, y_se))
+
+    x_coadd -= wcs_position_offset
+    y_coadd -= wcs_position_offset
+
+    return WCSInversionInterpolator(x_coadd, y_coadd, x_se, y_se)
 
 
 class SEImageSlice(object):
