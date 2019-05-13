@@ -269,10 +269,11 @@ def _build_slice_inputs(
             logger.debug('doing image interpolation')
             interp_image, interp_noise = interpolate_image_and_noise(
                 image=se_slice.image,
+                noise=se_slice.noise,
                 weight=se_slice.weight,
                 bmask=se_slice.bmask,
                 bad_flags=se_interp_flags,
-                rng=rng)
+            )
 
             if interp_image is None or interp_noise is None:
                 flags |= procflags.HIGH_INTERP_MASKED_FRAC
