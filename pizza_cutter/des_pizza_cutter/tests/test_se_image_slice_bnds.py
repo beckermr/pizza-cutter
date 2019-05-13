@@ -1,12 +1,19 @@
+import os
+
 import pytest
 
 from .._se_image import SEImageSlice
 
 
+@pytest.mark.skipif(
+    os.environ.get('TEST_DESDATA', None) is None,
+    reason=(
+        'SEImageSlice can only be tested if '
+        'test data is at TEST_DESDATA'))
 @pytest.mark.parametrize('eps', [-0.5, -0.1, 0, 0.1, 0.499999])
 def test_se_image_slice_bnds_odd(se_image_data, eps):
     se_im = SEImageSlice(
-        source_info=None,
+        source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
         noise_seed=10,
@@ -26,10 +33,15 @@ def test_se_image_slice_bnds_odd(se_image_data, eps):
     assert bnds.colmax == col_cen + box_cen
 
 
+@pytest.mark.skipif(
+    os.environ.get('TEST_DESDATA', None) is None,
+    reason=(
+        'SEImageSlice can only be tested if '
+        'test data is at TEST_DESDATA'))
 @pytest.mark.parametrize('eps', [0.0000001, 0.1, 0.5, 0.7, 0.99999])
 def test_se_image_slice_bnds_even(se_image_data, eps):
     se_im = SEImageSlice(
-        source_info=None,
+        source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
         noise_seed=10,

@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pytest
 
@@ -6,12 +8,17 @@ import galsim
 from .._se_image import SEImageSlice
 
 
+@pytest.mark.skipif(
+    os.environ.get('TEST_DESDATA', None) is None,
+    reason=(
+        'SEImageSlice can only be tested if '
+        'test data is at TEST_DESDATA'))
 @pytest.mark.parametrize('x,y', [
     (np.ones(10), 10),
     (np.ones((10, 10)), 10)])
 def test_se_image_wcs_array_shape(se_image_data, x, y):
     se_im = SEImageSlice(
-        source_info=None,
+        source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
         noise_seed=10,
@@ -31,9 +38,14 @@ def test_se_image_wcs_array_shape(se_image_data, x, y):
         se_im.sky2image(y, x)
 
 
+@pytest.mark.skipif(
+    os.environ.get('TEST_DESDATA', None) is None,
+    reason=(
+        'SEImageSlice can only be tested if '
+        'test data is at TEST_DESDATA'))
 def test_se_image_wcs_esutil(se_image_data):
     se_im = SEImageSlice(
-        source_info=None,
+        source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
         noise_seed=10,
@@ -55,9 +67,15 @@ def test_se_image_wcs_esutil(se_image_data):
         assert np.allclose(y, eu_y - 1)
 
 
+@pytest.mark.skipif(
+    os.environ.get('TEST_DESDATA', None) is None,
+    reason=(
+        'SEImageSlice can only be tested if '
+        'test data is at TEST_DESDATA'))
 def test_se_image_wcs_esutil_array(se_image_data):
     se_im = SEImageSlice(
-        source_info=None, psf_model=None,
+        source_info=se_image_data['source_info'],
+        psf_model=None,
         wcs=se_image_data['eu_wcs'],
         noise_seed=10,
         mask_tape_bumps=False,
@@ -82,9 +100,14 @@ def test_se_image_wcs_esutil_array(se_image_data):
     assert np.allclose(y, eu_y - 1)
 
 
+@pytest.mark.skipif(
+    os.environ.get('TEST_DESDATA', None) is None,
+    reason=(
+        'SEImageSlice can only be tested if '
+        'test data is at TEST_DESDATA'))
 def test_se_image_wcs_galsim(se_image_data):
     se_im = SEImageSlice(
-        source_info=None,
+        source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['gs_wcs'],
         noise_seed=10,
@@ -110,9 +133,15 @@ def test_se_image_wcs_galsim(se_image_data):
         assert np.allclose(y, pos.y - 1)
 
 
+@pytest.mark.skipif(
+    os.environ.get('TEST_DESDATA', None) is None,
+    reason=(
+        'SEImageSlice can only be tested if '
+        'test data is at TEST_DESDATA'))
 def test_se_image_wcs_galsim_array(se_image_data):
     se_im = SEImageSlice(
-        source_info=None, psf_model=None,
+        source_info=se_image_data['source_info'],
+        psf_model=None,
         wcs=se_image_data['gs_wcs'],
         noise_seed=10,
         mask_tape_bumps=False,

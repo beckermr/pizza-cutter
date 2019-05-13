@@ -8,12 +8,17 @@ import piff
 from .._se_image import SEImageSlice
 
 
+@pytest.mark.skipif(
+    os.environ.get('TEST_DESDATA', None) is None,
+    reason=(
+        'SEImageSlice can only be tested if '
+        'test data is at TEST_DESDATA'))
 @pytest.mark.parametrize('x,y', [
     (np.ones(10), 10),
     (np.ones((10, 10)), 10)])
 def test_se_image_psf_array(se_image_data, x, y):
     se_im = SEImageSlice(
-        source_info=None,
+        source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
         noise_seed=10,
@@ -33,6 +38,11 @@ def test_se_image_psf_array(se_image_data, x, y):
         se_im.get_psf_image(y, x)
 
 
+@pytest.mark.skipif(
+    os.environ.get('TEST_DESDATA', None) is None,
+    reason=(
+        'SEImageSlice can only be tested if '
+        'test data is at TEST_DESDATA'))
 @pytest.mark.parametrize('eps_x', [
     -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75])
 @pytest.mark.parametrize('eps_y', [
@@ -74,7 +84,7 @@ def test_se_image_psf_gsobject(se_image_data, eps_x, eps_y):
 @pytest.mark.skipif(
     os.environ.get('TEST_DESDATA', None) is None,
     reason=(
-        'SEImageSlice i/o can only be tested if '
+        'SEImageSlice can only be tested if '
         'test data is at TEST_DESDATA'))
 @pytest.mark.parametrize('eps_x', [
     -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75])
@@ -135,7 +145,7 @@ def test_se_image_psf_psfex(se_image_data, use_wcs, eps_x, eps_y):
 @pytest.mark.skipif(
     os.environ.get('TEST_DESDATA', None) is None,
     reason=(
-        'SEImageSlice i/o can only be tested if '
+        'SEImageSlice can only be tested if '
         'test data is at TEST_DESDATA'))
 @pytest.mark.parametrize('eps_x', [
     -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75])
