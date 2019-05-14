@@ -75,25 +75,12 @@ def main(
     make_des_pizza_slices(
         use_tmpdir=use_tmpdir,
         config=_config,
-        central_size=cfg['central_size'],
-        buffer_size=cfg['buffer_size'],
         meds_path=meds_path,
         info=info,
         fpack_pars=cfg.get('fpack_pars', None),
         seed=seed,
-        reject_outliers=cfg['reject_outliers'],
-        symmetrize_masking=cfg['symmetrize_masking'],
-        coadding_weight=cfg['coadding_weight'],
-        noise_interp_flags=sum(cfg['noise_interp_flags']),
-        se_interp_flags=sum(cfg['se_interp_flags']),
-        bad_image_flags=sum(cfg['bad_image_flags']),
-        max_masked_fraction=cfg['max_masked_fraction'],
-        max_unmasked_trail_fraction=cfg['max_unmasked_trail_fraction'],
-        mask_tape_bumps=cfg['mask_tape_bumps'],
-        edge_buffer=cfg['edge_buffer'],
-        wcs_type=cfg['wcs_type'],
-        psf_type=cfg['psf_type'],
-        psf_box_size=cfg['psf_box_size'])
+        coadd_config=cfg['coadd'],
+        single_epoch_config=cfg['single_epoch'])
 
 
 if __name__ == '__main__':

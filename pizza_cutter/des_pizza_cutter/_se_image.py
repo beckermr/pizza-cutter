@@ -159,6 +159,8 @@ class SEImageSlice(object):
     resample(wcs, wcs_position_offset, x_start, y_start, box_size,
              psf_x_start, psf_y_start, psf_box_size)
         Resample a SEImageSlice to a new WCS.
+    set_pmask(mask)
+        Set the processing mask to the input mask.
 
     Attributes
     ----------
@@ -189,6 +191,8 @@ class SEImageSlice(object):
         The starting y/row location of the PSF image. Set by calling `set_psf`.
     psf_box_size : int
         The size of the PSF image. Set by calling `set_psf`.
+    pmask : np.ndarray
+        The image of processing flags. Set by the call `set_pmask`.
     """
     def __init__(self,
                  *,
@@ -675,6 +679,16 @@ class SEImageSlice(object):
         self.psf_y_start = int(y_cen - half)
         self.psf_box_size = psf.shape[0]
 
+    def set_pmask(self, mask):
+        """Set the processing mask to the input mask.
+
+        Parameters
+        ----------
+        mask : np.ndarray
+            An array of ints w/ the same shape as the image.
+        """
+        self.pmask = mask
+
     def resample(
             self, *, wcs, wcs_position_offset, x_start, y_start, box_size,
             psf_x_start, psf_y_start, psf_box_size):
@@ -728,7 +742,8 @@ class SEImageSlice(object):
                 'bmask' : an approximate bmask using the nearest SE image
                     pixel
                 'noise' : the resampled noise image
-                'psf' : the resmapled PSF image
+                'psf' : the resampled PSF image
+                'pmask' : the resampled pmask
         """
         # error check
         if not hasattr(self, 'box_size'):
@@ -736,6 +751,9 @@ class SEImageSlice(object):
 
         if not hasattr(self, 'psf_box_size'):
             raise RuntimeError("You must call set_psf before resmpling!")
+
+        if not hasattr(self, 'pmask'):
+            raise RuntimeError("You must call set_pmask before resmpling!")
 
         # 1. build the lookup table of SE position as a function of coadd
         # position
@@ -789,7 +807,14 @@ class SEImageSlice(object):
         bmask[y_rs[~msk], x_rs[~msk]] = BMASK_EDGE
         resampled_data['bmask'] = bmask
 
-        # 4. do the PSF image
+        # 4. do the nearest pixel for the pmask
+        pmask = np.zeros((box_size, box_size), dtype=self.pmask.dtype)
+        pmask[y_rs[msk], x_rs[msk]] = self.pmask[
+            y_rs_se[msk], x_rs_se[msk]]
+        pmask[y_rs[~msk], x_rs[~msk]] = BMASK_EDGE
+        resampled_data['pmask'] = pmask
+
+        # 5. do the PSF image
         y_rs, x_rs = np.mgrid[0:psf_box_size, 0:psf_box_size]
         y_rs = y_rs.ravel() + psf_y_start
         x_rs = x_rs.ravel() + psf_x_start
