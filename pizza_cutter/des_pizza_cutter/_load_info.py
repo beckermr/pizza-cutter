@@ -127,14 +127,7 @@ def _munge_fits_header(hdr):
 
 
 def _build_gsobject(config):
-    eval_locals = locals()
     dct = copy.deepcopy(config)
-    # hacking in some galsim eval stuff here...
-    for k in dct:
-        if k == 'type':
-            continue
-        elif isinstance(dct[k], str) and dct[k][0] == '$':
-            dct[k] = eval(dct[k][1:], globals(), eval_locals)
     _psf, safe = galsim.config.BuildGSObject({'blah': dct}, 'blah')
     assert safe, (
         "You must provide a reusable PSF object for galsim object PSFs")
