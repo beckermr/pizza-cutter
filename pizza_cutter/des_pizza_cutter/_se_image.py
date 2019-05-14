@@ -25,8 +25,11 @@ from ._tape_bumps import TAPE_BUMPS
 logger = logging.getLogger(__name__)
 
 
-@functools.lru_cache(maxsize=128)
+@functools.lru_cache(maxsize=2048)
 def _get_image_shape(*, image_path, image_ext):
+
+    logger.debug('cache miss image shape: "%s" "%s"' % (image_path, image_ext))
+
     h = fitsio.read_header(image_path, ext=image_ext)
     if 'znaxis1' in h:
         return h['znaxis2'], h['znaxis1']
@@ -63,45 +66,33 @@ def _get_wcs_inverse(
 
     if isinstance(se_wcs, galsim.BaseWCS):
         def _image2sky(x, y):
-            try:
-                ra, dec = se_wcs._radec(
-                    x - se_wcs.x0 + se_wcs_position_offset,
-                    y - se_wcs.y0 + se_wcs_position_offset)
-                np.degrees(ra, out=ra)
-                np.degrees(dec, out=dec)
-                return ra, dec
-            except AttributeError:
-                return se_wcs.image2sky(
-                    x+se_wcs_position_offset,
-                    y+se_wcs_position_offset)
-
-        dim_y = se_im_shape[0]
-        dim_x = se_im_shape[1]
-        delta = 8
-        y_se, x_se = np.mgrid[:dim_y+delta:delta, :dim_x+delta:delta]
-        y_se = y_se.ravel() - 0.5
-        x_se = x_se.ravel() - 0.5
-
-        x_coadd, y_coadd = wcs.sky2image(*_image2sky(x_se, y_se))
-
-        x_coadd -= wcs_position_offset
-        y_coadd -= wcs_position_offset
-
-        return WCSInversionInterpolator(x_coadd, y_coadd, x_se, y_se)
-
+            ra, dec = se_wcs._radec(
+                x - se_wcs.x0 + se_wcs_position_offset,
+                y - se_wcs.y0 + se_wcs_position_offset)
+            np.degrees(ra, out=ra)
+            np.degrees(dec, out=dec)
+            return ra, dec
     elif isinstance(se_wcs, eu.wcsutil.WCS):
-        # return a closure here
-        def _inv(x_coadd, y_coadd):
-            x, y = se_wcs.sky2image(
-                *wcs.image2sky(
-                    x_coadd+wcs_position_offset,
-                    y_coadd+wcs_position_offset),
-                find=False)  # set find = False to make it fast!
-            return x - se_wcs_position_offset, y - se_wcs_position_offset
-
-        return _inv
+        def _image2sky(x, y):
+            return se_wcs.image2sky(
+                x + se_wcs_position_offset,
+                y + se_wcs_position_offset)
     else:
         raise ValueError('WCS %s not recognized!' % se_wcs)
+
+    dim_y = se_im_shape[0]
+    dim_x = se_im_shape[1]
+    delta = 8
+    y_se, x_se = np.mgrid[:dim_y+delta:delta, :dim_x+delta:delta]
+    y_se = y_se.ravel() - 0.5
+    x_se = x_se.ravel() - 0.5
+
+    x_coadd, y_coadd = wcs.sky2image(*_image2sky(x_se, y_se))
+
+    x_coadd -= wcs_position_offset
+    y_coadd -= wcs_position_offset
+
+    return WCSInversionInterpolator(x_coadd, y_coadd, x_se, y_se)
 
 
 class SEImageSlice(object):
@@ -209,9 +200,13 @@ class SEImageSlice(object):
         self._mask_tape_bumps = mask_tape_bumps
 
         # get the image shape
-        self._im_shape = _get_image_shape(
-            image_path=source_info['image_path'],
-            image_ext=source_info['image_ext'])
+        if 'image_shape' in source_info:
+            self._im_shape = source_info['image_shape']
+        else:
+            self._im_shape = _get_image_shape(
+                image_path=source_info['image_path'],
+                image_ext=source_info['image_ext'],
+            )
 
         # init the sky bounds
         sky_bnds, ra_ccd, dec_ccd = get_rough_sky_bounds(

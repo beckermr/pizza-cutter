@@ -105,12 +105,19 @@ def make_des_pizza_slices(
 
     metadata = _build_metadata(config=config)
     image_info = _build_image_info(info=info)
+
+    if 'image_shape' in info:
+        image_width = info['image_shape'][1]
+    else:
+        image_width = _get_image_width(
+            coadd_image_path=info['image_path'],
+            coadd_image_ext=info['image_ext'],
+        )
+
     object_data = _build_object_data(
         central_size=coadd_config['central_size'],
         buffer_size=coadd_config['buffer_size'],
-        image_width=_get_image_width(
-            coadd_image_path=info['image_path'],
-            coadd_image_ext=info['image_ext']),
+        image_width=image_width,
         psf_box_size=coadd_config['psf_box_size'],
         wcs=info['%s_wcs' % coadd_config['wcs_type']],
         position_offset=info['position_offset'])
