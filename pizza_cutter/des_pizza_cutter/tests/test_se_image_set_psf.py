@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pytest
 
@@ -6,6 +8,11 @@ import galsim
 from .._se_image import SEImageSlice
 
 
+@pytest.mark.skipif(
+    os.environ.get('TEST_DESDATA', None) is None,
+    reason=(
+        'SEImageSlice can only be tested if '
+        'test data is at TEST_DESDATA'))
 @pytest.mark.parametrize('eps_x', [
     -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75])
 @pytest.mark.parametrize('eps_y', [

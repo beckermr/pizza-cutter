@@ -11,7 +11,7 @@ from .._se_image import _get_wcs_inverse
 @pytest.mark.skipif(
     os.environ.get('TEST_DESDATA', None) is None,
     reason=(
-        'SEImageSlice i/o can only be tested if '
+        'SEImageSlice can only be tested if '
         'test data is at TEST_DESDATA'))
 def test_se_image_get_wcs_inverse_pixmappy(se_image_data, coadd_image_data):
     coadd_wcs = coadd_image_data['eu_wcs']
@@ -49,7 +49,8 @@ def test_se_image_get_wcs_inverse_pixmappy(se_image_data, coadd_image_data):
         coadd_wcs,
         coadd_image_data['position_offset'],
         se_wcs,
-        se_image_data['source_info']['position_offset']
+        se_image_data['source_info']['position_offset'],
+        (4096, 2048)
     )
 
     rng = np.random.RandomState(seed=100)
@@ -98,7 +99,7 @@ def test_se_image_get_wcs_inverse_pixmappy(se_image_data, coadd_image_data):
 @pytest.mark.skipif(
     os.environ.get('TEST_DESDATA', None) is None,
     reason=(
-        'SEImageSlice i/o can only be tested if '
+        'SEImageSlice can only be tested if '
         'test data is at TEST_DESDATA'))
 def test_se_image_get_wcs_inverse_scamp(se_image_data, coadd_image_data):
     coadd_wcs = coadd_image_data['eu_wcs']
@@ -115,7 +116,8 @@ def test_se_image_get_wcs_inverse_scamp(se_image_data, coadd_image_data):
         coadd_wcs,
         coadd_image_data['position_offset'],
         se_wcs,
-        se_image_data['source_info']['position_offset']
+        se_image_data['source_info']['position_offset'],
+        (4096, 2048)
     )
 
     rng = np.random.RandomState(seed=100)
