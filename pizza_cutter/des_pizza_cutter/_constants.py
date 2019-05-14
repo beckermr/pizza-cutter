@@ -19,7 +19,6 @@ BMASK_CUTOUT_EXTNAME = 'bmask_cutouts'
 ORMASK_CUTOUT_EXTNAME = 'ormask_cutouts'
 NOISE_CUTOUT_EXTNAME = 'noise_cutouts'
 PSF_CUTOUT_EXTNAME = 'psf'
-SE_BMASK_CUTOUT_EXTNAME = 'se_bmask_cutouts'
 CUTOUT_DTYPES = {
     'image_cutouts': 'f4',
     'weight_cutouts': 'f4',
