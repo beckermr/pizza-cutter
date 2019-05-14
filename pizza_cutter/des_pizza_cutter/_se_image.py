@@ -25,8 +25,11 @@ from ._tape_bumps import TAPE_BUMPS
 logger = logging.getLogger(__name__)
 
 
-@functools.lru_cache(maxsize=128)
+@functools.lru_cache(maxsize=2048)
 def _get_image_shape(*, image_path, image_ext):
+
+    logger.debug('cache miss image shape: "%s" "%s"' % (image_path, image_ext))
+
     h = fitsio.read_header(image_path, ext=image_ext)
     if 'znaxis1' in h:
         return h['znaxis2'], h['znaxis1']
@@ -193,9 +196,13 @@ class SEImageSlice(object):
         self._mask_tape_bumps = mask_tape_bumps
 
         # get the image shape
-        self._im_shape = _get_image_shape(
-            image_path=source_info['image_path'],
-            image_ext=source_info['image_ext'])
+        if 'im_shape' in source_info:
+            self._im_shape = source_info['image_shape']
+        else:
+            self._im_shape = _get_image_shape(
+                image_path=source_info['image_path'],
+                image_ext=source_info['image_ext'],
+            )
 
         # init the sky bounds
         sky_bnds, ra_ccd, dec_ccd = get_rough_sky_bounds(
