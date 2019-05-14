@@ -1,29 +1,18 @@
 import logging
-
-import desmeds
-
 from ._constants import MAGZP_REF, POSITION_OFFSET
 from ._piff_tools import load_piff_path_from_image_path
 
 logger = logging.getLogger(__name__)
 
 
-def get_des_coadd_tile_info(
-        *, tilename, band, campaign, medsconf, piff_run):
+def add_extra_des_coadd_tile_info(*, info, piff_run):
     """Read the coadd tile info, load WCS info, and load PSF info for
     the DES Y3+ DESDM layout.
 
     Parameters
     ----------
-    tilename : str
-        The name of the coadd tile.
-    band : str
-        The band as a single letter (e.g., 'r').
-    campaign : str
-        The coadd DESDM campaign (e.g., 'Y3A1_COADD')
-    medsconf : str
-        The MEDS version. This string is used to find where the source
-        images are located
+    info: dict
+        Info dict for a coadd tile
     piff_run : str
         The PIFF PSF run to use.
 
@@ -74,24 +63,6 @@ def get_des_coadd_tile_info(
             'image_flags' : any flags for the SE image
     """
 
-    coadd_srcs = desmeds.coaddsrc.CoaddSrc(
-        medsconf,
-        tilename,
-        band,
-        campaign=campaign,
-    )
-
-    coadd = desmeds.coaddinfo.Coadd(
-        medsconf,
-        tilename,
-        band,
-        campaign=campaign,
-        sources=coadd_srcs,
-    )
-
-    info = coadd.get_info()
-    info['tilename'] = tilename
-    info['band'] = band
     info['position_offset'] = POSITION_OFFSET
 
     info['image_ext'] = 'sci'
@@ -141,5 +112,3 @@ def get_des_coadd_tile_info(
 
         # image scale
         ii['scale'] = 10.0**(0.4*(MAGZP_REF - ii['magzp']))
-
-    return info

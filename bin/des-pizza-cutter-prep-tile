@@ -1,0 +1,100 @@
+#!/usr/bin/env python
+import os
+import sys
+import logging
+import desmeds
+
+import jinja2
+import yaml
+from pizza_cutter.des_pizza_cutter import add_extra_des_coadd_tile_info
+from pizza_cutter.files import makedir_fromfile, get_des_info_file
+import argparse
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument(
+    '--config',
+    required=True,
+    help='configuration file',
+)
+parser.add_argument(
+    '--tilename',
+    required=True,
+    help='tile to process',
+)
+parser.add_argument(
+    '--band',
+    help='band to process',
+    required=True,
+)
+parser.add_argument(
+    '--log-level',
+    default='warning',
+    help=(
+        'python logging level [one of critical error, '
+        'warning, info, or debug]'),
+)
+parser.add_argument(
+    '--clean',
+    action='store_true',
+    help=('remove all the input source files'),
+)
+
+
+def main():
+    """Generate the information needed for pizza slicing a DES Y3+ coadd tile.
+    """
+
+    args = parser.parse_args()
+
+    logging.basicConfig(stream=sys.stdout)
+    logging.getLogger('pizza_cutter').setLevel(
+        getattr(logging, args.log_level.upper()))
+
+    print('tilename:', args.tilename, flush=True)
+    print('band:', args.band, flush=True)
+    with open(args.config, 'r') as fp:
+        _config = fp.read()
+
+    config_text = jinja2.Template(_config).render(
+        tilename=args.tilename,
+        band=args.band,
+    )
+    cfg = yaml.load(config_text, Loader=yaml.Loader)
+
+    cfg['medsconf'] = os.path.basename(args.config).replace('.yaml', '')
+
+    # Preparator uses medsconf, campaign, source_type from config
+    prep = desmeds.desdm_maker.Preparator(
+        cfg,
+        args.tilename,
+        args.band,
+    )
+    if args.clean:
+        # remove the source-${band} tree. This leaves the PSFs and list files
+        # in place
+        prep.clean()
+
+    else:
+        # download the data
+        prep.go()
+
+        info = prep.coadd.get_info()
+
+        piff_run = cfg.get('piff_run', None)
+        add_extra_des_coadd_tile_info(info=info, piff_run=piff_run)
+
+        output_path = get_des_info_file(
+            cfg['medsconf'],
+            args.tilename,
+            args.band,
+        )
+
+        print('dumping tile information:', output_path, flush=True)
+        makedir_fromfile(output_path)
+        with open(output_path, 'w') as fp:
+            yaml.dump(info, fp)
+
+
+if __name__ == '__main__':
+    main()
