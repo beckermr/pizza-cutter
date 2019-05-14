@@ -196,7 +196,7 @@ class SEImageSlice(object):
         self._mask_tape_bumps = mask_tape_bumps
 
         # get the image shape
-        if 'im_shape' in source_info:
+        if 'image_shape' in source_info:
             self._im_shape = source_info['image_shape']
         else:
             self._im_shape = _get_image_shape(
