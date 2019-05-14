@@ -24,6 +24,7 @@ def test_se_image_resample_smoke(se_image_data, coadd_image_data):
     ra, dec = se_im.image2sky(600, 700)
     se_im.set_slice(600-250, 700-250, 500)
     se_im.set_psf(ra, dec)
+    se_im.set_pmask(np.zeros_like(se_im.bmask))
     x, y = coadd_image_data['eu_wcs'].sky2image(ra, dec)
     x = int(x+0.5)
     y = int(y+0.5)
@@ -112,6 +113,7 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
     se_im.x_start = x_start
     se_im.y_start = y_start
     se_im.box_size = 600
+    se_im.pmask = (rng.normal(size=(600, 600)) * 100).astype(np.int32)
 
     # fake the PSF
     se_im.psf = rng.normal(size=(55, 55)) + 100
@@ -135,7 +137,7 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
 
     # first check they are finite
     for k in resampled_data:
-        if k != 'bmask' and k != 'ormask':
+        if k != 'bmask' and k != 'ormask' and k != 'pmask':
             assert np.all(np.isfinite(resampled_data[k])), k
 
     # now check the values
@@ -152,7 +154,7 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
     final_y_start -= 1
     final_x_start -= x_start
     final_y_start -= y_start
-    for k in ['image', 'noise', 'bmask']:
+    for k in ['image', 'noise', 'bmask', 'pmask']:
         assert np.allclose(
             resampled_data[k],
             getattr(se_im, k)[final_y_start:final_y_start+100,
