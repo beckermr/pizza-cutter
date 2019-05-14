@@ -1,5 +1,8 @@
+import copy
+
 import esutil as eu
 import galsim.des
+import galsim.config
 import fitsio
 import logging
 
@@ -44,6 +47,8 @@ def load_objects_into_info(*, info):
 
             'psfex_path' : the path to the PSFEx PSF model
             'piff_path' : the path to the Piff PSF model
+            'galsim_psf_config' : a dictionary with a valid galsim config
+                file entry to build the PSF as a galsim object.
     """
     try:
         info['image_wcs'] = eu.wcsutil.WCS(
@@ -66,6 +71,10 @@ def load_objects_into_info(*, info):
 
         # this is to keep track where it will be in image info extension
         ii['file_id'] = index+1
+
+        # galsim objects
+        if 'galsim_psf_config' in ii:
+            ii['galsim_psf'] = _build_gsobject(ii['galsim_psf_config'])
 
         # psfex
         if 'psfex_path' in ii and ii['psfex_path'] is not None:
@@ -115,3 +124,18 @@ def _munge_fits_header(hdr):
         except Exception:
             pass
     return dct
+
+
+def _build_gsobject(config):
+    eval_locals = locals()
+    dct = copy.deepcopy(config)
+    # hacking in some galsim eval stuff here...
+    for k in dct:
+        if k == 'type':
+            continue
+        elif isinstance(dct[k], str) and dct[k][0] == '$':
+            dct[k] = eval(dct[k][1:], globals(), eval_locals)
+    _psf, safe = galsim.config.BuildGSObject({'blah': dct}, 'blah')
+    assert safe, (
+        "You must provide a reusable PSF object for galsim object PSFs")
+    return _psf
