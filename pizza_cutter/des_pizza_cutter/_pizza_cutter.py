@@ -426,7 +426,10 @@ def _write_single_image(*, fits, data, ext, start_row):
 @functools.lru_cache(maxsize=128)
 def _get_image_width(*, coadd_image_path, coadd_image_ext):
     h = fitsio.read_header(coadd_image_path, ext=coadd_image_ext)
-    return h['znaxis1']
+    if 'znaxis1' in h:
+        return h['znaxis1']
+    else:
+        return h['naxis1']
 
 
 def _make_epochs_info(

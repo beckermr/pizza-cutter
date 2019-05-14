@@ -25,6 +25,15 @@ from ._tape_bumps import TAPE_BUMPS
 logger = logging.getLogger(__name__)
 
 
+@functools.lru_cache(maxsize=128)
+def _get_image_shape(*, image_path, image_ext):
+    h = fitsio.read_header(image_path, ext=image_ext)
+    if 'znaxis1' in h:
+        return h['znaxis2'], h['znaxis1']
+    else:
+        return h['naxis2'], h['naxis1']
+
+
 @functools.lru_cache(maxsize=16)
 def _read_image(path, ext):
     """Cached reads of images.
@@ -49,7 +58,8 @@ def _get_noise_image(weight_path, weight_ext, scale, noise_seed):
 
 
 @functools.lru_cache(maxsize=8)
-def _get_wcs_inverse(wcs, wcs_position_offset, se_wcs, se_wcs_position_offset):
+def _get_wcs_inverse(
+        wcs, wcs_position_offset, se_wcs, se_wcs_position_offset, se_im_shape):
 
     if isinstance(se_wcs, galsim.BaseWCS):
         def _image2sky(x, y):
@@ -67,8 +77,8 @@ def _get_wcs_inverse(wcs, wcs_position_offset, se_wcs, se_wcs_position_offset):
     else:
         raise ValueError('WCS %s not recognized!' % se_wcs)
 
-    dim_y = 4096
-    dim_x = 2048
+    dim_y = se_im_shape[0]
+    dim_x = se_im_shape[1]
     delta = 8
     y_se, x_se = np.mgrid[:dim_y+delta:delta, :dim_x+delta:delta]
     y_se = y_se.ravel() - 0.5
@@ -83,7 +93,7 @@ def _get_wcs_inverse(wcs, wcs_position_offset, se_wcs, se_wcs_position_offset):
 
 
 class SEImageSlice(object):
-    """A single-epoch image w/ associated metadata from the DES.
+    """A single-epoch image w/ associated metadata.
 
     NOTE: All pixel coordinates are with respect to the original image,
     not the coordinates in the slice. By convetion all pixel coordinates
@@ -94,7 +104,8 @@ class SEImageSlice(object):
     Parameters
     ----------
     source_info : dict
-        The single-epoch source info from the `desmeds` classes.
+        The single-epoch source info. See the DES `desmeds` format for the
+        possible keys.
     psf_model : a `galsim.GSObject`, `galsim.des.DES_PSFEx`,
             or `piff.PSF` object
         The PSF model to use. The type of input will be detected and then
@@ -104,7 +115,8 @@ class SEImageSlice(object):
     noise_seed : int
         A seed to use for the noise field.
     mask_tape_bumps: boold
-        If True, turn on TAPEBUMP flag and turn off SUSPECT in bmask
+        If True, turn on TAPEBUMP flag and turn off SUSPECT in bmask for
+        tape bump regions in DES CCDs.
 
     Methods
     -------
@@ -180,9 +192,14 @@ class SEImageSlice(object):
         self._noise_seed = noise_seed
         self._mask_tape_bumps = mask_tape_bumps
 
+        # get the image shape
+        self._im_shape = _get_image_shape(
+            image_path=source_info['image_path'],
+            image_ext=source_info['image_ext'])
+
         # init the sky bounds
         sky_bnds, ra_ccd, dec_ccd = get_rough_sky_bounds(
-            im_shape=(4096, 2048),
+            im_shape=self._im_shape,
             wcs=self,  # the magic of APIs and duck typing - quack!
             position_offset=0,  # the wcs on this class is zero-indexed
             bounds_buffer_uv=16.0,  # in arcsec
@@ -192,7 +209,7 @@ class SEImageSlice(object):
         self._dec_ccd = dec_ccd
 
         # init ccd bounds
-        self._ccd_bnds = Bounds(0, 4096-1, 0, 2048-1)
+        self._ccd_bnds = Bounds(0, self._im_shape[0]-1, 0, self._im_shape[1]-1)
 
     def set_slice(self, x_start, y_start, box_size):
         """Set the slice location and read a square slice of the
@@ -718,7 +735,8 @@ class SEImageSlice(object):
         t0 = time.time()
         wcs_interp = _get_wcs_inverse(
             wcs, wcs_position_offset,
-            self._wcs, self.source_info['position_offset'])
+            self._wcs, self.source_info['position_offset'],
+            self._im_shape)
         logger.debug('end wcs interp: %f', time.time() - t0)
 
         # 2. using the lookup table, we resample each image to the

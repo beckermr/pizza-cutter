@@ -11,7 +11,7 @@ from .._se_image import SEImageSlice
 @pytest.mark.skipif(
     os.environ.get('TEST_DESDATA', None) is None,
     reason=(
-        'SEImageSlice i/o can only be tested if '
+        'SEImageSlice can only be tested if '
         'test data is at TEST_DESDATA'))
 def test_se_image_resample_smoke(se_image_data, coadd_image_data):
     psf_mod = piff.PSF.read(se_image_data['source_info']['piff_path'])
@@ -45,6 +45,11 @@ def test_se_image_resample_smoke(se_image_data, coadd_image_data):
             assert np.all(np.isfinite(resampled_data[k])), k
 
 
+@pytest.mark.skipif(
+    os.environ.get('TEST_DESDATA', None) is None,
+    reason=(
+        'SEImageSlice can only be tested if '
+        'test data is at TEST_DESDATA'))
 @pytest.mark.parametrize('eps_x', [-3, 0, 3])
 @pytest.mark.parametrize('eps_y', [-5, 0, 5])
 def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
