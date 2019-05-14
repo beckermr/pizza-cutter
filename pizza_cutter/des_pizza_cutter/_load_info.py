@@ -45,18 +45,24 @@ def load_objects_into_info(*, info):
             'psfex_path' : the path to the PSFEx PSF model
             'piff_path' : the path to the Piff PSF model
     """
-    info['image_wcs'] = eu.wcsutil.WCS(
-        _munge_fits_header(fitsio.read_header(
-            info['image_path'], ext=info['image_ext'])))
+    try:
+        info['image_wcs'] = eu.wcsutil.WCS(
+            _munge_fits_header(fitsio.read_header(
+                info['image_path'], ext=info['image_ext'])))
+    except Exception:
+        info['image_wcs'] = None
 
     # this is to keep track where it will be in image info extension
     info['file_id'] = 0
 
     for index, ii in enumerate(info['src_info']):
         # wcs info
-        ii['image_wcs'] = eu.wcsutil.WCS(
-            _munge_fits_header(
-                fitsio.read_header(ii['image_path'], ext=ii['image_ext'])))
+        try:
+            ii['image_wcs'] = eu.wcsutil.WCS(
+                _munge_fits_header(
+                    fitsio.read_header(ii['image_path'], ext=ii['image_ext'])))
+        except Exception:
+            ii['image_wcs'] = None
 
         # this is to keep track where it will be in image info extension
         ii['file_id'] = index+1
