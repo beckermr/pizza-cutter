@@ -19,6 +19,7 @@ from ..coadding import (
 from ..memmappednoise import MemMappedNoiseImage
 from ._sky_bounds import get_rough_sky_bounds
 from ._constants import MAGZP_REF, BMASK_EDGE
+from ._affine_wcs import AffineWCS
 
 from ._tape_bumps import TAPE_BUMPS
 
@@ -89,7 +90,7 @@ def _get_wcs_inverse(
 
         return WCSInversionInterpolator(x_coadd, y_coadd, x_se, y_se)
 
-    elif isinstance(se_wcs, eu.wcsutil.WCS):
+    elif isinstance(se_wcs, eu.wcsutil.WCS) or isinstance(se_wcs, AffineWCS):
         # return a closure here
         def _inv(x_coadd, y_coadd):
             x, y = se_wcs.sky2image(
@@ -122,7 +123,7 @@ class SEImageSlice(object):
             or `piff.PSF` object
         The PSF model to use. The type of input will be detected and then
         called appropriately.
-    wcs : a ` esutil.wcsutil.WCS` or `galsim.BaseWCS` instance
+    wcs : a ` esutil.wcsutil.WCS`, `AffineWCS` or `galsim.BaseWCS` instance
         The WCS model to use.
     noise_seed : int
         A seed to use for the noise field.
@@ -343,7 +344,8 @@ class SEImageSlice(object):
         x = np.atleast_1d(x).ravel()
         y = np.atleast_1d(y).ravel()
 
-        if isinstance(self._wcs, eu.wcsutil.WCS):
+        if (isinstance(self._wcs, eu.wcsutil.WCS) or
+                isinstance(self._wcs, AffineWCS)):
             # for the DES we always have a one-indexed system
             ra, dec = self._wcs.image2sky(x+1, y+1)
         elif isinstance(self._wcs, galsim.BaseWCS):
@@ -394,7 +396,8 @@ class SEImageSlice(object):
         ra = np.atleast_1d(ra).ravel()
         dec = np.atleast_1d(dec).ravel()
 
-        if isinstance(self._wcs, eu.wcsutil.WCS):
+        if (isinstance(self._wcs, eu.wcsutil.WCS) or
+                isinstance(self._wcs, AffineWCS)):
             # for the DES we always have a one-indexed system
             # so we subtract to get back to zero
             x, y = self._wcs.sky2image(ra, dec)
@@ -445,7 +448,8 @@ class SEImageSlice(object):
         assert np.ndim(x) == 0 and np.ndim(y) == 0, (
             "WCS Jacobians are only returned for a single position at a time")
 
-        if isinstance(self._wcs, eu.wcsutil.WCS):
+        if (isinstance(self._wcs, eu.wcsutil.WCS) or
+                isinstance(self._wcs, AffineWCS)):
             tup = self._wcs.get_jacobian(x+1, y+1)
             dudx = tup[0]
             dudy = tup[1]
@@ -693,7 +697,7 @@ class SEImageSlice(object):
 
         Parameters
         ----------
-        wcs : `esutil.wcsutil.WCS` object
+        wcs : `esutil.wcsutil.WCS` or `AffineWCS` object
             The WCS model to use for the resampled pixel grid. This object is
             assumed to take one-indexed, pixel-centered coordinates.
         wcs_position_offset : int

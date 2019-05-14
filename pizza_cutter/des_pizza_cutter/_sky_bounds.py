@@ -14,7 +14,7 @@ def get_rough_sky_bounds(
     ----------
     im_shape : two-tuple of ints
         The shape of the image.
-    wcs : `esutil.wcsutil.WCS`
+    wcs : `esutil.wcsutil.WCS` or `AffineWCS` object
         The wcs object that defines the transformation from pixels to the sky.
     position_offset : int
         The offset from zero-indexed pixels needed to use the WCS. For one-

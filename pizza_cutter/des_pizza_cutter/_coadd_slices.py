@@ -312,7 +312,7 @@ def _coadd_slice_inputs(
 
     Parameters
     ----------
-    wcs : `esutil.wcsutil.WCS` object
+    wcs : `esutil.wcsutil.WCS` or `AffineWCS` object
         The coadd WCS object.
     wcs_position_offset : int
         The position offset to get from zero-indexed, pixel-centered

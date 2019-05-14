@@ -41,7 +41,7 @@ class AffineWCS(object):
     ----------
     Any input parameter is also an attribute.
     """
-    def __init__(self, dudx, dudy, dvdx, dvdy, x0, y0):
+    def __init__(self, *, dudx, dudy, dvdx, dvdy, x0, y0):
         self.dudx = dudx
         self.dudy = dudy
         self.dvdx = dvdx
