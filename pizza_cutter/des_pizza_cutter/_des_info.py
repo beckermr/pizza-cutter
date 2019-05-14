@@ -78,10 +78,12 @@ def add_extra_des_coadd_tile_info(*, info, piff_run):
     # always true for the coadd
     info['magzp'] = MAGZP_REF
     info['scale'] = 1.0
+    info['image_shape'] = 10000, 10000
 
     info['image_flags'] = 0  # TODO set this properly for the coadd?
 
     for index, ii in enumerate(info['src_info']):
+        ii['image_shape'] = 4096, 2048
         ii['image_flags'] = 0
 
         ii['image_ext'] = 'sci'

@@ -47,118 +47,79 @@ logger = logging.getLogger(__name__)
 def make_des_pizza_slices(
         *,
         config,
-        central_size, buffer_size,
         meds_path,
         info,
-        fpack_pars=None,
         seed,
-        reject_outliers,
-        symmetrize_masking,
-        coadding_weight,
-        noise_interp_flags,
-        se_interp_flags,
-        bad_image_flags,
-        max_masked_fraction,
-        max_unmasked_trail_fraction,
-        mask_tape_bumps,
-        edge_buffer,
-        psf_box_size,
-        wcs_type,
-        psf_type,
         remove_fits_file=True,
-        use_tmpdir):
-    """Build a MEDS pizza slices file for the DES.
+        use_tmpdir,
+        fpack_pars=None,
+        coadd_config,
+        single_epoch_config):
+    """Build a MEDS pizza slices file.
 
     Parameters
     ----------
     config : str
         The input config file as a string.
-    central_size : int
-        Size of the central region for metadetection in pixels.
-    buffer_size : int
-        Size of the buffer around the central region in pixels.
     meds_path : str
         Path to the output MEDS file.
     info : dict
         Dictionary of information about the coadd and SE images. This should
-        be set to the output of `get_des_y3_coadd_tile_info` or a similar
-        function that uses the `desmeds` package to query DESDM.
-    fpack_pars : dict, optional
-        A dictionary of fpack header keywords for compression.
+        be set to the output of the `des-pizza-cutter-prep-tile` CLI or a
+        similar function.
     seed : int
         The random seed used to make the noise field.
-    reject_outliers : bool
-        If True, assume the SE images are approximatly registered with
-        respect to one another and apply the pixel outlier rejection
-        code from the `meds` package. If False, this step is skipped.
-    symmetrize_masking : bool
-        If True, the bit masks and any zero weight pixels will be rotated
-        by 90 degrees and applied again to the weight and bit masks. If False,
-        this step is skipped.
-    coadding_weight : str
-        The kind of relative weight to apply to each of the SE images that
-        form a coadd. The options are
-
-        'noise' - use the maximum of the weight map for each SE image.
-        'noise-fwhm' - use the maximum of the weight map divided by the
-            (PSF FWHM)**4
-
-    noise_interp_flags : int
-        An "or" of bit flags. Any pixel in the image with one or more of these
-        flags will be replaced by noise (computed from the weight map) before
-        coadding. This step is done after any mask symmetrization.
-    se_interp_flags : int
-        An "or" of bit flags. Any pixel in the image with one or more of these
-        flags will be interpolated using a cubic order interpolant over the
-        good pixels. This step is done after symmetrization of the mask and
-        any noise interpolation via `noise_interp_flags`.
-    bad_image_flags : int
-        An "or" of bit flags. Any image the set of SE images with any pixel
-        in the coadding region set to one of these flags is ignored during
-        coadding.
-    max_masked_fraction : float
-        The maximum masked fraction an SE image can have before it is
-        excluded from the coadd. This masked fraction is computed from any
-        zero weight pixels, any picels with any of the se_interp_flags or
-        any pixels with any of the noise_interp_flags. It is the fraction of
-        the subset of the SE image that approximatly overlaps the final coadded
-        region.
-    max_unmasked_trail_fraction : float
-        The maximum unmasked bleed trail fraction an SE image can have
-        before it is exlcuded from the coadd. This parameter is the
-        fraction of the subset of the SE image that overlaps the coadd. See
-        the function `compute_unmasked_trail_fraction` in
-        `pizza_cutter.des_pizz_cutter._slice_flagging.` for details.
-    mask_tape_bumps: boold
-        If True, turn on TAPEBUMP flag and turn off SUSPECT in bmask
-    edge_buffer : int
-        A buffer region of this many pixels will be excluded from the coadds.
-        Note that any SE image whose relevant region for a given coadd
-        intersects with this region will be fully excluded from the coadd,
-        even if it has area that could be used.
-    psf_box_size : int
-        The size of the PSF stamp in the final coadd coordinates. This should
-        be an odd number large enough to contain any SE PSF.
-    wcs_type : str
-        The SE WCS solution to use for coadd. This should be one of 'pixmappy'
-        or 'scamp'.
-    psf_type : str
-        The SE PSF model to use. This should be one 'psfex' or 'piff'.
     remove_fits_file : bool, optional
         If `True`, remove the FITS file after fpacking. Only works if not
         using a temporary directory.
+    use_tmpdir : bool
+        If True, use a tmporary directory to write data locally and then
+        copy at once to the final destination.
+    fpack_pars : dict, optional
+        A dictionary of fpack header keywords for compression.
+    coadd_config : dict
+        A dictionary with the configuration parameters for the coadd image
+        slices and weighting. Thew required entries are
+
+        central_size : int
+            Size of the central region for metadetection in pixels.
+        buffer_size : int
+            Size of the buffer around the central region in pixels.
+        coadding_weight : str
+            The kind of relative weight to apply to each of the SE images that
+            form a coadd. The options are
+
+            'noise' - use the maximum of the weight map for each SE image.
+            'noise-fwhm' - use the maximum of the weight map divided by the
+                (PSF FWHM)**4
+        psf_box_size : int
+            The size of the PSF stamp in the final coadd coordinates. This
+            should be an odd number large enough to contain any SE PSF.
+
+    single_epoch_config : dict
+        This is a dictionary with the configuration options for processing
+        the single epoch images. See the documentaion of
+        `pizza_cutter.des_pizza_cutter._coadd_slices._build_slice_inputs`
+        for details on the required entries.
     """
 
     metadata = _build_metadata(config=config)
     image_info = _build_image_info(info=info)
-    object_data = _build_object_data(
-        central_size=central_size,
-        buffer_size=buffer_size,
-        image_width=_get_image_width(
+
+    if 'image_shape' in info:
+        image_width = info['image_shape'][1]
+    else:
+        image_width = _get_image_width(
             coadd_image_path=info['image_path'],
-            coadd_image_ext=info['image_ext']),
-        psf_box_size=psf_box_size,
-        wcs=info['image_wcs'],
+            coadd_image_ext=info['image_ext'],
+        )
+
+    object_data = _build_object_data(
+        central_size=coadd_config['central_size'],
+        buffer_size=coadd_config['buffer_size'],
+        image_width=image_width,
+        psf_box_size=coadd_config['psf_box_size'],
+        wcs=info['%s_wcs' % coadd_config['wcs_type']],
         position_offset=info['position_offset'])
 
     eu.ostools.makedirs_fromfile(meds_path)
@@ -177,18 +138,10 @@ def make_des_pizza_slices(
                 fits=fits,
                 object_data=object_data,
                 info=info,
-                reject_outliers=reject_outliers,
-                symmetrize_masking=symmetrize_masking,
-                coadding_weight=coadding_weight,
-                noise_interp_flags=noise_interp_flags,
-                se_interp_flags=se_interp_flags,
-                bad_image_flags=bad_image_flags,
-                max_masked_fraction=max_masked_fraction,
-                max_unmasked_trail_fraction=max_unmasked_trail_fraction,
-                mask_tape_bumps=mask_tape_bumps,
-                edge_buffer=edge_buffer,
-                wcs_type=wcs_type,
-                psf_type=psf_type,
+                single_epoch_config=single_epoch_config,
+                wcs=info['%s_wcs' % coadd_config['wcs_type']],
+                position_offset=info['position_offset'],
+                coadding_weight=coadd_config['coadding_weight'],
                 seed=seed,
                 fpack_pars=fpack_pars)
 
@@ -217,20 +170,8 @@ def make_des_pizza_slices(
 
 
 def _coadd_and_write_images(
-        *, fits, fpack_pars, object_data, info,
-        reject_outliers,
-        symmetrize_masking,
-        coadding_weight,
-        noise_interp_flags,
-        se_interp_flags,
-        bad_image_flags,
-        max_masked_fraction,
-        max_unmasked_trail_fraction,
-        edge_buffer,
-        mask_tape_bumps,
-        wcs_type,
-        psf_type,
-        seed):
+        *, fits, fpack_pars, object_data, info, single_epoch_config,
+        wcs, position_offset, coadding_weight, seed):
 
     logger.info('reserving mosaic images...')
     n_pixels = int(np.sum(object_data['box_size']**2))
@@ -266,7 +207,7 @@ def _coadd_and_write_images(
         logger.info('processing object %d', i)
 
         # we center the PSF at the nearest pixel center near the patch center
-        col, row = info['image_wcs'].sky2image(
+        col, row = wcs.sky2image(
             longitude=object_data['ra'][i], latitude=object_data['dec'][i])
         # this col, row includes the position offset
         # we don't need to remove it when putting them back into the WCS
@@ -274,14 +215,14 @@ def _coadd_and_write_images(
         col = int(col + 0.5)
         row = int(row + 0.5)
         # ra, dec of the pixel center
-        ra_psf, dec_psf = info['image_wcs'].image2sky(col, row)
+        ra_psf, dec_psf = wcs.image2sky(col, row)
 
         # now we find the lower left location of the PSF image
         half = (object_data['psf_box_size'][i] - 1) / 2
         assert int(half) == half, "PSF images must have odd dimensions!"
         # here we remove the position offset
-        col -= info['position_offset']
-        row -= info['position_offset']
+        col -= position_offset
+        row -= position_offset
         psf_orig_start_col = col - half
         psf_orig_start_row = row - half
 
@@ -295,18 +236,20 @@ def _coadd_and_write_images(
             start_row=object_data['orig_start_row'][i, 0],
             start_col=object_data['orig_start_col'][i, 0],
             se_src_info=info['src_info'],
-            reject_outliers=reject_outliers,
-            symmetrize_masking=symmetrize_masking,
+            reject_outliers=single_epoch_config['reject_outliers'],
+            symmetrize_masking=single_epoch_config['symmetrize_masking'],
             coadding_weight=coadding_weight,
-            noise_interp_flags=noise_interp_flags,
-            se_interp_flags=se_interp_flags,
-            bad_image_flags=bad_image_flags,
-            max_masked_fraction=max_masked_fraction,
-            max_unmasked_trail_fraction=max_unmasked_trail_fraction,
-            mask_tape_bumps=mask_tape_bumps,
-            edge_buffer=edge_buffer,
-            wcs_type=wcs_type,
-            psf_type=psf_type,
+            noise_interp_flags=sum(single_epoch_config['noise_interp_flags']),
+            spline_interp_flags=sum(
+                single_epoch_config['spline_interp_flags']),
+            bad_image_flags=sum(single_epoch_config['bad_image_flags']),
+            max_masked_fraction=single_epoch_config['max_masked_fraction'],
+            max_unmasked_trail_fraction=single_epoch_config[
+                'max_unmasked_trail_fraction'],
+            mask_tape_bumps=single_epoch_config['mask_tape_bumps'],
+            edge_buffer=single_epoch_config['edge_buffer'],
+            wcs_type=single_epoch_config['wcs_type'],
+            psf_type=single_epoch_config['psf_type'],
             rng=rng,
         )
 
@@ -336,8 +279,6 @@ def _coadd_and_write_images(
                 psf_start_row=psf_orig_start_row,
                 psf_start_col=psf_orig_start_col,
                 psf_box_size=object_data['psf_box_size'][i],
-                noise_interp_flags=noise_interp_flags,
-                se_interp_flags=se_interp_flags,
                 se_image_slices=se_image_slices,
                 weights=weights)
 
