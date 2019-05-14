@@ -3,7 +3,7 @@ PIFF_PSF_IN_BLACKLIST = 2**0
 
 BMASK_EDGE = 2**30
 BMASK_NOISE_INTERP = 2**29
-BMASK_SE_INTERP = 2**28
+BMASK_SPLINE_INTERP = 2**28
 
 # these are constants that are etched in stone for MEDS files
 MAGZP_REF = 30.0

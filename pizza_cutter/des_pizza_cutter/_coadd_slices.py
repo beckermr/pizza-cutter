@@ -19,7 +19,7 @@ from ..slice_utils.symmetrize import (
 from ..slice_utils.measure import measure_fwhm
 
 from ._se_image import SEImageSlice
-from ._constants import BMASK_SE_INTERP, BMASK_NOISE_INTERP
+from ._constants import BMASK_SPLINE_INTERP, BMASK_NOISE_INTERP
 
 logger = logging.getLogger(__name__)
 
@@ -320,7 +320,7 @@ def _build_slice_inputs(
             msk = (
                 (se_slice.weight <= 0) |
                 ((se_slice.bmask & spline_interp_flags) != 0))
-            pmask[msk] |= BMASK_SE_INTERP
+            pmask[msk] |= BMASK_SPLINE_INTERP
             se_slice.set_pmask(pmask)
 
             slices.append(se_slice)
@@ -370,16 +370,6 @@ def _coadd_slice_inputs(
     psf_box_size : int
         The size in pixels of the PSF stamp. This number should be odd and big
         enough to fit any of the SE PSF images.
-    noise_interp_flags : int
-        The SE image flags where noise interpolation has been applied. These
-        pixels are mapped to the nearest coadd pixel in the coadd bit mask.
-        The coadd bit mask is set to the value `BMASK_NOISE_INTERP` from
-        `pizza_cutter.des_pizz_cutter._constants`.
-    se_interp_flags : int
-        The SE image flags where cubic interpolation has been applied. These
-        pixels are mapped to the nearest coadd pixel in the coadd bit mask.
-        The coadd bit mask is set to the value `BMASK_SE_INTERP` from
-        `pizza_cutter.des_pizz_cutter._constants`.
     se_image_slices : list of SEImageSlice objects
         The list of the SE image slices to be coadded.
     weights : np.ndarray
