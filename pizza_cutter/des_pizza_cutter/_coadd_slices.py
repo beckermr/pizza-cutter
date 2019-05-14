@@ -123,7 +123,7 @@ def _build_slice_inputs(
         fraction of the subset of the SE image that overlaps the coadd. See
         the function `compute_unmasked_trail_fraction` in
         `pizza_cutter.des_pizz_cutter._slice_flagging.` for details.
-    mask_tape_bumps: boold
+    mask_tape_bumps: bool
         If True, turn on TAPEBUMP flag and turn off SUSPECT in bmask. This
         option is only applicable to DES Y3 processing.
     edge_buffer : int
