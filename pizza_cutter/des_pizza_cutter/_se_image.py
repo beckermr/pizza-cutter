@@ -211,12 +211,19 @@ class SEImageSlice(object):
             image_ext=source_info['image_ext'])
 
         # init the sky bounds
+        if (isinstance(wcs, AffineWCS) or
+                (isinstance(wcs, galsim.BaseWCS) and not wcs.isCelestial())):
+            self._wcs_is_celestial = False
+        else:
+            self._wcs_is_celestial = True
+
         sky_bnds, ra_ccd, dec_ccd = get_rough_sky_bounds(
             im_shape=self._im_shape,
             wcs=self,  # the magic of APIs and duck typing - quack!
             position_offset=0,  # the wcs on this class is zero-indexed
             bounds_buffer_uv=16.0,  # in arcsec
-            n_grid=4)
+            n_grid=4,
+            celestial=self._wcs_is_celestial)
         self._sky_bnds = sky_bnds
         self._ra_ccd = ra_ccd
         self._dec_ccd = dec_ccd
@@ -495,7 +502,12 @@ class SEImageSlice(object):
         ra = np.atleast_1d(ra).ravel()
         dec = np.atleast_1d(dec).ravel()
 
-        u, v = radec_to_uv(ra, dec, self._ra_ccd, self._dec_ccd)
+        if self._wcs_is_celestial:
+            u, v = radec_to_uv(ra, dec, self._ra_ccd, self._dec_ccd)
+        else:
+            u = ra - self._ra_ccd
+            v = dec - self._dec_ccd
+
         in_sky_bnds = self._sky_bnds.contains_points(u, v)
 
         if is_scalar:

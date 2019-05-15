@@ -418,6 +418,7 @@ def _coadd_slice_inputs(
 
     weight = np.zeros_like(noise)
     weight[:, :] = 1.0 / np.var(noise)
+    print(weight[0, 0])
 
     return (
         image,
