@@ -6,7 +6,9 @@ import logging
 import click
 import yaml
 from pizza_cutter.des_pizza_cutter import (
-    make_des_pizza_slices, load_objects_into_info)
+    make_des_pizza_slices,
+    load_info,
+)
 
 
 @click.command()
@@ -42,6 +44,8 @@ def main(
         use_tmpdir):
     """Create a metadetection MEDS file from a DES coadd tile."""
 
+    info_path = info
+
     logging.basicConfig(stream=sys.stdout)
     logging.getLogger('pizza_cutter').setLevel(
         getattr(logging, log_level.upper()))
@@ -50,15 +54,10 @@ def main(
         _config = fp.read()
     cfg = yaml.load(_config, Loader=yaml.Loader)
 
-    with open(info, 'r') as fp:
-        info = yaml.load(fp, Loader=yaml.Loader)
+    tile_info = load_info(path=info_path)
 
-    print('tilename:', info['tilename'], flush=True)
-    print('band:', info['band'], flush=True)
-
-    # this loads all of the data we need into the info dict
-    print('loading PSF and WCS data...', flush=True)
-    load_objects_into_info(info=info)
+    print('tilename:', tile_info['tilename'], flush=True)
+    print('band:', tile_info['band'], flush=True)
 
     sname = os.path.basename(config).replace('.yaml', '')
     if tag is not None:
@@ -66,8 +65,8 @@ def main(
     meds_path = os.path.join(
         output_path,
         "%s_%s_%s_meds-pizza-slices.fits" % (
-            info['tilename'],
-            info['band'],
+            tile_info['tilename'],
+            tile_info['band'],
             sname))
     print('output meds file:', meds_path, flush=True)
 
@@ -76,7 +75,7 @@ def main(
         use_tmpdir=use_tmpdir,
         config=_config,
         meds_path=meds_path,
-        info=info,
+        info=tile_info,
         fpack_pars=cfg.get('fpack_pars', None),
         seed=seed,
         coadd_config=cfg['coadd'],

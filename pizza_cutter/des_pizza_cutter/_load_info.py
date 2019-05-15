@@ -1,5 +1,6 @@
 import copy
-
+import os
+import yaml
 import esutil as eu
 import galsim.des
 import galsim.config
@@ -11,6 +12,42 @@ import pixmappy
 from ._piff_tools import get_piff_psf
 
 logger = logging.getLogger(__name__)
+
+
+def load_info(*, path):
+    """
+    load the info for this tile.  We expand environment
+    variables on paths. We also load various objects into the info
+    using load_objects_info_info
+    """
+    with open(path, 'r') as fobj:
+        info = yaml.load(fobj, Loader=yaml.Loader)
+
+    expandvars_in_info(info=info)
+
+    print('loading PSF and WCS data...', flush=True)
+    load_objects_into_info(info=info)
+
+    return info
+
+
+def expandvars_in_info(*, info):
+    """
+    expand environment variables on all the paths
+
+    Parameters
+    ----------
+    info: dict
+        Info dict produced by running the prep code
+    """
+    for key in info:
+        if '_path' in key:
+            if info[key] is not None:
+                info[key] = os.path.expandvars(info[key])
+
+        if 'src_info' in info:
+            for sinfo in info['src_info']:
+                expandvars_in_info(info=sinfo)
 
 
 def load_objects_into_info(*, info):
