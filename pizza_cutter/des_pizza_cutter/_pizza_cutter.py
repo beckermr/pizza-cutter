@@ -1,4 +1,5 @@
 import os
+from os.path import expandvars
 import tempfile
 import subprocess
 import functools
@@ -366,6 +367,7 @@ def _write_single_image(*, fits, data, ext, start_row):
 
 @functools.lru_cache(maxsize=128)
 def _get_image_width(*, coadd_image_path, coadd_image_ext):
+    coadd_image_path = expandvars(coadd_image_path)
     h = fitsio.read_header(coadd_image_path, ext=coadd_image_ext)
     if 'znaxis1' in h:
         return h['znaxis1']
