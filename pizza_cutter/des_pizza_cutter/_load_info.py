@@ -1,5 +1,5 @@
 import copy
-
+from os.path import expandvars
 import esutil as eu
 import galsim.des
 import galsim.config
@@ -78,17 +78,19 @@ def load_objects_into_info(*, info):
 
         # psfex
         if 'psfex_path' in ii and ii['psfex_path'] is not None:
+            psfex_path = expandvars(ii['psfex_path'])
             try:
-                ii['psfex_psf'] = galsim.des.DES_PSFEx(ii['psfex_path'])
+                ii['psfex_psf'] = galsim.des.DES_PSFEx(psfex_path)
             except Exception:
                 logger.error(
-                    'could not load PSFEx data at "%s"', ii['psfex_path'])
+                    'could not load PSFEx data at "%s"', psfex_path)
                 ii['psfex_psf'] = None
 
         # piff
         if 'piff_path' in ii and ii['piff_path'] is not None:
+            piff_path = expandvars(ii['piff_path'])
             try:
-                ii['piff_psf'] = get_piff_psf(ii['piff_path'])
+                ii['piff_psf'] = get_piff_psf(piff_path)
                 ii['piff_wcs'] = ii['piff_psf'].wcs[0]
 
                 # try and grab pixmappy from piff
@@ -108,7 +110,7 @@ def load_objects_into_info(*, info):
                     ii['pixmappy_wcs'] = None
             except Exception:
                 logger.error(
-                    'could not load PIFF data at "%s"', ii['piff_path'])
+                    'could not load PIFF data at "%s"', piff_path)
                 ii['piff_psf'] = None
                 ii['piff_wcs'] = None
                 ii['pixmappy_wcs'] = None
