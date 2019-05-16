@@ -9,6 +9,7 @@ import logging
 import pixmappy
 
 from ._piff_tools import get_piff_psf
+from ._affine_wcs import AffineWCS
 
 logger = logging.getLogger(__name__)
 
@@ -43,12 +44,19 @@ def load_objects_into_info(*, info):
             'image_path' : the path to the FITS file with the SE image
             'image_ext' : the name of the FITS extension with the SE image
 
+        The info structure can optionally have the key
+
+            'affine_wcs_config' : a dictionary used to build an `AffineWCS`
+                instance
+
         The source info structures can optionally have the keys
 
             'psfex_path' : the path to the PSFEx PSF model
             'piff_path' : the path to the Piff PSF model
             'galsim_psf_config' : a dictionary with a valid galsim config
                 file entry to build the PSF as a galsim object.
+            'affine_wcs_config' : a dictionary used to build an `AffineWCS`
+                instance
     """
     try:
         info['image_wcs'] = eu.wcsutil.WCS(
@@ -56,6 +64,9 @@ def load_objects_into_info(*, info):
                 info['image_path'], ext=info['image_ext'])))
     except Exception:
         info['image_wcs'] = None
+
+    if 'affine_wcs_config' in info:
+        info['affine_wcs'] = AffineWCS(**info['affine_wcs_config'])
 
     # this is to keep track where it will be in image info extension
     info['file_id'] = 0
@@ -68,6 +79,9 @@ def load_objects_into_info(*, info):
                     fitsio.read_header(ii['image_path'], ext=ii['image_ext'])))
         except Exception:
             ii['image_wcs'] = None
+
+        if 'affine_wcs_config' in ii:
+            info['affine_wcs'] = AffineWCS(**ii['affine_wcs_config'])
 
         # this is to keep track where it will be in image info extension
         ii['file_id'] = index+1

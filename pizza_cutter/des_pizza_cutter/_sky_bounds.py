@@ -4,7 +4,8 @@ from meds.util import radec_to_uv
 
 
 def get_rough_sky_bounds(
-        *, im_shape, wcs, position_offset, bounds_buffer_uv, n_grid):
+        *, im_shape, wcs, position_offset, bounds_buffer_uv, n_grid,
+        celestial=True):
     """Get the rough boundry of a CCD on the sky for detecting if an object
     is on the CCD.
 
@@ -14,7 +15,7 @@ def get_rough_sky_bounds(
     ----------
     im_shape : two-tuple of ints
         The shape of the image.
-    wcs : `esutil.wcsutil.WCS`
+    wcs : `esutil.wcsutil.WCS` or `AffineWCS` object
         The wcs object that defines the transformation from pixels to the sky.
     position_offset : int
         The offset from zero-indexed pixels needed to use the WCS. For one-
@@ -77,15 +78,22 @@ def get_rough_sky_bounds(
         x=col_ccd + position_offset,
         y=row_ccd + position_offset)
 
-    # get u,v - ccd is at 0,0 by def
-    u, v = radec_to_uv(ra, dec, ra_ccd, dec_ccd)
+    if celestial:
+        # get u,v - ccd is at 0,0 by def
+        u, v = radec_to_uv(ra, dec, ra_ccd, dec_ccd)
 
-    # build bounds with buffer and cos(dec) factors
-    vrad = np.deg2rad(v / 3600.0)  # arcsec to degrees
-    ufac = np.cos(vrad).min()
+        # build bounds with buffer and cos(dec) factors
+        vrad = np.deg2rad(v / 3600.0)  # arcsec to degrees
+        ufac = np.cos(vrad).min()
 
-    ubuff = bounds_buffer_uv / ufac
-    vbuff = bounds_buffer_uv
+        ubuff = bounds_buffer_uv / ufac
+        vbuff = bounds_buffer_uv
+    else:
+        u = ra - ra_ccd
+        v = dec - dec_ccd
+        ubuff = bounds_buffer_uv
+        vbuff = bounds_buffer_uv
+
     sky_bnds = Bounds(u.min() - ubuff,
                       u.max() + ubuff,
                       v.min() - vbuff,

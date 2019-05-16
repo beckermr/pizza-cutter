@@ -208,8 +208,7 @@ def _coadd_and_write_images(
         logger.info('processing object %d', i)
 
         # we center the PSF at the nearest pixel center near the patch center
-        col, row = wcs.sky2image(
-            longitude=object_data['ra'][i], latitude=object_data['dec'][i])
+        col, row = wcs.sky2image(object_data['ra'][i], object_data['dec'][i])
         # this col, row includes the position offset
         # we don't need to remove it when putting them back into the WCS
         # but we will remove it later since we work in zero-indexed coords
@@ -596,7 +595,9 @@ def _build_metadata(*, config):
         ('desmeds_version', 'S%d' % len(desmeds_version)),
         ('meds_version', 'S%d' % len(meds_version)),
         ('meds_fmt_version', 'S%d' % len(MEDS_FMT_VERSION)),
-        ('meds_dir', 'S%d' % len(os.environ['MEDS_DIR']))]
+        ('meds_dir', 'S%d' % len(os.environ['MEDS_DIR'])),
+        ('piff_data_dir', 'S%d' % len(os.environ.get('PIFF_DATA_DIR', ' '))),
+        ('desdata', 'S%d' % len(os.environ.get('DESDATA', ' ')))]
     metadata = np.zeros(1, dt)
     metadata['magzp_ref'] = MAGZP_REF
     metadata['config'] = config
@@ -610,4 +611,6 @@ def _build_metadata(*, config):
     metadata['meds_fmt_version'] = MEDS_FMT_VERSION
     metadata['pizza_cutter_version'] = __version__
     metadata['meds_dir'] = os.environ['MEDS_DIR']
+    metadata['piff_data_dir'] = os.environ.get('PIFF_DATA_DIR', '')
+    metadata['desdata'] = os.environ.get('DESDATA', '')
     return metadata

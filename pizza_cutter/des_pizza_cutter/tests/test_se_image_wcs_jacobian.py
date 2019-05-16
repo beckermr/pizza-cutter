@@ -21,6 +21,7 @@ def test_se_image_wcs_jacobian_array(se_image_data, x, y):
         source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=1,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -43,11 +44,13 @@ def test_se_image_wcs_jacobian_array(se_image_data, x, y):
     reason=(
         'SEImageSlice can only be tested if '
         'test data is at TEST_DESDATA'))
-def test_se_image_wcs_jacobian_esutil(se_image_data):
+@pytest.mark.parametrize('wcs_pos_offset', [0, 1])
+def test_se_image_wcs_jacobian_esutil(se_image_data, wcs_pos_offset):
     se_im = SEImageSlice(
         source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=wcs_pos_offset,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -57,7 +60,8 @@ def test_se_image_wcs_jacobian_esutil(se_image_data):
         x = rng.uniform() * 2048
         y = rng.uniform() * 4096
         jac = se_im.get_wcs_jacobian(x, y)
-        tup = se_image_data['eu_wcs'].get_jacobian(x+1, y+1)
+        tup = se_image_data['eu_wcs'].get_jacobian(
+            x+wcs_pos_offset, y+wcs_pos_offset)
         assert jac.dudx == tup[0]
         assert jac.dudy == tup[1]
         assert jac.dvdx == tup[2]
@@ -69,11 +73,13 @@ def test_se_image_wcs_jacobian_esutil(se_image_data):
     reason=(
         'SEImageSlice can only be tested if '
         'test data is at TEST_DESDATA'))
-def test_se_image_wcs_jacobian_galsim(se_image_data):
+@pytest.mark.parametrize('wcs_pos_offset', [0, 1])
+def test_se_image_wcs_jacobian_galsim(se_image_data, wcs_pos_offset):
     se_im = SEImageSlice(
         source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['gs_wcs'],
+        wcs_position_offset=wcs_pos_offset,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -84,7 +90,7 @@ def test_se_image_wcs_jacobian_galsim(se_image_data):
         y = rng.uniform() * 4096
         jac = se_im.get_wcs_jacobian(x, y)
         gs_jac = se_image_data['gs_wcs'].local(
-            galsim.PositionD(x=x+1, y=y+1))
+            galsim.PositionD(x=x+wcs_pos_offset, y=y+wcs_pos_offset))
         assert jac.dudx == gs_jac.dudx
         assert jac.dudy == gs_jac.dudy
         assert jac.dvdx == gs_jac.dvdx

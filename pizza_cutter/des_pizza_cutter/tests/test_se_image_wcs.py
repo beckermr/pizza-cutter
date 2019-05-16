@@ -21,6 +21,7 @@ def test_se_image_wcs_array_shape(se_image_data, x, y):
         source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=1,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -43,11 +44,13 @@ def test_se_image_wcs_array_shape(se_image_data, x, y):
     reason=(
         'SEImageSlice can only be tested if '
         'test data is at TEST_DESDATA'))
-def test_se_image_wcs_esutil(se_image_data):
+@pytest.mark.parametrize('wcs_pos_offset', [0, 1])
+def test_se_image_wcs_esutil(se_image_data, wcs_pos_offset):
     se_im = SEImageSlice(
         source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=wcs_pos_offset,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -57,14 +60,15 @@ def test_se_image_wcs_esutil(se_image_data):
         x = rng.uniform() * 2048
         y = rng.uniform() * 4096
         ra, dec = se_im.image2sky(x, y)
-        eu_ra, eu_dec = se_image_data['eu_wcs'].image2sky(x+1, y+1)
+        eu_ra, eu_dec = se_image_data['eu_wcs'].image2sky(
+            x+wcs_pos_offset, y+wcs_pos_offset)
         assert np.allclose(ra, eu_ra)
         assert np.allclose(dec, eu_dec)
 
         x, y = se_im.sky2image(ra, dec)
         eu_x, eu_y = se_image_data['eu_wcs'].sky2image(ra, dec)
-        assert np.allclose(x, eu_x - 1)
-        assert np.allclose(y, eu_y - 1)
+        assert np.allclose(x, eu_x - wcs_pos_offset)
+        assert np.allclose(y, eu_y - wcs_pos_offset)
 
 
 @pytest.mark.skipif(
@@ -72,11 +76,13 @@ def test_se_image_wcs_esutil(se_image_data):
     reason=(
         'SEImageSlice can only be tested if '
         'test data is at TEST_DESDATA'))
-def test_se_image_wcs_esutil_array(se_image_data):
+@pytest.mark.parametrize('wcs_pos_offset', [0, 1])
+def test_se_image_wcs_esutil_array(se_image_data, wcs_pos_offset):
     se_im = SEImageSlice(
         source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=wcs_pos_offset,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -87,7 +93,8 @@ def test_se_image_wcs_esutil_array(se_image_data):
     assert ra.shape == x.shape
     assert dec.shape == x.shape
 
-    eu_ra, eu_dec = se_image_data['eu_wcs'].image2sky(x+1, y+1)
+    eu_ra, eu_dec = se_image_data['eu_wcs'].image2sky(
+        x+wcs_pos_offset, y+wcs_pos_offset)
     assert np.allclose(ra, eu_ra)
     assert np.allclose(dec, eu_dec)
 
@@ -96,8 +103,8 @@ def test_se_image_wcs_esutil_array(se_image_data):
     assert y.shape == ra.shape
 
     eu_x, eu_y = se_image_data['eu_wcs'].sky2image(ra, dec)
-    assert np.allclose(x, eu_x - 1)
-    assert np.allclose(y, eu_y - 1)
+    assert np.allclose(x, eu_x - wcs_pos_offset)
+    assert np.allclose(y, eu_y - wcs_pos_offset)
 
 
 @pytest.mark.skipif(
@@ -105,11 +112,13 @@ def test_se_image_wcs_esutil_array(se_image_data):
     reason=(
         'SEImageSlice can only be tested if '
         'test data is at TEST_DESDATA'))
-def test_se_image_wcs_galsim(se_image_data):
+@pytest.mark.parametrize('wcs_pos_offset', [0, 1])
+def test_se_image_wcs_galsim(se_image_data, wcs_pos_offset):
     se_im = SEImageSlice(
         source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['gs_wcs'],
+        wcs_position_offset=wcs_pos_offset,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -120,7 +129,7 @@ def test_se_image_wcs_galsim(se_image_data):
         y = rng.uniform() * 4096
         ra, dec = se_im.image2sky(x, y)
         pos = se_image_data['gs_wcs'].toWorld(
-            galsim.PositionD(x=x+1, y=y+1))
+            galsim.PositionD(x=x+wcs_pos_offset, y=y+wcs_pos_offset))
         assert np.allclose(ra, pos.ra / galsim.degrees)
         assert np.allclose(dec, pos.dec / galsim.degrees)
 
@@ -129,8 +138,8 @@ def test_se_image_wcs_galsim(se_image_data):
             ra=ra * galsim.degrees,
             dec=dec * galsim.degrees)
         pos = se_image_data['gs_wcs'].toImage(wpos)
-        assert np.allclose(x, pos.x - 1)
-        assert np.allclose(y, pos.y - 1)
+        assert np.allclose(x, pos.x - wcs_pos_offset)
+        assert np.allclose(y, pos.y - wcs_pos_offset)
 
 
 @pytest.mark.skipif(
@@ -138,11 +147,13 @@ def test_se_image_wcs_galsim(se_image_data):
     reason=(
         'SEImageSlice can only be tested if '
         'test data is at TEST_DESDATA'))
-def test_se_image_wcs_galsim_array(se_image_data):
+@pytest.mark.parametrize('wcs_pos_offset', [0, 1])
+def test_se_image_wcs_galsim_array(se_image_data, wcs_pos_offset):
     se_im = SEImageSlice(
         source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['gs_wcs'],
+        wcs_position_offset=wcs_pos_offset,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -155,7 +166,7 @@ def test_se_image_wcs_galsim_array(se_image_data):
 
     for i in range(2):
         pos = se_image_data['gs_wcs'].toWorld(
-            galsim.PositionD(x=x[i]+1, y=y[i]+1))
+            galsim.PositionD(x=x[i]+wcs_pos_offset, y=y[i]+wcs_pos_offset))
         assert np.allclose(ra[i], pos.ra / galsim.degrees)
         assert np.allclose(dec[i], pos.dec / galsim.degrees)
 
@@ -163,5 +174,5 @@ def test_se_image_wcs_galsim_array(se_image_data):
             ra=ra[i] * galsim.degrees,
             dec=dec[i] * galsim.degrees)
         pos = se_image_data['gs_wcs'].toImage(wpos)
-        assert np.allclose(x[i], pos.x - 1)
-        assert np.allclose(y[i], pos.y - 1)
+        assert np.allclose(x[i], pos.x - wcs_pos_offset)
+        assert np.allclose(y[i], pos.y - wcs_pos_offset)

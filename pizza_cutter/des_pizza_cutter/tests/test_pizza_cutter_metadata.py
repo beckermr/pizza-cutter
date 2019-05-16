@@ -16,6 +16,8 @@ from ..._version import __version__
 
 def test_pizza_cutter_build_metadata(monkeypatch):
     monkeypatch.setenv('MEDS_DIR', 'BLAH')
+    monkeypatch.setenv('PIFF_DATA_DIR', 'BLAHH')
+    monkeypatch.setenv('DESDATA', 'BLAHHH')
     config = 'blah blah blah'
 
     metadata = _build_metadata(config=config)
@@ -38,3 +40,8 @@ def test_pizza_cutter_build_metadata(monkeypatch):
         metadata['meds_fmt_version'] == MEDS_FMT_VERSION.encode('ascii'))
     assert np.all(
         metadata['meds_dir'] == os.environ['MEDS_DIR'].encode('ascii'))
+    assert np.all(
+        metadata['piff_data_dir'] ==
+        os.environ['PIFF_DATA_DIR'].encode('ascii'))
+    assert np.all(
+        metadata['desdata'] == os.environ['DESDATA'].encode('ascii'))
