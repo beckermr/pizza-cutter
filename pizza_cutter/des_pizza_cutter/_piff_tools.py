@@ -4,7 +4,9 @@ import logging
 import numpy as np
 import piff
 import fitsio
+
 from ._constants import PIFF_PSF_IN_BLACKLIST
+from ..files import expandpath
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +81,7 @@ def get_piff_psf(psf_path):
 @lru_cache(maxsize=128)
 def _get_info(info_path):
     """read the info extension of the summary file"""
-    if not os.path.exists(info_path):
+    if not os.path.exists(expandpath(info_path)):
         raise RuntimeError('missing piff info file: %s' % info_path)
 
     return fitsio.read(info_path, ext='info')
@@ -99,8 +101,6 @@ def _extract_expnum_and_ccdnum(image_path):
 def _get_paths_from_image_path(image_path, piff_run):
     """Get the piff and info path from the image path.
 
-    NOTE: Requires PIFF_DATA_DIR environment variable to be set!
-
     Parameters
     ----------
     image_path : str
@@ -112,14 +112,12 @@ def _get_paths_from_image_path(image_path, piff_run):
     -------
     A dict with keys info_path and psf_path
     """
-    PIFF_DATA_DIR = os.environ['PIFF_DATA_DIR']
-
     img_bname = os.path.basename(image_path)
     piff_bname = img_bname.replace('immasked.fits.fz', 'piff.fits')
     expnum = int(piff_bname.split('_')[0][1:])
 
     exp_dir = os.path.join(
-        PIFF_DATA_DIR,
+        '$PIFF_DATA_DIR',
         piff_run,
         str(expnum),
     )

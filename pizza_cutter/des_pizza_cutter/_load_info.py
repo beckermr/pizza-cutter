@@ -44,12 +44,19 @@ def load_objects_into_info(*, info):
             'image_path' : the path to the FITS file with the SE image
             'image_ext' : the name of the FITS extension with the SE image
 
+        The info structure can optionally have the key
+
+            'affine_wcs_config' : a dictionary used to build an `AffineWCS`
+                instance
+
         The source info structures can optionally have the keys
 
             'psfex_path' : the path to the PSFEx PSF model
             'piff_path' : the path to the Piff PSF model
             'galsim_psf_config' : a dictionary with a valid galsim config
                 file entry to build the PSF as a galsim object.
+            'affine_wcs_config' : a dictionary used to build an `AffineWCS`
+                instance
     """
     try:
         info['image_wcs'] = eu.wcsutil.WCS(
