@@ -23,9 +23,9 @@ jobs:
             python3 -m venv venv
             . venv/bin/activate
             pip install -U pip setuptools numpy cython pybind11
-            pip install -U --progress-bar=off -r dev-requirements.txt
+            pip install --progress-bar=off -r dev-requirements.txt
             pip install galsim
-            pip install -U --progress-bar=off -r requirements.txt
+            pip install --progress-bar=off -r requirements.txt
 
       - save_cache:
           paths:
