@@ -10,7 +10,7 @@ def test_lanczos1_resample_smoke():
 
     row = 5.5
     col = 7.5
-    val = lanczos_resample(
+    val, _ = lanczos_resample(
         im,
         np.array([row], dtype=np.float64),
         np.array([col], dtype=np.float64),
@@ -41,7 +41,7 @@ def test_lanczos2_resample_smoke():
 
     row = 5.5
     col = 7.5
-    val = lanczos_resample(
+    val, _ = lanczos_resample(
         im,
         np.array([row], dtype=np.float64),
         np.array([col], dtype=np.float64),
@@ -72,7 +72,7 @@ def test_lanczos3_resample_smoke():
 
     row = 5.5
     col = 7.5
-    val = lanczos_resample(
+    val, _ = lanczos_resample(
         im,
         np.array([row], dtype=np.float64),
         np.array([col], dtype=np.float64),
@@ -104,7 +104,7 @@ def test_lanczos_resample_interp_grid(a):
 
     for row in range(11):
         for col in range(25):
-            val = lanczos_resample(
+            val, _ = lanczos_resample(
                 im,
                 np.array([row], dtype=np.float64),
                 np.array([col], dtype=np.float64),
@@ -136,12 +136,12 @@ def test_lanczos_resample_out_of_bounds(row, col):
     rng = np.random.RandomState(seed=10)
     im = rng.normal(size=(11, 25))
 
-    val = lanczos_resample(
+    val, edge = lanczos_resample(
         im,
         np.array([row], dtype=np.float64),
         np.array([col], dtype=np.float64),
         a=3)
-    assert np.isnan(val)
+    assert np.all(edge)
 
 
 @pytest.mark.parametrize(
@@ -164,9 +164,9 @@ def test_lanczos_resample_in_bounds(row, col):
     rng = np.random.RandomState(seed=10)
     im = rng.normal(size=(11, 25))
 
-    val = lanczos_resample(
+    val, edge = lanczos_resample(
         im,
         np.array([row], dtype=np.float64),
         np.array([col], dtype=np.float64),
         a=3)
-    assert not np.isnan(val)
+    assert np.all(~edge)
