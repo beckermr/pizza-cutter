@@ -790,7 +790,7 @@ class SEImageSlice(object):
         t0 = time.time()
         wcs_interp = _get_wcs_inverse(
             wcs, wcs_position_offset,
-            self._wcs, self.source_info['position_offset'],
+            self._wcs, self._wcs_position_offset,
             self._im_shape)
         logger.debug('end wcs interp: %f', time.time() - t0)
 
