@@ -153,7 +153,7 @@ def test_lanczos_resample_two_interp_grid(a):
         (-3.0001, -3.0001),
         (13, -3.0001),
         (-3.0001, 27)])
-def test_lanczos_resample_out_of_bounds(row, col):
+def test_lanczos_resample_two_out_of_bounds(row, col):
     rng = np.random.RandomState(seed=10)
     im1 = rng.normal(size=(11, 25))
     im2 = rng.normal(size=(11, 25))
@@ -183,7 +183,7 @@ def test_lanczos_resample_out_of_bounds(row, col):
         (-3, -3),
         (12, -3),
         (-3, 26)])
-def test_lanczos_resample_in_bounds(row, col):
+def test_lanczos_resample_two_in_bounds(row, col):
     rng = np.random.RandomState(seed=10)
     im1 = rng.normal(size=(11, 25))
     im2 = rng.normal(size=(11, 25))
