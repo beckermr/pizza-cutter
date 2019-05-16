@@ -71,9 +71,9 @@ def _post_process_results(*, outputs, obj_data, image_info):
 
 def _do_metadetect(config, mbobs, seed, i, preprocessing_function):
     _t0 = time.time()
-    res=None
+    res = None
     if mbobs is not None:
-        minnum=min([len(olist) for olist in mbobs])
+        minnum = min([len(olist) for olist in mbobs])
         if minnum > 0:
             rng = np.random.RandomState(seed=seed)
             if preprocessing_function is not None:
