@@ -204,7 +204,9 @@ def _coadd_and_write_images(
     psf_start_row = 0
     epochs_info = []
 
-    for i in prange(len(object_data)):
+    # for i in prange(len(object_data)):
+
+    for i in prange(3):
         logger.info('processing object %d', i)
 
         # we center the PSF at the nearest pixel center near the patch center

@@ -18,7 +18,11 @@ from ..coadding import (
 )
 from ..memmappednoise import MemMappedNoiseImage
 from ._sky_bounds import get_rough_sky_bounds
-from ._constants import MAGZP_REF, BMASK_EDGE
+from ._constants import (
+    MAGZP_REF,
+    BMASK_EDGE,
+    BMASK_RESAMPLE_BOUNDS,
+)
 
 from ._tape_bumps import TAPE_BUMPS
 
@@ -780,15 +784,18 @@ class SEImageSlice(object):
         x_rs_se -= self.x_start
         y_rs_se -= self.y_start
 
-        rim, rn = lanczos_resample_two(
+        rim, rn, edge = lanczos_resample_two(
             self.image,
             self.noise,
             y_rs_se,
-            x_rs_se
+            x_rs_se,
         )
+
+        edge = edge.reshape(box_size, box_size),
         resampled_data = {
             'image': rim.reshape(box_size, box_size),
             'noise': rn.reshape(box_size, box_size),
+            'edge': edge,
         }
 
         # 3. do the nearest pixel for the bit mask
@@ -801,6 +808,7 @@ class SEImageSlice(object):
         bmask[y_rs[msk], x_rs[msk]] = self.bmask[y_rs_se[msk], x_rs_se[msk]]
         bmask[y_rs[~msk], x_rs[~msk]] = BMASK_EDGE
         resampled_data['bmask'] = bmask
+        resampled_data['bmask'][edge] |= BMASK_RESAMPLE_BOUNDS
 
         # 4. do the nearest pixel for the pmask
         pmask = np.zeros((box_size, box_size), dtype=self.pmask.dtype)
