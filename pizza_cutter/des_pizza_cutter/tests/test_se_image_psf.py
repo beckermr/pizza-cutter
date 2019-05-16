@@ -21,6 +21,7 @@ def test_se_image_psf_array(se_image_data, x, y):
         source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=1,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -43,11 +44,12 @@ def test_se_image_psf_array(se_image_data, x, y):
     reason=(
         'SEImageSlice can only be tested if '
         'test data is at TEST_DESDATA'))
+@pytest.mark.parametrize('wcs_pos_offset', [0, 1])
 @pytest.mark.parametrize('eps_x', [
     -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75])
 @pytest.mark.parametrize('eps_y', [
     -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75])
-def test_se_image_psf_gsobject(se_image_data, eps_x, eps_y):
+def test_se_image_psf_gsobject(se_image_data, eps_x, eps_y, wcs_pos_offset):
     x = 10 + eps_x
     y = 11 + eps_y
     dx = x - int(x + 0.5)
@@ -57,6 +59,7 @@ def test_se_image_psf_gsobject(se_image_data, eps_x, eps_y):
         source_info=se_image_data['source_info'],
         psf_model=galsim.Gaussian(fwhm=0.8),
         wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=wcs_pos_offset,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -86,12 +89,14 @@ def test_se_image_psf_gsobject(se_image_data, eps_x, eps_y):
     reason=(
         'SEImageSlice can only be tested if '
         'test data is at TEST_DESDATA'))
+@pytest.mark.parametrize('wcs_pos_offset', [0, 1])
 @pytest.mark.parametrize('eps_x', [
     -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75])
 @pytest.mark.parametrize('eps_y', [
     -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75])
 @pytest.mark.parametrize('use_wcs', [False, True])
-def test_se_image_psf_psfex(se_image_data, use_wcs, eps_x, eps_y):
+def test_se_image_psf_psfex(
+        se_image_data, use_wcs, eps_x, eps_y, wcs_pos_offset):
     if use_wcs:
         psfex = galsim.des.DES_PSFEx(
             se_image_data['source_info']['psf_path'],
@@ -110,6 +115,7 @@ def test_se_image_psf_psfex(se_image_data, use_wcs, eps_x, eps_y):
         source_info=se_image_data['source_info'],
         psf_model=psfex,
         wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=wcs_pos_offset,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -130,7 +136,8 @@ def test_se_image_psf_psfex(se_image_data, use_wcs, eps_x, eps_y):
     assert np.abs(xbar - dx) < 1e-1, xbar
     assert np.abs(ybar - dy) < 1e-1, ybar
 
-    psf = psfex.getPSF(galsim.PositionD(x=x+1, y=y+1))
+    psf = psfex.getPSF(galsim.PositionD(
+        x=x+wcs_pos_offset, y=y+wcs_pos_offset))
     true_psf_im = psf.drawImage(
         nx=psf_im.shape[0],
         ny=psf_im.shape[0],
@@ -147,11 +154,12 @@ def test_se_image_psf_psfex(se_image_data, use_wcs, eps_x, eps_y):
     reason=(
         'SEImageSlice can only be tested if '
         'test data is at TEST_DESDATA'))
+@pytest.mark.parametrize('wcs_pos_offset', [0, 1])
 @pytest.mark.parametrize('eps_x', [
     -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75])
 @pytest.mark.parametrize('eps_y', [
     -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75])
-def test_se_image_psf_piff(se_image_data, eps_x, eps_y):
+def test_se_image_psf_piff(se_image_data, eps_x, eps_y, wcs_pos_offset):
     x = 10 + eps_x
     y = 11 + eps_y
     dx = x - int(x + 0.5)
@@ -162,6 +170,7 @@ def test_se_image_psf_piff(se_image_data, eps_x, eps_y):
         source_info=se_image_data['source_info'],
         psf_model=psf_mod,
         wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=wcs_pos_offset,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -179,6 +188,6 @@ def test_se_image_psf_piff(se_image_data, eps_x, eps_y):
 
     psf_mod = piff.PSF.read(se_image_data['source_info']['piff_path'])
     true_psf_im = psf_mod.draw(
-        x=x+1, y=y+1, stamp_size=21).array
+        x=x+wcs_pos_offset, y=y+wcs_pos_offset, stamp_size=21).array
     true_psf_im /= np.sum(true_psf_im)
     assert np.array_equal(psf_im, true_psf_im)

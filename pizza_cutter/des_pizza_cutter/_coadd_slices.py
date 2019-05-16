@@ -161,6 +161,7 @@ def _build_slice_inputs(
                 source_info=se_info,
                 psf_model=se_info['%s_psf' % psf_type],
                 wcs=se_info['%s_wcs' % wcs_type],
+                wcs_position_offset=se_info['position_offset'],
                 noise_seed=se_info['noise_seed'],
                 mask_tape_bumps=mask_tape_bumps,
             )

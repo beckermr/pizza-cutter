@@ -20,6 +20,7 @@ def test_se_image_sky_bnds_array_shape(se_image_data, x, y):
         source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=1,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -41,6 +42,7 @@ def test_se_image_sky_bnds_array(se_image_data):
         source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=1,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -64,6 +66,7 @@ def test_se_image_sky_bnds_scalar(se_image_data):
         source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=1,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -91,6 +94,7 @@ def test_se_image_sky_bnds_affine_array(se_image_data):
         psf_model=None,
         wcs=AffineWCS(
             dudx=0.263, dudy=-0.002, dvdx=0.002, dvdy=0.263, x0=3, y0=1),
+        wcs_position_offset=1,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -115,6 +119,7 @@ def test_se_image_sky_bnds_affine_scalar(se_image_data):
         psf_model=None,
         wcs=AffineWCS(
             dudx=0.263, dudy=-0.002, dvdx=0.002, dvdy=0.263, x0=3, y0=1),
+        wcs_position_offset=1,
         noise_seed=10,
         mask_tape_bumps=False,
     )
