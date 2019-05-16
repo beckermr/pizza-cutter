@@ -43,6 +43,9 @@ def _post_process_results(*, outputs, obj_data, image_info):
     output = []
     dt = 0
     for res, i, _dt in outputs:
+        if res is None:
+            continue
+
         dt += _dt
         for mcal_step, data in res.items():
             if data.size > 0:
@@ -68,11 +71,15 @@ def _post_process_results(*, outputs, obj_data, image_info):
 
 def _do_metadetect(config, mbobs, seed, i, preprocessing_function):
     _t0 = time.time()
-    rng = np.random.RandomState(seed=seed)
-    if preprocessing_function is not None:
-        logger.debug("preprocessing multiband obslist %d", i)
-        mbobs = preprocessing_function(mbobs=mbobs, rng=rng)
-    res = do_metadetect(config, mbobs, rng)
+    res=None
+    if mbobs is not None:
+        minnum=min([len(olist) for olist in mbobs])
+        if minnum > 0:
+            rng = np.random.RandomState(seed=seed)
+            if preprocessing_function is not None:
+                logger.debug("preprocessing multiband obslist %d", i)
+                mbobs = preprocessing_function(mbobs=mbobs, rng=rng)
+            res = do_metadetect(config, mbobs, rng)
     return res, i, time.time() - _t0
 
 
