@@ -43,7 +43,7 @@ bmask_flags: 1073741824  # 2**30
 meds:
   box_padding: 2
   box_type: iso_radius
-  max_box_size: 256
+  max_box_size: 32
   min_box_size: 32
   rad_fac: 2
   rad_min: 4
