@@ -10,6 +10,7 @@ import esutil as eu
 import fitsio
 
 from metadetect.metadetect import do_metadetect
+from ..slice_utils.pbar import PBar
 
 logger = logging.getLogger(__name__)
 
@@ -119,8 +120,8 @@ def run_metadetect(
         multiband_meds,
         output_file,
         seed,
-        part=1,
-        n_parts=1,
+        start=0,
+        num=None,
         preprocessing_function=None):
     """Run metadetect on a "pizza slice" MEDS file and write the outputs to
     disk.
@@ -133,10 +134,11 @@ def run_metadetect(
         A multiband MEDS data structure.
     output_file : str
         The file to which to write the outputs.
-    part : int, optional
-        The part of the file to process. Starts at 1 and runs to n_parts.
-    n_parts : int, optional
-        The number of parts to split the file into.
+    start : int, optional
+        The first entry of the file to process. Defaults to zero.
+    num : int, optional
+        The number of entries of the file to process, starting at `start`.
+        The default of `None` will process all entries in the file.
     preprocessing_function : function, optional
         An optional function to preprocess the multiband observation
         lists before running metadetect. The function signature should
@@ -151,18 +153,31 @@ def run_metadetect(
     t0 = time.time()
 
     # process each slice in a pipeline
-    start, num = _get_part_ranges(part, n_parts, multiband_meds.size)
+    if num is None:
+        num = multiband_meds.size
+
+    if num + start > multiband_meds.size:
+        num = multiband_meds.size - start
+
     print('# of slices: %d' % num, flush=True)
     print('slice range: [%d, %d)' % (start, start+num), flush=True)
     meds_iter = _make_meds_iterator(multiband_meds, start, num)
-    outputs = joblib.Parallel(
-            verbose=10,
-            n_jobs=int(os.environ.get('OMP_NUM_THREADS', 1)),
-            pre_dispatch='2*n_jobs',
-            max_nbytes=None)(
-                joblib.delayed(_do_metadetect)(
-                    config, mbobs, seed+i*256, i, preprocessing_function)
-                for i, mbobs in meds_iter())
+
+    n_jobs = int(os.environ.get('OMP_NUM_THREADS', 1))
+    if n_jobs == 1:
+        outputs = [
+            _do_metadetect(
+                config, mbobs, seed+i*256, i, preprocessing_function)
+            for i, mbobs in PBar(meds_iter(), total=num)]
+    else:
+        outputs = joblib.Parallel(
+                verbose=10,
+                n_jobs=int(os.environ.get('OMP_NUM_THREADS', 1)),
+                pre_dispatch='2*n_jobs',
+                max_nbytes=None)(
+                    joblib.delayed(_do_metadetect)(
+                        config, mbobs, seed+i*256, i, preprocessing_function)
+                    for i, mbobs in meds_iter())
 
     # join all the outputs
     output, cpu_time = _post_process_results(
