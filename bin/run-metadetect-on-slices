@@ -7,9 +7,10 @@ import tempfile
 import click
 import yaml
 
-from pizza_cutter.metadetect.run_metadetect import run_metadetect
+from pizza_cutter.metadetect.run_metadetect import (
+    run_metadetect, _get_part_ranges)
 from ngmix.medsreaders import MultiBandNGMixMEDS, NGMixMEDS
-from pizza_cutter.files import StagedOutFile
+from pizza_cutter.files import StagedOutFile, expandpath, makedir_fromfile
 
 
 def _make_output_filename(meds_fname, part):
@@ -39,15 +40,29 @@ def _make_output_filename(meds_fname, part):
     '--use-tmpdir', is_flag=True,
     help='use a temporary directory to stage data')
 @click.option(
-    '--part', default='1:1', type=str,
+    '--part', default=None, type=str,
     help=('the part of the file to process in the '
           'form `--part="<part>:<n_parts>"` - '
           'Note that parts are one-indexed.'))
 @click.option(
+    '--range', 'meds_range', default=None, type=str,
+    help=(
+        'the range of entries in the MEDS file to process - '
+        'Note that this option is mutually exclusive with `--part`. '
+        'Futher, it is specified using normal python slicing conventions, '
+        'so that `--range="0:10"` is the first 10 entries in the file, etc.'))
+@click.option(
     '--log-level', default='warning', type=str,
     help='python logging level')
-def main(meds_files, config, output_path, seed, use_tmpdir, part, log_level):
+def main(
+        meds_files, config, output_path, seed, use_tmpdir, part, log_level,
+        meds_range):
     """Run metdetect on MEDS_FILES."""
+
+    if part is not None and meds_range is not None:
+        raise click.BadParameter(
+            'You must specify only one of `--part` and `--range`')
+
     with open(config, 'r') as fp:
         _config = yaml.load(fp.read())
 
@@ -57,9 +72,19 @@ def main(meds_files, config, output_path, seed, use_tmpdir, part, log_level):
     # init meds once here
     meds_list = [NGMixMEDS(fname) for fname in meds_files]
     mbmeds = MultiBandNGMixMEDS(meds_list)
-    part, n_parts = part.split(':')
-    part = int(part)
-    n_parts = int(n_parts)
+
+    if part is not None:
+        part, n_parts = part.split(':')
+        part = int(part)
+        n_parts = int(n_parts)
+        start, num = _get_part_ranges(part, n_parts, mbmeds.size)
+    elif meds_range is not None:
+        start, num = meds_range.split(':')
+        start = int(start)
+        num = int(num) - int(start)  # last element is the end of the range + 1
+    else:
+        start = 0
+        num = mbmeds.size
 
     def _call(output_file):
         run_metadetect(
@@ -67,12 +92,14 @@ def main(meds_files, config, output_path, seed, use_tmpdir, part, log_level):
             output_file=output_file,
             multiband_meds=mbmeds,
             seed=seed,
-            part=part,
-            n_parts=n_parts)
+            start=start,
+            num=num)
 
-    filename = os.path.join(
+    filename = expandpath(os.path.join(
         output_path,
-        _make_output_filename(meds_files[0], part))
+        _make_output_filename(
+            meds_files[0], part if part is not None else start)))
+    makedir_fromfile(filename)
 
     if use_tmpdir:
         with tempfile.TemporaryDirectory() as tmpdir:
