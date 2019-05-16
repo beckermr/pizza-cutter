@@ -16,6 +16,7 @@ def test_se_image_ccd_bnds_in(se_image_data):
         source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=1,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -39,6 +40,7 @@ def test_se_image_ccd_bnds_in_edge(se_image_data, in_bnds):
         source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=1,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -62,6 +64,7 @@ def test_se_image_ccd_bnds_over(se_image_data, over_bnds):
         source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=1,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -84,6 +87,7 @@ def test_se_image_ccd_bnds_out(se_image_data, out_bnds):
         source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=1,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -102,6 +106,7 @@ def test_se_image_ccd_bnds_buffer_in(se_image_data, buffer):
         source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=1,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -125,6 +130,7 @@ def test_se_image_ccd_bnds_buffer_out(se_image_data, out_bnds):
         source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=1,
         noise_seed=10,
         mask_tape_bumps=False,
     )

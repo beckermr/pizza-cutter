@@ -161,6 +161,7 @@ def _build_slice_inputs(
                 source_info=se_info,
                 psf_model=se_info['%s_psf' % psf_type],
                 wcs=se_info['%s_wcs' % wcs_type],
+                wcs_position_offset=se_info['position_offset'],
                 noise_seed=se_info['noise_seed'],
                 mask_tape_bumps=mask_tape_bumps,
             )
@@ -346,7 +347,7 @@ def _coadd_slice_inputs(
 
     Parameters
     ----------
-    wcs : `esutil.wcsutil.WCS` object
+    wcs : `esutil.wcsutil.WCS` or `AffineWCS` object
         The coadd WCS object.
     wcs_position_offset : int
         The position offset to get from zero-indexed, pixel-centered

@@ -22,6 +22,7 @@ def test_se_image_slice_read(monkeypatch, se_image_data):
         source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=1,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -77,6 +78,7 @@ def test_se_image_slice_noise_adjacent(monkeypatch, se_image_data):
         source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=1,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -86,6 +88,7 @@ def test_se_image_slice_noise_adjacent(monkeypatch, se_image_data):
         source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=1,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -108,6 +111,7 @@ def test_se_image_slice_double_use(monkeypatch, se_image_data):
         source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=1,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -161,6 +165,7 @@ def test_se_image_slice_two_obj(monkeypatch, se_image_data):
         source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=1,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -187,6 +192,7 @@ def test_se_image_slice_two_obj(monkeypatch, se_image_data):
         source_info=se_image_data['source_info'],
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=1,
         noise_seed=10,
         mask_tape_bumps=False,
     )

@@ -18,7 +18,9 @@ def test_se_image_resample_smoke(se_image_data, coadd_image_data):
     se_im = SEImageSlice(
         source_info=se_image_data['source_info'],
         psf_model=psf_mod,
-        wcs=se_image_data['eu_wcs'], noise_seed=10,
+        wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=1,
+        noise_seed=10,
         mask_tape_bumps=False,
     )
     ra, dec = se_im.image2sky(600, 700)
@@ -96,6 +98,7 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
         source_info=se_image_data['source_info'],
         psf_model=galsim.Gaussian(fwhm=0.8),
         wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=1,
         noise_seed=10,
         mask_tape_bumps=False,
     )

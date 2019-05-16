@@ -9,6 +9,7 @@ import logging
 import pixmappy
 
 from ._piff_tools import get_piff_psf
+from ._affine_wcs import AffineWCS
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,9 @@ def load_objects_into_info(*, info):
     except Exception:
         info['image_wcs'] = None
 
+    if 'affine_wcs_config' in info:
+        info['affine_wcs'] = AffineWCS(**info['affine_wcs_config'])
+
     # this is to keep track where it will be in image info extension
     info['file_id'] = 0
 
@@ -68,6 +72,9 @@ def load_objects_into_info(*, info):
                     fitsio.read_header(ii['image_path'], ext=ii['image_ext'])))
         except Exception:
             ii['image_wcs'] = None
+
+        if 'affine_wcs_config' in ii:
+            info['affine_wcs'] = AffineWCS(**ii['affine_wcs_config'])
 
         # this is to keep track where it will be in image info extension
         ii['file_id'] = index+1

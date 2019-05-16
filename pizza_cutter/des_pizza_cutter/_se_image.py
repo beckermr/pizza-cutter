@@ -19,6 +19,7 @@ from ..coadding import (
 from ..memmappednoise import MemMappedNoiseImage
 from ._sky_bounds import get_rough_sky_bounds
 from ._constants import MAGZP_REF, BMASK_EDGE
+from ._affine_wcs import AffineWCS
 
 from ._tape_bumps import TAPE_BUMPS
 
@@ -72,7 +73,7 @@ def _get_wcs_inverse(
             np.degrees(ra, out=ra)
             np.degrees(dec, out=dec)
             return ra, dec
-    elif isinstance(se_wcs, eu.wcsutil.WCS):
+    elif isinstance(se_wcs, eu.wcsutil.WCS) or isinstance(se_wcs, AffineWCS):
         def _image2sky(x, y):
             return se_wcs.image2sky(
                 x + se_wcs_position_offset,
@@ -113,8 +114,11 @@ class SEImageSlice(object):
             or `piff.PSF` object
         The PSF model to use. The type of input will be detected and then
         called appropriately.
-    wcs : a ` esutil.wcsutil.WCS` or `galsim.BaseWCS` instance
+    wcs : a ` esutil.wcsutil.WCS`, `AffineWCS` or `galsim.BaseWCS` instance
         The WCS model to use.
+    wcs_position_offset : float
+        The offset to get from pixel-centered, zero-indexed coordinates to
+        the coordinates expected by the WCS.
     noise_seed : int
         A seed to use for the noise field.
     mask_tape_bumps: boold
@@ -190,12 +194,14 @@ class SEImageSlice(object):
                  source_info,
                  psf_model,
                  wcs,
+                 wcs_position_offset,
                  noise_seed,
                  mask_tape_bumps):
 
         self.source_info = source_info
         self._psf_model = psf_model
         self._wcs = wcs
+        self._wcs_position_offset = wcs_position_offset
         self._noise_seed = noise_seed
         self._mask_tape_bumps = mask_tape_bumps
 
@@ -209,12 +215,19 @@ class SEImageSlice(object):
             )
 
         # init the sky bounds
+        if (isinstance(wcs, AffineWCS) or
+                (isinstance(wcs, galsim.BaseWCS) and not wcs.isCelestial())):
+            self._wcs_is_celestial = False
+        else:
+            self._wcs_is_celestial = True
+
         sky_bnds, ra_ccd, dec_ccd = get_rough_sky_bounds(
             im_shape=self._im_shape,
             wcs=self,  # the magic of APIs and duck typing - quack!
             position_offset=0,  # the wcs on this class is zero-indexed
             bounds_buffer_uv=16.0,  # in arcsec
-            n_grid=4)
+            n_grid=4,
+            celestial=self._wcs_is_celestial)
         self._sky_bnds = sky_bnds
         self._ra_ccd = ra_ccd
         self._dec_ccd = dec_ccd
@@ -342,15 +355,18 @@ class SEImageSlice(object):
         x = np.atleast_1d(x).ravel()
         y = np.atleast_1d(y).ravel()
 
-        if isinstance(self._wcs, eu.wcsutil.WCS):
-            # for the DES we always have a one-indexed system
-            ra, dec = self._wcs.image2sky(x+1, y+1)
+        if (isinstance(self._wcs, eu.wcsutil.WCS) or
+                isinstance(self._wcs, AffineWCS)):
+            ra, dec = self._wcs.image2sky(
+                x + self._wcs_position_offset,
+                y + self._wcs_position_offset)
         elif isinstance(self._wcs, galsim.BaseWCS):
             assert self._wcs.isCelestial()
 
             # ignoring color for now
             ra, dec = self._wcs._radec(
-                x - self._wcs.x0 + 1, y - self._wcs.y0 + 1)
+                x - self._wcs.x0 + self._wcs_position_offset,
+                y - self._wcs.y0 + self._wcs_position_offset)
             np.degrees(ra, out=ra)
             np.degrees(dec, out=dec)
         else:
@@ -393,12 +409,11 @@ class SEImageSlice(object):
         ra = np.atleast_1d(ra).ravel()
         dec = np.atleast_1d(dec).ravel()
 
-        if isinstance(self._wcs, eu.wcsutil.WCS):
-            # for the DES we always have a one-indexed system
-            # so we subtract to get back to zero
+        if (isinstance(self._wcs, eu.wcsutil.WCS) or
+                isinstance(self._wcs, AffineWCS)):
             x, y = self._wcs.sky2image(ra, dec)
-            x -= 1
-            y -= 1
+            x -= self._wcs_position_offset
+            y -= self._wcs_position_offset
         elif isinstance(self._wcs, galsim.BaseWCS):
             assert self._wcs.isCelestial()
 
@@ -411,8 +426,8 @@ class SEImageSlice(object):
                     dec=_dec*galsim.degrees
                 )
                 image_pos = self._wcs.toImage(world_pos)
-                x.append(image_pos.x - 1)
-                y.append(image_pos.y - 1)
+                x.append(image_pos.x - self._wcs_position_offset)
+                y.append(image_pos.y - self._wcs_position_offset)
             x = np.array(x)
             y = np.array(y)
         else:
@@ -444,8 +459,11 @@ class SEImageSlice(object):
         assert np.ndim(x) == 0 and np.ndim(y) == 0, (
             "WCS Jacobians are only returned for a single position at a time")
 
-        if isinstance(self._wcs, eu.wcsutil.WCS):
-            tup = self._wcs.get_jacobian(x+1, y+1)
+        if (isinstance(self._wcs, eu.wcsutil.WCS) or
+                isinstance(self._wcs, AffineWCS)):
+            tup = self._wcs.get_jacobian(
+                x + self._wcs_position_offset,
+                y + self._wcs_position_offset)
             dudx = tup[0]
             dudy = tup[1]
             dvdx = tup[2]
@@ -453,7 +471,9 @@ class SEImageSlice(object):
             jac = galsim.JacobianWCS(
                 dudx, dudy, dvdx, dvdy)
         elif isinstance(self._wcs, galsim.BaseWCS):
-            pos = galsim.PositionD(x=x+1, y=y+1)
+            pos = galsim.PositionD(
+                x=x + self._wcs_position_offset,
+                y=y + self._wcs_position_offset)
             jac = self._wcs.local(image_pos=pos)
         else:
             raise ValueError('WCS %s not recognized!' % self._wcs)
@@ -490,7 +510,12 @@ class SEImageSlice(object):
         ra = np.atleast_1d(ra).ravel()
         dec = np.atleast_1d(dec).ravel()
 
-        u, v = radec_to_uv(ra, dec, self._ra_ccd, self._dec_ccd)
+        if self._wcs_is_celestial:
+            u, v = radec_to_uv(ra, dec, self._ra_ccd, self._dec_ccd)
+        else:
+            u = ra - self._ra_ccd
+            v = dec - self._dec_ccd
+
         in_sky_bnds = self._sky_bnds.contains_points(u, v)
 
         if is_scalar:
@@ -554,7 +579,9 @@ class SEImageSlice(object):
 
         elif isinstance(self._psf_model, galsim.des.DES_PSFEx):
             # get the gs object
-            psf = self._psf_model.getPSF(galsim.PositionD(x=x+1, y=y+1))
+            psf = self._psf_model.getPSF(galsim.PositionD(
+                x=x + self._wcs_position_offset,
+                y=y + self._wcs_position_offset))
 
             # get the jacobian if a wcs is present
             if self._psf_model.wcs is None:
@@ -576,7 +603,10 @@ class SEImageSlice(object):
             # SE image pixel grid, not a hypothetical grid with the
             # star at a pixel center
             # again always 21 pixels for DES Y3+
-            im = self._psf_model.draw(x=x+1, y=y+1, stamp_size=21)
+            im = self._psf_model.draw(
+                x=x + self._wcs_position_offset,
+                y=y + self._wcs_position_offset,
+                stamp_size=21)
             psf_im = im.array.copy()
         else:
             raise ValueError('PSF %s not recognized!' % self._psf_model)
@@ -702,7 +732,7 @@ class SEImageSlice(object):
 
         Parameters
         ----------
-        wcs : `esutil.wcsutil.WCS` object
+        wcs : `esutil.wcsutil.WCS` or `AffineWCS` object
             The WCS model to use for the resampled pixel grid. This object is
             assumed to take one-indexed, pixel-centered coordinates.
         wcs_position_offset : int
@@ -760,7 +790,7 @@ class SEImageSlice(object):
         t0 = time.time()
         wcs_interp = _get_wcs_inverse(
             wcs, wcs_position_offset,
-            self._wcs, self.source_info['position_offset'],
+            self._wcs, self._wcs_position_offset,
             self._im_shape)
         logger.debug('end wcs interp: %f', time.time() - t0)
 
