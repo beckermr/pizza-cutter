@@ -207,8 +207,7 @@ def _coadd_and_write_images(
         logger.info('processing object %d', i)
 
         # we center the PSF at the nearest pixel center near the patch center
-        col, row = wcs.sky2image(
-            longitude=object_data['ra'][i], latitude=object_data['dec'][i])
+        col, row = wcs.sky2image(object_data['ra'][i], object_data['dec'][i])
         # this col, row includes the position offset
         # we don't need to remove it when putting them back into the WCS
         # but we will remove it later since we work in zero-indexed coords
