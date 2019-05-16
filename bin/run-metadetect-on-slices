@@ -64,7 +64,7 @@ def main(
             'You must specify only one of `--part` and `--range`')
 
     with open(config, 'r') as fp:
-        _config = yaml.load(fp.read())
+        _config = yaml.load(fp.read(), Loader=yaml.Loader)
 
     logging.basicConfig(
         stream=sys.stdout, level=getattr(logging, log_level.upper()))
@@ -107,6 +107,8 @@ def main(
                 _call(sf.path)
     else:
         _call(filename)
+
+    print('output file:', filename, flush=True)
 
 
 if __name__ == '__main__':
