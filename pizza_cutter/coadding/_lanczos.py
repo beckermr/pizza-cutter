@@ -4,7 +4,7 @@ from numba import njit
 
 @njit
 def lanczos_resample(im, rows, cols, a=3):
-    """Lanczos resample an image at the input row and column positions.
+    """Lanczos resample one image at the input row and column positions.
 
     Parameters
     ----------
@@ -22,12 +22,17 @@ def lanczos_resample(im, rows, cols, a=3):
 
     Returns
     -------
-    values : np.ndarray
+    values, edge : np.ndarray
         The resampled value for each row, column pair. Points whose
-        interpolation kernal would use points outside the image are
-        returned as NaN.
+        interpolation kernal was truncated because it extended beyond
+        the input image have edge=True
     """
-    res = np.zeros(rows.shape[0], dtype=np.float64)
+
+    ny, nx = im.shape
+    outsize = rows.shape[0]
+
+    res1 = np.zeros(outsize, dtype=np.float64)
+    edge = np.zeros(outsize, dtype=np.bool_)
 
     for i in range(rows.shape[0]):
         y = rows[i]
@@ -41,37 +46,37 @@ def lanczos_resample(im, rows, cols, a=3):
 
         out_of_bounds = (
             x_f < 0 or
-            x_s > im.shape[1]-1 or
+            x_s > nx-1 or
             y_f < 0 or
-            y_s > im.shape[0]-1)
+            y_s > ny-1
+        )
 
         if out_of_bounds:
-            res[i] = np.nan
-            continue
-
-        # clip the kernel to the input image if needed
-        x_s = max(0, min(x_s, im.shape[1]-1))
-        x_f = max(0, min(x_f, im.shape[1]-1))
-        y_s = max(0, min(y_s, im.shape[0]-1))
-        y_f = max(0, min(y_f, im.shape[0]-1))
+            edge[i] = True
 
         # now sum over the cells in the kernel
-        val = 0.0
+        val1 = 0.0
         for y_pix in range(y_s, y_f+1):
+            if y_pix < 0 or y_pix > ny-1:
+                continue
+
             dy = y - y_pix
             sy = np.sinc(dy) * np.sinc(dy/a)
 
             for x_pix in range(x_s, x_f+1):
+                if x_pix < 0 or x_pix > nx-1:
+                    continue
+
                 dx = x - x_pix
                 sx = np.sinc(dx) * np.sinc(dx/a)
 
                 kernel = sx*sy
 
-                val += im[y_pix, x_pix] * kernel
+                val1 += im[y_pix, x_pix] * kernel
 
-        res[i] = val
+        res1[i] = val1
 
-    return res
+    return res1, edge
 
 
 @njit
