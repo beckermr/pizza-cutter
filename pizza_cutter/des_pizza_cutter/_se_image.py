@@ -857,7 +857,8 @@ class SEImageSlice(object):
         x_rs_se -= self.psf_x_start
         y_rs_se -= self.psf_y_start
 
-        rs_psf, _ = lanczos_resample(self.psf, y_rs_se, x_rs_se)
+        rs_psf, edge = lanczos_resample(self.psf, y_rs_se, x_rs_se)
+        rs_psf[edge] = 0
         resampled_data['psf'] = rs_psf.reshape(psf_box_size, psf_box_size)
 
         return resampled_data
