@@ -23,9 +23,9 @@ jobs:
             python3 -m venv venv
             . venv/bin/activate
             pip install -U pip setuptools numpy cython pybind11
-            pip install -U --progress-bar=off --upgrade-strategy=eager -r dev-requirements.txt
+            pip install -U --progress-bar=off -r dev-requirements.txt
             pip install galsim
-            pip install -U --progress-bar=off --upgrade-strategy=eager -r requirements.txt
+            pip install -U --progress-bar=off -r requirements.txt
 
       - save_cache:
           paths:
@@ -36,8 +36,8 @@ jobs:
           name: run tests
           command: |
             . venv/bin/activate
-            pip install -U --progress-bar=off --upgrade-strategy=eager --force-reinstall -r volatile-requirements.txt
-            pip install -q --progress-bar=off --force-reinstall .
+            pip install -U --progress-bar=off --no-cache-dir --upgrade-strategy=eager --force-reinstall -r volatile-requirements.txt
+            pip install -q --progress-bar=off --no-cache-dir --force-reinstall .
             flake8 pizza_cutter
             flake8 bin
 
