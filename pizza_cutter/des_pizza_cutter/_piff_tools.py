@@ -30,22 +30,28 @@ def load_piff_path_from_image_path(*, image_path, piff_run):
 
     paths = _get_paths_from_image_path(image_path, piff_run)
 
-    expinfo = _get_info(paths['info_path'])
-    expnum, ccdnum = _extract_expnum_and_ccdnum(image_path)
+    info_path = expandpath(paths['info_path'])
 
-    w, = np.where(expinfo['ccdnum'] == ccdnum)
-    if w.size == 0:
-        raise RuntimeError('piff info for exp %s ccd %s '
-                           'not found' % (expnum, ccdnum))
+    piff_flags = PIFF_PSF_IN_BLACKLIST
+    psf_path = None
 
-    this_info = expinfo[w[0]]
+    # sometimes there are missing info files, as we just need treat it like
+    # blacklisting for now
 
-    piff_flags = 0
-    if not _check_and_log(this_info):
-        piff_flags |= PIFF_PSF_IN_BLACKLIST
-        psf_path = None
-    else:
-        psf_path = paths['psf_path']
+    if os.path.exists(info_path):
+        expinfo = _get_info(info_path)
+        expnum, ccdnum = _extract_expnum_and_ccdnum(image_path)
+
+        w, = np.where(expinfo['ccdnum'] == ccdnum)
+        if w.size == 0:
+            raise RuntimeError('piff info for exp %s ccd %s '
+                               'not found' % (expnum, ccdnum))
+
+        this_info = expinfo[w[0]]
+
+        if _check_and_log(this_info):
+            piff_flags = 0
+            psf_path = paths['psf_path']
 
     return {
         'flags': piff_flags,
@@ -81,9 +87,6 @@ def get_piff_psf(psf_path):
 @lru_cache(maxsize=128)
 def _get_info(info_path):
     """read the info extension of the summary file"""
-    if not os.path.exists(expandpath(info_path)):
-        raise RuntimeError('missing piff info file: %s' % info_path)
-
     return fitsio.read(info_path, ext='info')
 
 
