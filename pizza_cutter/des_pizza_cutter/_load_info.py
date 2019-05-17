@@ -71,6 +71,10 @@ def load_objects_into_info(*, info):
     # this is to keep track where it will be in image info extension
     info['file_id'] = 0
 
+    # we need tuples for hashing
+    if 'image_shape' in info:
+        info['image_shape'] = tuple(info['image_shape'])
+
     for index, ii in enumerate(info['src_info']):
         # wcs info
         try:
@@ -86,6 +90,10 @@ def load_objects_into_info(*, info):
 
         # this is to keep track where it will be in image info extension
         ii['file_id'] = index+1
+
+        # we need tuples for hashing
+        if 'image_shape' in ii:
+            ii['image_shape'] = tuple(ii['image_shape'])
 
         # galsim objects
         if 'galsim_psf_config' in ii:
