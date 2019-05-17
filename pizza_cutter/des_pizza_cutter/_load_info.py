@@ -61,7 +61,7 @@ def load_objects_into_info(*, info):
     try:
         info['image_wcs'] = eu.wcsutil.WCS(
             _munge_fits_header(fitsio.read_header(
-                info['image_path'], ext=info['image_ext'])))
+                expandvars(info['image_path']), ext=info['image_ext'])))
     except Exception:
         info['image_wcs'] = None
 
@@ -76,7 +76,8 @@ def load_objects_into_info(*, info):
         try:
             ii['image_wcs'] = eu.wcsutil.WCS(
                 _munge_fits_header(
-                    fitsio.read_header(ii['image_path'], ext=ii['image_ext'])))
+                    fitsio.read_header(
+                        expandvars(ii['image_path']), ext=ii['image_ext'])))
         except Exception:
             ii['image_wcs'] = None
 
