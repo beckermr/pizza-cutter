@@ -4,14 +4,16 @@ metacal:
   types: [noshear, 1p, 1m, 2p, 2m]
   use_noise_image: True
 
-# needed for PSF symmetrization
 psf:
   lm_pars:
-    ftol: 1.0e-05
     maxfev: 2000
+    ftol: 1.0e-05
     xtol: 1.0e-05
   model: gauss
-  ntry: 2
+
+  # we try many times because if this fails we get no psf info 
+  # for the entire patch
+  ntry: 10
 
 sx:
   # Minimum contrast parameter for deblending
