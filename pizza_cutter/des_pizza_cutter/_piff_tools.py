@@ -39,7 +39,7 @@ def load_piff_path_from_image_path(*, image_path, piff_run):
     # blacklisting for now
 
     if os.path.exists(info_path):
-        expinfo = _get_info(paths['info_path'])
+        expinfo = _get_info(info_path)
         expnum, ccdnum = _extract_expnum_and_ccdnum(image_path)
 
         w, = np.where(expinfo['ccdnum'] == ccdnum)
