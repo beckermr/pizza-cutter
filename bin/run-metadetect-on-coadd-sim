@@ -45,10 +45,6 @@ def _build_meds_list(*, tilename, band, sim_path, coadd_config, seed):
         print('making meds interface for band:', b, flush=True)
         cfg = yaml.load(
             jinja2.Template(_config).render(tilename=tilename, band=b))
-        if 'masking_config' in cfg:
-            bmask_catalog = cfg['masking_config']['bmask_catalog']
-        else:
-            bmask_catalog = None
 
         mlist.append(
             CoaddSimSliceMEDS(
@@ -74,8 +70,7 @@ def _build_meds_list(*, tilename, band, sim_path, coadd_config, seed):
                     os.path.join(sim_path, cfg['psf'])
                     if isinstance(cfg['psf'], str)
                     else cfg['psf']),
-                seed=seed + i,
-                bmask_catalog=bmask_catalog))
+                seed=seed + i))
     return mlist
 
 

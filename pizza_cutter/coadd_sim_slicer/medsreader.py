@@ -8,7 +8,6 @@ import esutil as eu
 from meds.util import get_image_info_struct, get_meds_output_struct
 
 from ..memmappednoise import MemMappedNoiseImage
-from ..simulation.maskgen import BMaskGenerator
 from .galsim_psf import GalSimPSF, GalSimPSFEx
 
 MAGZP_REF = 30.0
@@ -79,16 +78,12 @@ class CoaddSimSliceMEDS(NGMixMEDS):
         The random seed used to make the noise field.
     noise_size : int, optional
         The size of patches for generating the noise image.
-    bmask_catalog : str, optional
-        The path to the FITS file with the bit mask catalog for applying
-        random bit masks. If `None`, the bit mask from the MEDS file is used
-        instead.
     """
     def __init__(
             self, *, central_size, buffer_size, image_path, image_ext,
             bkg_path=None, bkg_ext=None, seg_path=None, seg_ext=None,
             weight_path, weight_ext, bmask_path, bmask_ext, psf, seed,
-            noise_size=1000, bmask_catalog=None):
+            noise_size=1000):
 
         # we need to set the slice properties here
         # they get used later to subset the images
@@ -166,12 +161,6 @@ class CoaddSimSliceMEDS(NGMixMEDS):
         self._meta = np.zeros(1, dtype=[('magzp_ref', 'f8')])
         self._meta['magzp_ref'] = MAGZP_REF
 
-        # deal with masking
-        self._bmask_catalog = bmask_catalog
-        if self._bmask_catalog is not None:
-            self._bmask_gen = BMaskGenerator(
-                bmask_cat=self._bmask_catalog, seed=seed+2)
-
     def close(self):
         """Close all of the FITS objects.
         """
@@ -220,11 +209,6 @@ class CoaddSimSliceMEDS(NGMixMEDS):
 
         if type == 'psf':
             return self.get_psf(iobj, icutout)
-
-        if type == 'bmask' and self._bmask_catalog is not None:
-            # this approximately puts the masks in the right coords for the
-            # coadd
-            return self._bmask_gen.get_bmask(iobj)[::-1, ::-1].T
 
         self._check_indices(iobj, icutout=icutout)
 
