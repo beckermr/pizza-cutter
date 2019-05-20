@@ -86,7 +86,7 @@ def load_objects_into_info(*, info):
             ii['image_wcs'] = None
 
         if 'affine_wcs_config' in ii:
-            info['affine_wcs'] = AffineWCS(**ii['affine_wcs_config'])
+            ii['affine_wcs'] = AffineWCS(**ii['affine_wcs_config'])
 
         # this is to keep track where it will be in image info extension
         ii['file_id'] = index+1

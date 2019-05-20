@@ -271,8 +271,8 @@ def _coadd_and_write_images(
             object_data['nepoch_eff'][i] = weights.sum()/weights.max()
 
             image, bmask, ormask, noise, psf, weight = _coadd_slice_inputs(
-                wcs=info['image_wcs'],
-                wcs_position_offset=info['position_offset'],
+                wcs=wcs,
+                wcs_position_offset=position_offset,
                 start_row=object_data['orig_start_row'][i, 0],
                 start_col=object_data['orig_start_col'][i, 0],
                 box_size=object_data['box_size'][i],
