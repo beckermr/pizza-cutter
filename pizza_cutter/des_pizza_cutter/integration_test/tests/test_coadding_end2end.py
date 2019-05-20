@@ -76,7 +76,15 @@ single_epoch:
         info=os.path.join(tmp_path, 'info.yaml'),
         tmp_path=tmp_path)
 
-    subprocess.run(cmd, check=True, shell=True)
+    mdir = os.environ.get('MEDS_DIR')
+    try:
+        os.environ['MEDS_DIR'] = 'meds_dir_xyz'
+        subprocess.run(cmd, check=True, shell=True)
+    finally:
+        if mdir is not None:
+            os.environ['MEDS_DIR'] = mdir
+        else:
+            del os.environ['MEDS_DIR']
 
     return {
         'meds_path': os.path.join(
@@ -145,13 +153,14 @@ def test_coadding_end2end_epochs_info(coadd_end2end):
             loc += 1
 
 
-def test_coadding_end2end_metdata(coadd_end2end):
+def test_coadding_end2end_metadata(coadd_end2end):
     m = meds.MEDS(coadd_end2end['meds_path'])
     metadata = m._fits['metadata'].read()
 
     # we only check a few things here...
     assert metadata['config'][0] == coadd_end2end['config']
     assert metadata['numpy_version'][0] == np.__version__
+    assert metadata['meds_dir'][0] == 'meds_dir_xyz'
 
 
 def test_coadding_end2end_image_info(coadd_end2end):
