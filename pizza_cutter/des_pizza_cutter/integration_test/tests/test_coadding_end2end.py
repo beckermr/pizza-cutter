@@ -183,3 +183,50 @@ def test_coadding_end2end_image_info(coadd_end2end):
     assert np.all(
         image_info['image_flags'] ==
         np.array([0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
+
+
+def test_coadding_end2end_object_data(coadd_end2end):
+    m = meds.MEDS(coadd_end2end['meds_path'])
+    weights = coadd_end2end['weights']
+    info = coadd_end2end['info']
+    ei = m._fits['epochs_info'].read()
+    object_data = m._fits['object_data'].read()
+
+    ############################################################
+    # get weights for computing nepoch_eff
+    max_wgts = []
+    for ind in range(len(ei)):
+        if ei['weight'][ind] > 0:
+            src_ind = ei['file_id'][ind]-1
+            max_wgts.append(
+                np.max(weights[src_ind]) /
+                info['src_info'][src_ind]['scale'] ** 2
+                )
+    max_wgts = np.array(max_wgts)
+    nepoch_eff = max_wgts.sum() / max_wgts.max()
+
+    assert len(object_data) == 1
+    assert object_data['box_size'][0] == 49
+    assert object_data['ra'][0] == 0
+    assert object_data['dec'][0] == 0
+    assert object_data['ncutout'][0] == 1
+    assert object_data['file_id'][0, 0] == 0
+    assert object_data['cutout_row'][0, 0] == 24
+    assert object_data['cutout_col'][0, 0] == 24
+
+    assert object_data['orig_row'][0, 0] == 24
+    assert object_data['orig_col'][0, 0] == 24
+    assert object_data['orig_start_row'][0, 0] == 0
+    assert object_data['orig_start_col'][0, 0] == 0
+
+    assert object_data['dudrow'][0, 0] == 0
+    assert object_data['dudcol'][0, 0] == 0.25
+
+    assert object_data['dvdrow'][0, 0] == 0.25
+    assert object_data['dvdcol'][0, 0] == 0
+
+    assert object_data['nepoch'][0] == 8
+    assert np.allclose(object_data['nepoch_eff'][0], nepoch_eff)
+    assert object_data['psf_box_size'][0] == 51
+    assert object_data['psf_cutout_col'][0, 0] == 25
+    assert object_data['psf_cutout_row'][0, 0] == 25
