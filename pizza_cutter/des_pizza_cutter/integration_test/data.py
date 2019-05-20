@@ -183,13 +183,13 @@ def generate_sim():
     bmasks = []
     bkgs = []
 
-    psf_fwhm = 0.7
-    psf = galsim.Gaussian(fwhm=psf_fwhm)
+    psf_fwhms = 0.7 + 0.1*rng.uniform(size=n_se_images)
     gal = galsim.Gaussian(fwhm=0.5).shear(g1=0, g2=0.5)
 
-    for dudx, dudy, dvdx, dvdy, x0, y0, position_offset, scale, noise in zip(
+    for (dudx, dudy, dvdx, dvdy, x0, y0, position_offset,
+         scale, noise, psf_fwhm) in zip(
             dudxs, dudys, dvdxs, dvdys, x0s, y0s, position_offsets,
-            scales, noises):
+            scales, noises, psf_fwhms):
         ii = {}
         ii['affine_wcs_config'] = {
             'dudx': float(dudx),
@@ -203,6 +203,8 @@ def generate_sim():
         ii['galsim_psf_config'] = {'type': 'Gaussian', 'fwhm': psf_fwhm}
         ii['image_shape'] = list(image_shape)
         ii['image_flags'] = 0
+
+        psf = galsim.Gaussian(fwhm=psf_fwhm)
 
         image = generate_input_se_image(
             gal=gal,

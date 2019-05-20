@@ -1,5 +1,6 @@
 import os
 import subprocess
+import galsim
 
 import pytest
 import numpy as np
@@ -230,3 +231,45 @@ def test_coadding_end2end_object_data(coadd_end2end):
     assert object_data['psf_box_size'][0] == 51
     assert object_data['psf_cutout_col'][0, 0] == 25
     assert object_data['psf_cutout_row'][0, 0] == 25
+
+
+def test_coadding_end2end_psf(coadd_end2end):
+    m = meds.MEDS(coadd_end2end['meds_path'])
+    weights = coadd_end2end['weights']
+    info = coadd_end2end['info']
+    ei = m._fits['epochs_info'].read()
+
+    ############################################################
+    # get weights for computing nepoch_eff
+    max_wgts = []
+    psfs = []
+    for ind in range(len(ei)):
+        if ei['weight'][ind] > 0:
+            src_ind = ei['file_id'][ind]-1
+            max_wgts.append(
+                np.max(weights[src_ind]) /
+                info['src_info'][src_ind]['scale'] ** 2
+                )
+            psfs.append(
+                galsim.Gaussian(
+                    fwhm=info['src_info'][src_ind]['galsim_psf_config']['fwhm']
+                )
+            )
+    max_wgts = np.array(max_wgts)
+    max_wgts = max_wgts / np.sum(max_wgts)
+
+    psf_m = m.get_cutout(0, 0, type='psf')
+
+    psfs = [psf.withFlux(wgt) for psf, wgt in zip(psfs, max_wgts)]
+    psf_im = galsim.Sum(psfs).withFlux(np.sum(psf_m)).drawImage(
+        nx=51, ny=51, scale=0.25).array
+
+    # we don't have a strict criterion here since the coadding process
+    # broadens the PSF a bit. Instead we are setting a tolerance and it code
+    # changes make this break, then we need to look again.
+    assert np.max(np.abs(psf_im - psf_m))/np.max(psf_im) < 0.003
+
+    # we also demand that the FWHM is about the same
+    assert np.abs(
+        galsim.ImageD(psf_im, scale=0.25).calculateFWHM() -
+        galsim.ImageD(psf_m, scale=0.25).calculateFWHM()) < 1e-4
