@@ -323,10 +323,10 @@ def test_coadding_end2end_gal(coadd_end2end):
     y, x = np.mgrid[0:49, 0:49]
     assert np.abs(
         np.sum(x*gal_m)/np.sum(gal_m) -
-        np.sum(x*gal_im)/np.sum(gal_m)) < 1e-2
+        np.sum(x*gal_im)/np.sum(gal_im)) < 1e-2
     assert np.abs(
         np.sum(y*gal_m)/np.sum(gal_m) -
-        np.sum(y*gal_im)/np.sum(gal_m)) < 1e-2
+        np.sum(y*gal_im)/np.sum(gal_im)) < 1e-2
 
     # and shear
     mom_im = galsim.hsm.FindAdaptiveMom(galsim.ImageD(gal_im, scale=0.25))
