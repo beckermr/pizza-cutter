@@ -41,7 +41,7 @@ def test_make_output_array():
         position_offset=position_offset,
         wcs=wcs)
 
-    assert np.all(arr['id'] == obj_id)
+    assert np.all(arr['slice_id'] == obj_id)
     assert np.all(arr['mcal_step'] == mcal_step)
 
     ra, dec = wcs.image2sky(
