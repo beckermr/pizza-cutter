@@ -21,9 +21,9 @@ def _make_output_array(
         orig_start_row, orig_start_col, position_offset, wcs):
     arr = eu.numpy_util.add_fields(
                 data,
-                [('id', 'i8'), ('mcal_step', 'S7'),
+                [('slice_id', 'i8'), ('mcal_step', 'S7'),
                  ('ra', 'f8'), ('dec', 'f8')])
-    arr['id'] = obj_id
+    arr['slice_id'] = obj_id
     arr['mcal_step'] = mcal_step
 
     row = arr['sx_row'] + orig_start_row + position_offset
