@@ -359,3 +359,30 @@ def test_coadding_end2end_masks(coadd_end2end):
     assert np.mean((bmask[33:35, :] & BMASK_NOISE_INTERP) != 0) > 0.8
     assert np.mean((ormask[:, 33:35] & SIM_BMASK_NOISE_INTERP) != 0) > 0.8
     assert np.mean((ormask[33:35, :] & SIM_BMASK_NOISE_INTERP) != 0) > 0.8
+
+
+def test_coadding_end2end_noise(coadd_end2end):
+    m = meds.MEDS(coadd_end2end['meds_path'])
+    weights = coadd_end2end['weights']
+    info = coadd_end2end['info']
+    ei = m._fits['epochs_info'].read()
+
+    ############################################################
+    # get weights for computing nepoch_eff
+    max_wgts = []
+    for ind in range(len(ei)):
+        if ei['weight'][ind] > 0:
+            src_ind = ei['file_id'][ind]-1
+            max_wgts.append(
+                np.max(weights[src_ind]) /
+                info['src_info'][src_ind]['scale'] ** 2
+                )
+    max_wgts = np.array(max_wgts)
+    var = 1.0 / np.sum(max_wgts)
+    nse = m.get_cutout(0, 0, type='noise')
+
+    # due to interpolation causing correlations noise
+    # variance should be smaller
+    # we also demand that it matches to better than 10%
+    assert np.std(nse) <= np.sqrt(var)
+    assert np.allclose(np.std(nse), np.sqrt(var), atol=0, rtol=0.1)
