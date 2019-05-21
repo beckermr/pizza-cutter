@@ -6,8 +6,11 @@ import pytest
 import numpy as np
 
 import meds
-from ..data import generate_sim, write_sim
-from ..._constants import MAGZP_REF
+from ..data import (
+    generate_sim, write_sim,
+    SIM_BMASK_SPLINE_INTERP,
+    SIM_BMASK_NOISE_INTERP)
+from ..._constants import MAGZP_REF, BMASK_SPLINE_INTERP, BMASK_NOISE_INTERP
 from ....slice_utils.procflags import (
     SLICE_HAS_FLAGS,
     HIGH_MASKED_FRAC)
@@ -333,3 +336,26 @@ def test_coadding_end2end_gal(coadd_end2end):
     mom_m = galsim.hsm.FindAdaptiveMom(galsim.ImageD(gal_m, scale=0.25))
     assert np.abs(mom_im.observed_shape.e1 - mom_m.observed_shape.e1) < 0.005
     assert np.abs(mom_im.observed_shape.e2 - mom_m.observed_shape.e2) < 0.005
+
+
+def test_coadding_end2end_masks(coadd_end2end):
+    m = meds.MEDS(coadd_end2end['meds_path'])
+    bmask = m.get_cutout(0, 0, type='bmask')
+    ormask = m.get_cutout(0, 0, type='ormask')
+
+    # somwhere in the middle spline interpolation was done
+    assert np.mean((bmask[:, 24:26] & BMASK_SPLINE_INTERP) != 0) > 0.8
+    assert np.mean((bmask[24:26, :] & BMASK_SPLINE_INTERP) != 0) > 0.8
+    assert np.mean((ormask[:, 24:26] & SIM_BMASK_SPLINE_INTERP) != 0) > 0.8
+    assert np.mean((ormask[24:26, :] & SIM_BMASK_SPLINE_INTERP) != 0) > 0.8
+
+    assert np.mean((bmask[:, 18:20] & BMASK_SPLINE_INTERP) != 0) > 0.8
+    assert np.mean((bmask[18:20, :] & BMASK_SPLINE_INTERP) != 0) > 0.8
+    assert np.mean((ormask[:, 18:20] & SIM_BMASK_SPLINE_INTERP) != 0) > 0.8
+    assert np.mean((ormask[18:20, :] & SIM_BMASK_SPLINE_INTERP) != 0) > 0.8
+
+    # we did some noise interp too
+    assert np.mean((bmask[:, 33:35] & BMASK_NOISE_INTERP) != 0) > 0.8
+    assert np.mean((bmask[33:35, :] & BMASK_NOISE_INTERP) != 0) > 0.8
+    assert np.mean((ormask[:, 33:35] & SIM_BMASK_NOISE_INTERP) != 0) > 0.8
+    assert np.mean((ormask[33:35, :] & SIM_BMASK_NOISE_INTERP) != 0) > 0.8

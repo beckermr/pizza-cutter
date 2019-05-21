@@ -258,9 +258,9 @@ def generate_sim():
     bmasks[8][y_loc-10:y_loc-8, :] |= SIM_BMASK_NOISE_INTERP
 
     # image 10 is spline interpolated in the noise
-    x_loc = int(x0s[8] + 0.5 - position_offsets[8])
-    y_loc = int(y0s[8] + 0.5 - position_offsets[8])
-    bmasks[8][y_loc-10:y_loc-8, :] |= SIM_BMASK_SPLINE_INTERP
+    x_loc = int(x0s[10] + 0.5 - position_offsets[10])
+    y_loc = int(y0s[10] + 0.5 - position_offsets[10])
+    bmasks[10][y_loc-6:y_loc-4, :] |= SIM_BMASK_SPLINE_INTERP
 
     # set the coadd information too
     info['affine_wcs_config'] = {
