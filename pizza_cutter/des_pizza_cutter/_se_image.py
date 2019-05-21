@@ -42,7 +42,7 @@ def _get_image_shape(*, image_path, image_ext):
         return h['naxis2'], h['naxis1']
 
 
-@functools.lru_cache(maxsize=16)
+@functools.lru_cache(maxsize=32)
 def _read_image(path, ext):
     """Cached reads of images.
 
@@ -52,7 +52,7 @@ def _read_image(path, ext):
     return fitsio.read(path, ext=ext)
 
 
-@functools.lru_cache(maxsize=16)
+@functools.lru_cache(maxsize=32)
 def _get_noise_image(weight_path, weight_ext, scale, noise_seed):
     """Cached generation of memory mapped noise images."""
     wgt = _read_image(weight_path, ext=weight_ext)
@@ -65,7 +65,7 @@ def _get_noise_image(weight_path, weight_ext, scale, noise_seed):
         sx=1024, sy=1024)
 
 
-@functools.lru_cache(maxsize=8)
+@functools.lru_cache(maxsize=32)
 def _get_wcs_inverse(
         wcs, wcs_position_offset, se_wcs, se_wcs_position_offset, se_im_shape):
 

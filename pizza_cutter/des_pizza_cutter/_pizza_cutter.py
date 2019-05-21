@@ -364,7 +364,7 @@ def _write_single_image(*, fits, data, ext, start_row):
     fits[ext].write(subim, start=start_row)
 
 
-@functools.lru_cache(maxsize=128)
+@functools.lru_cache(maxsize=2048)
 def _get_image_width(*, coadd_image_path, coadd_image_ext):
     coadd_image_path = expandvars(coadd_image_path)
     h = fitsio.read_header(coadd_image_path, ext=coadd_image_ext)
