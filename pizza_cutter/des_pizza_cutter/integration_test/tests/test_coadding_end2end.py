@@ -24,14 +24,6 @@ def coadd_end2end(tmp_path_factory):
               images=images, weights=weights, bmasks=bmasks, bkgs=bkgs)
 
     config = """\
-# optional but these are good defaults
-fpack_pars:
-  FZQVALUE: 4
-  FZTILE: "(10240,1)"
-  FZALGOR: "RICE_1"
-  # preserve zeros, don't dither them
-  FZQMETHD: "SUBTRACTIVE_DITHER_2"
-
 coadd:
   # these are in pixels
   # the total "pizza slice" will be central_size + 2 * buffer_size
@@ -386,3 +378,10 @@ def test_coadding_end2end_noise(coadd_end2end):
     # we also demand that it matches to better than 10%
     assert np.std(nse) <= np.sqrt(var)
     assert np.allclose(np.std(nse), np.sqrt(var), atol=0, rtol=0.1)
+
+
+def test_coadding_end2end_weight(coadd_end2end):
+    m = meds.MEDS(coadd_end2end['meds_path'])
+    wgt = m.get_cutout(0, 0, type='weight')
+    nse = m.get_cutout(0, 0, type='noise')
+    np.allclose(wgt, 1.0 / np.var(nse))
