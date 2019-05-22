@@ -42,8 +42,6 @@ weight:
 # check for hitting the edge
 bmask_flags: 1073741824  # 2**30
 
-# these are calculated from the ormask
-
 # fraction of slice where STAR or TRAIL was set.  We may cut objects detected
 # there
 star_flags: 96
@@ -51,17 +49,15 @@ star_flags: 96
 # we don't interpolate over tapebumps
 tapebump_flags: 16384
 
+# things interpolated using the spline
+spline_interp_flags: 3155
+
+# replaced with noise
+noise_interp_flags: 908
+
 # pixels will have these flag set in the ormask if they were interpolated
 # plus adding in tapebump and star
 imperfect_flags: 20479
-
-# these are in the bmask, special flags added by pizza cutter
-# things interpolated using the spline
-spline_interp_flags: 268435456
-
-# replaced with noise
-noise_interp_flags: 536870912
-
 
 meds:
   box_padding: 2
