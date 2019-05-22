@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+run metadetect on a slice file
+"""
 import os
 import sys
 import logging
@@ -13,13 +16,57 @@ from ngmix.medsreaders import MultiBandNGMixMEDS, NGMixMEDS
 from pizza_cutter.files import StagedOutFile, expandpath, makedir_fromfile
 
 
-def _make_output_filename(meds_fname, part):
+def _split_range(meds_range):
+    """
+    Parameters
+    ----------
+    meds_range: str
+        e.g. '3:7' is like a python slice
+
+    Returns
+    -------
+    start, end_plus_one, num
+        Start index, end+1 from the slice, and number to process
+    """
+    start, end_plus_one = meds_range.split(':')
+    start = int(start)
+    end_plus_one = int(end_plus_one)
+    num = end_plus_one - start  # last element is the end of the range + 1
+    return start, end_plus_one, num
+
+
+def _make_output_filename(meds_fname, part, meds_range):
+    """
+    make the output name
+
+    Parameters
+    ----------
+    meds_fname: str
+        Example meds file name
+    part: int
+        The part of the file processed
+    meds_range: str
+        The slice to process, as as string, e.g. '3:7'
+
+    Returns
+    -------
+    file basename
+    """
+
     fname = os.path.basename(meds_fname)
     fname = fname.replace('.fz', '').replace('.fits', '')
+
     # remove the band - always comes after the tilename by convention
     items = fname.split('_')
     fname = '_'.join(items[0:1] + items[2:])
-    tail = '-metadetect-output-part%04d.fits' % part
+
+    if part is not None:
+        tail = '-metadetect-output-part%04d.fits' % part
+    else:
+        start, end_plus_one, num = _split_range(meds_range)
+        end = end_plus_one - 1
+        tail = '-metadetect-output-%04d-%04d.fits' % (start, end)
+
     return fname + tail
 
 
@@ -79,9 +126,7 @@ def main(
         n_parts = int(n_parts)
         start, num = _get_part_ranges(part, n_parts, mbmeds.size)
     elif meds_range is not None:
-        start, num = meds_range.split(':')
-        start = int(start)
-        num = int(num) - int(start)  # last element is the end of the range + 1
+        start, end_plus_one, num = _split_range(meds_range)
     else:
         start = 0
         num = mbmeds.size
@@ -95,10 +140,9 @@ def main(
             start=start,
             num=num)
 
-    filename = expandpath(os.path.join(
-        output_path,
-        _make_output_filename(
-            meds_files[0], part if part is not None else start)))
+    bname = _make_output_filename(meds_files[0], part, meds_range)
+    filename = expandpath(os.path.join(output_path, bname))
+
     makedir_fromfile(filename)
 
     if use_tmpdir:
