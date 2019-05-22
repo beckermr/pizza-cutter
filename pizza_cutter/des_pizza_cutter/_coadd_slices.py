@@ -313,7 +313,8 @@ def _build_slice_inputs(
             se_slice.noise = interp_noise
 
             # make an image processing mask and set it
-            pmask = np.zeros_like(se_slice.bmask)
+            # note we have to make sure this is int32 to get all of the flags
+            pmask = np.zeros(se_slice.bmask.shape, dtype=np.int32)
 
             msk = (se_slice.bmask & noise_interp_flags) != 0
             pmask[msk] |= BMASK_NOISE_INTERP
