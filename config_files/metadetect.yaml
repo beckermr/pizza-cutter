@@ -42,6 +42,14 @@ weight:
 # check for hitting the edge
 bmask_flags: 1073741824  # 2**30
 
+# the flag for star, which is not interpolated, rather we will cut objects
+# detected there
+star_flags: 32
+
+# pixels will have these flag set in the ormask if they were interpolated
+# plus adding in tapebump and star
+imperfect_flags: 20479
+
 meds:
   box_padding: 2
   box_type: iso_radius
