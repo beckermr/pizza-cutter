@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+run metadetect on a slice file
+"""
 import os
 import sys
 import logging
