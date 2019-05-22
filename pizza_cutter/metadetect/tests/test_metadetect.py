@@ -5,4 +5,7 @@ except Exception:
 
 
 def test_metadetect():
+    """
+    run the test from metadetect
+    """
     test_func()
