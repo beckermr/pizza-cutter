@@ -24,28 +24,44 @@ def test_make_output_array():
     position_offset = 2
     orig_start_col = 10
     orig_start_row = 20
-    obj_id = 11
+    slice_id = 11
     mcal_step = b'blah'
-    data = np.zeros(
-        10, dtype=[('sx_row', 'f8'), ('sx_col', 'f8'), ('a', 'f8')])
+
+    dtype = [
+        ('sx_row', 'f8'),
+        ('sx_col', 'f8'),
+        ('sx_row_noshear', 'f8'),
+        ('sx_col_noshear', 'f8'),
+        ('a', 'f8'),
+    ]
+    data = np.zeros(10, dtype=dtype)
 
     data['sx_row'] = np.arange(10) + 324
     data['sx_col'] = np.arange(10) + 3
+    data['sx_row_noshear'] = np.arange(10) + 324
+    data['sx_col_noshear'] = np.arange(10) + 3
 
     arr = _make_output_array(
         data=data,
-        obj_id=obj_id,
+        slice_id=slice_id,
         mcal_step=mcal_step,
         orig_start_row=orig_start_row,
         orig_start_col=orig_start_col,
         position_offset=position_offset,
         wcs=wcs)
 
-    assert np.all(arr['slice_id'] == obj_id)
+    assert np.all(arr['slice_id'] == slice_id)
     assert np.all(arr['mcal_step'] == mcal_step)
 
     ra, dec = wcs.image2sky(
         x=data['sx_col'] + orig_start_col + position_offset,
-        y=data['sx_row'] + orig_start_row + position_offset)
+        y=data['sx_row'] + orig_start_row + position_offset,
+    )
+    ura, udec = wcs.image2sky(
+        x=data['sx_col_noshear'] + orig_start_col + position_offset,
+        y=data['sx_row_noshear'] + orig_start_row + position_offset,
+    )
     assert np.all(arr['ra'] == ra)
     assert np.all(arr['dec'] == dec)
+    assert np.all(arr['ra_noshear'] == ura)
+    assert np.all(arr['dec_noshear'] == udec)

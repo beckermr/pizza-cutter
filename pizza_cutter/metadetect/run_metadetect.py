@@ -17,22 +17,100 @@ logger = logging.getLogger(__name__)
 
 def _make_output_array(
         *,
-        data, obj_id, mcal_step,
+        data, slice_id, mcal_step,
         orig_start_row, orig_start_col, position_offset, wcs):
-    arr = eu.numpy_util.add_fields(
-                data,
-                [('slice_id', 'i8'), ('mcal_step', 'S7'),
-                 ('ra', 'f8'), ('dec', 'f8')])
-    arr['slice_id'] = obj_id
+    """
+    Add columns to the output data array. These include the slice id, metacal
+    step (e.g. '1p'), ra, dec in the sheared coordinates as well as unsheared
+    coordinates
+
+    Parameters
+    ----------
+    data: array with fields
+        The data, to be augmented
+    slice_id: int
+        The slice id
+    mcal_step: str
+        e.g. 'noshear', '1p', '1m', '2p', '2m'
+    orig_start_row: float
+        Start row of origin of slice
+    orig_start_col: float
+        Start col of origin of slice
+    position_offset: int
+        Often 1 for wcs
+    wcs: world coordinate system object
+        wcs for converting image positions to sky positions
+
+    Returns
+    -------
+    array with new fields
+    """
+    add_dt = [
+        ('slice_id', 'i8'),
+        ('mcal_step', 'S7'),
+        ('ra', 'f8'),
+        ('dec', 'f8'),
+        ('ra_noshear', 'f8'),
+        ('dec_noshear', 'f8'),
+    ]
+    arr = eu.numpy_util.add_fields(data, add_dt)
+    arr['slice_id'] = slice_id
     arr['mcal_step'] = mcal_step
 
-    row = arr['sx_row'] + orig_start_row + position_offset
-    col = arr['sx_col'] + orig_start_col + position_offset
-    ra, dec = wcs.image2sky(x=col, y=row)
-    arr['ra'] = ra
-    arr['dec'] = dec
+    arr['ra'], arr['dec'] = _get_radec(
+        row=arr['sx_row'],
+        col=arr['sx_col'],
+        orig_start_row=orig_start_row,
+        orig_start_col=orig_start_col,
+        position_offset=position_offset,
+        wcs=wcs,
+    )
+    arr['ra_noshear'], arr['dec_noshear'] = _get_radec(
+        row=arr['sx_row_noshear'],
+        col=arr['sx_col_noshear'],
+        orig_start_row=orig_start_row,
+        orig_start_col=orig_start_col,
+        position_offset=position_offset,
+        wcs=wcs,
+    )
 
     return arr
+
+
+def _get_radec(*,
+               row,
+               col,
+               orig_start_row,
+               orig_start_col,
+               position_offset,
+               wcs):
+    """
+    Convert image positions to sky positions
+
+    Parameters
+    ----------
+    row: array
+        array of rows
+    col: array
+        array of columns
+    orig_start_row: float
+        Start row of origin of slice
+    orig_start_col: float
+        Start col of origin of slice
+    position_offset: int
+        Often 1 for wcs
+    wcs: world coordinate system object
+        wcs for converting image positions to sky positions
+
+    Returns
+    -------
+    ra, dec arrays
+    """
+
+    trow = row + orig_start_row + position_offset
+    tcol = col + orig_start_col + position_offset
+    ra, dec = wcs.image2sky(x=tcol, y=trow)
+    return ra, dec
 
 
 def _post_process_results(*, outputs, obj_data, image_info):
@@ -57,7 +135,7 @@ def _post_process_results(*, outputs, obj_data, image_info):
 
                 output.append(_make_output_array(
                     data=data,
-                    obj_id=obj_data['id'][i],
+                    slice_id=obj_data['id'][i],
                     mcal_step=mcal_step,
                     orig_start_col=obj_data['orig_start_col'][i, 0],
                     orig_start_row=obj_data['orig_start_row'][i, 0],
