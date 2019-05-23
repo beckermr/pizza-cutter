@@ -35,7 +35,7 @@ def _split_range(meds_range):
     return start, end_plus_one, num
 
 
-def _make_output_filename(meds_fname, part, meds_range):
+def _make_output_filename(directory, meds_fname, part, meds_range):
     """
     make the output name
 
@@ -53,21 +53,34 @@ def _make_output_filename(meds_fname, part, meds_range):
     file basename
     """
 
+    run = os.path.basename(directory)
+
     fname = os.path.basename(meds_fname)
     fname = fname.replace('.fz', '').replace('.fits', '')
 
-    # remove the band - always comes after the tilename by convention
     items = fname.split('_')
-    fname = '_'.join(items[0:1] + items[2:])
+    # keep real DES data names short. By convention, the first part
+    # is the tilename
+    parts = [run, items[0]]
+
+    if part is None and meds_range is None:
+        part = 0
 
     if part is not None:
-        tail = '-metadetect-output-part%04d.fits' % part
+        tail = 'part%04d.fits' % part
     else:
         start, end_plus_one, num = _split_range(meds_range)
         end = end_plus_one - 1
-        tail = '-metadetect-output-%04d-%04d.fits' % (start, end)
 
-    return fname + tail
+        tail = '%04d-%04d.fits' % (start, end)
+
+    parts.append(tail)
+
+    fname = '-'.join(parts)
+
+    fname = os.path.join(directory, fname)
+    fname = expandpath(fname)
+    return fname
 
 
 @click.command()
@@ -140,10 +153,10 @@ def main(
             start=start,
             num=num)
 
-    bname = _make_output_filename(meds_files[0], part, meds_range)
-    filename = expandpath(os.path.join(output_path, bname))
+    filename = _make_output_filename(output_path, meds_files[0], part, meds_range)
 
     makedir_fromfile(filename)
+    print('output file:', filename, flush=True)
 
     if use_tmpdir:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -152,7 +165,7 @@ def main(
     else:
         _call(filename)
 
-    print('output file:', filename, flush=True)
+    print('output is in:', filename, flush=True)
 
 
 if __name__ == '__main__':
