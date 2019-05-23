@@ -71,9 +71,20 @@ def _get_wcs_inverse(
 
     if isinstance(se_wcs, galsim.BaseWCS):
         def _image2sky(x, y):
-            ra, dec = se_wcs._radec(
-                x - se_wcs.x0 + se_wcs_position_offset,
-                y - se_wcs.y0 + se_wcs_position_offset)
+            # pixmappy uses c=, but real galsim wcs use color=
+            try:
+                ra, dec = se_wcs._radec(
+                    x - se_wcs.x0 + se_wcs_position_offset,
+                    y - se_wcs.y0 + se_wcs_position_offset,
+                    c=0,  # explicitly turning off color
+                )
+            except TypeError:
+                ra, dec = se_wcs._radec(
+                    x - se_wcs.x0 + se_wcs_position_offset,
+                    y - se_wcs.y0 + se_wcs_position_offset,
+                    color=0,  # explicitly turning off color
+                )
+
             np.degrees(ra, out=ra)
             np.degrees(dec, out=dec)
             return ra, dec
@@ -367,10 +378,20 @@ class SEImageSlice(object):
         elif isinstance(self._wcs, galsim.BaseWCS):
             assert self._wcs.isCelestial()
 
-            # ignoring color for now
-            ra, dec = self._wcs._radec(
-                x - self._wcs.x0 + self._wcs_position_offset,
-                y - self._wcs.y0 + self._wcs_position_offset)
+            # pixmappy uses c=, but real galsim wcs use color=
+            try:
+                ra, dec = self._wcs._radec(
+                    x - self._wcs.x0 + self._wcs_position_offset,
+                    y - self._wcs.y0 + self._wcs_position_offset,
+                    c=0,  # explicitly turning off color
+                )
+            except TypeError:
+                ra, dec = self._wcs._radec(
+                    x - self._wcs.x0 + self._wcs_position_offset,
+                    y - self._wcs.y0 + self._wcs_position_offset,
+                    color=0,  # explicitly turning off color
+                )
+
             np.degrees(ra, out=ra)
             np.degrees(dec, out=dec)
         else:
