@@ -153,7 +153,12 @@ def main(
             start=start,
             num=num)
 
-    filename = _make_output_filename(output_path, meds_files[0], part, meds_range)
+    filename = _make_output_filename(
+        output_path,
+        meds_files[0],
+        part,
+        meds_range,
+    )
 
     makedir_fromfile(filename)
     print('output file:', filename, flush=True)
