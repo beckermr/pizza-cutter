@@ -2,8 +2,6 @@
 """
 run metadetect on a slice file
 """
-import os
-import shutil
 import sys
 import logging
 import tempfile
@@ -18,7 +16,11 @@ from pizza_cutter.metadetect.run_metadetect import (
     split_range,
 )
 from ngmix.medsreaders import MultiBandNGMixMEDS, NGMixMEDS
-from pizza_cutter.files import StagedOutFile, makedir_fromfile
+from pizza_cutter.files import (
+    StagedOutFile,
+    StagedInFile,
+    makedir_fromfile,
+)
 
 
 def _process(*,
@@ -40,14 +42,12 @@ def _process(*,
     meds_list = []
     for f in meds_files:
 
-        if tmpdir is not None:
-            usename = os.path.join(tmpdir, os.path.basename(f))
-            print('copying %s -> %s' % (f, usename))
-            shutil.copy(f, tmpdir)
-        else:
-            usename = f
+        # this will do nothing if tmpdir is None, and because not
+        # used as a context manager, it won't clean up, we rely on
+        # TemporaryDirectory() to do that
+        sf = StagedInFile(f, tmpdir=tmpdir)
 
-        m = NGMixMEDS(usename)
+        m = NGMixMEDS(sf.path)
         meds_list.append(m)
 
     mbmeds = MultiBandNGMixMEDS(meds_list)
