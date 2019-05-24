@@ -11,8 +11,76 @@ import fitsio
 
 from metadetect.metadetect import do_metadetect
 from ..slice_utils.pbar import PBar
+from ..files import expandpath
 
 logger = logging.getLogger(__name__)
+
+
+def split_range(meds_range):
+    """
+    Parameters
+    ----------
+    meds_range: str
+        e.g. '3:7' is like a python slice
+
+    Returns
+    -------
+    start, end_plus_one, num
+        Start index, end+1 from the slice, and number to process
+    """
+    start, end_plus_one = meds_range.split(':')
+    start = int(start)
+    end_plus_one = int(end_plus_one)
+    num = end_plus_one - start  # last element is the end of the range + 1
+    return start, end_plus_one, num
+
+
+def make_output_filename(directory, meds_fname, part, meds_range):
+    """
+    make the output name
+
+    Parameters
+    ----------
+    meds_fname: str
+        Example meds file name
+    part: int
+        The part of the file processed
+    meds_range: str
+        The slice to process, as as string, e.g. '3:7'
+
+    Returns
+    -------
+    file basename
+    """
+
+    run = os.path.basename(directory)
+
+    fname = os.path.basename(meds_fname)
+    fname = fname.replace('.fz', '').replace('.fits', '')
+
+    items = fname.split('_')
+    # keep real DES data names short. By convention, the first part
+    # is the tilename
+    parts = [run, items[0]]
+
+    if part is None and meds_range is None:
+        part = 0
+
+    if part is not None:
+        tail = 'part%04d.fits' % part
+    else:
+        start, end_plus_one, num = split_range(meds_range)
+        end = end_plus_one - 1
+
+        tail = '%04d-%04d.fits' % (start, end)
+
+    parts.append(tail)
+
+    fname = '-'.join(parts)
+
+    fname = os.path.join(directory, fname)
+    fname = expandpath(fname)
+    return fname
 
 
 def _make_output_array(
