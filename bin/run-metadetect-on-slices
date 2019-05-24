@@ -84,7 +84,7 @@ def _process(*,
     print('output file:', filename, flush=True)
 
     # if tmpdir is none, no staging or local dir is used
-    with StagedOutFile(filename, tmpdir) as sf:
+    with StagedOutFile(filename, tmpdir=tmpdir) as sf:
         _call(sf.path)
 
     print('output is in:', filename, flush=True)
