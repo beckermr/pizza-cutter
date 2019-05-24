@@ -142,3 +142,90 @@ class StagedOutFile(object):
 
     def __exit__(self, exception_type, exception_value, traceback):
         self.stage_out()
+
+
+class StagedInFile(object):
+    """
+    A class to represent a staged file
+    If tmpdir=None no staging is performed and the original file path is used
+
+    parameters
+    ----------
+    fname: string
+        original file location
+    tmpdir: string, optional
+        If not sent, no staging is done.
+
+    examples
+    --------
+    # using a context for the staged file
+    fname="/home/jill/output.dat"
+    tmpdir="/tmp"
+    with StagedInFile(fname,tmpdir=tmpdir) as sf:
+        with open(sf.path) as fobj:
+            # read some data
+
+    """
+    def __init__(self, fname, tmpdir=None):
+
+        self._set_paths(fname, tmpdir=tmpdir)
+        self.stage_in()
+
+    def _set_paths(self, fname, tmpdir=None):
+        fname = expandpath(fname)
+
+        self.original_path = fname
+
+        if tmpdir is not None:
+            self.tmpdir = expandpath(tmpdir)
+        else:
+            self.tmpdir = tmpdir
+
+        self.was_staged_in = False
+        self._stage_in = False
+
+        if self.tmpdir is not None:
+            bdir, bname = os.path.split(self.original_path)
+            self.path = os.path.join(self.tmpdir, bname)
+
+            if self.tmpdir == bdir:
+                # the user sent tmpdir as the source dir, no
+                # staging is performed
+                self._stage_in = False
+            else:
+                self._stage_in = True
+        else:
+            self.path = self.original_path
+
+    def stage_in(self):
+        """
+        make a local copy of the file
+        """
+        import shutil
+
+        if self._stage_in:
+            if not os.path.exists(self.original_path):
+                raise IOError("file not found:", self.original_path)
+
+            if os.path.exists(self.path):
+                print("removing existing file:", self.path)
+                os.remove(self.path)
+            else:
+                makedir_fromfile(self.path)
+
+            print("staging in", self.original_path, "->", self.path)
+            shutil.copy(self.original_path, self.path)
+
+            self.was_staged_in = True
+
+    def cleanup(self):
+        if self.was_staged_in and os.path.exists(self.path):
+            print("removing temporary file:", self.path)
+            os.remove(self.path)
+            self.was_staged_in = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        self.cleanup()

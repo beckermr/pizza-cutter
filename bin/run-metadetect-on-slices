@@ -16,7 +16,78 @@ from pizza_cutter.metadetect.run_metadetect import (
     split_range,
 )
 from ngmix.medsreaders import MultiBandNGMixMEDS, NGMixMEDS
-from pizza_cutter.files import StagedOutFile, makedir_fromfile
+from pizza_cutter.files import (
+    StagedOutFile,
+    StagedInFile,
+    makedir_fromfile,
+)
+
+
+def _process(*,
+             meds_files,
+             config,
+             output_path,
+             seed,
+             part,
+             log_level,
+             meds_range,
+             tmpdir):
+
+    with open(config, 'r') as fp:
+        _config = yaml.load(fp.read(), Loader=yaml.Loader)
+
+    logging.basicConfig(
+        stream=sys.stdout, level=getattr(logging, log_level.upper()))
+
+    meds_list = []
+    for f in meds_files:
+
+        # this will do nothing if tmpdir is None, and because not
+        # used as a context manager, it won't clean up, we rely on
+        # TemporaryDirectory() to do that
+        sf = StagedInFile(f, tmpdir=tmpdir)
+
+        m = NGMixMEDS(sf.path)
+        meds_list.append(m)
+
+    mbmeds = MultiBandNGMixMEDS(meds_list)
+
+    if part is not None:
+        part, n_parts = part.split(':')
+        part = int(part)
+        n_parts = int(n_parts)
+        start, num = _get_part_ranges(part, n_parts, mbmeds.size)
+    elif meds_range is not None:
+        start, end_plus_one, num = split_range(meds_range)
+    else:
+        start = 0
+        num = mbmeds.size
+
+    def _call(output_file):
+        run_metadetect(
+            config=_config,
+            output_file=output_file,
+            multiband_meds=mbmeds,
+            seed=seed,
+            start=start,
+            num=num,
+        )
+
+    filename = make_output_filename(
+        output_path,
+        meds_files[0],
+        part,
+        meds_range,
+    )
+
+    makedir_fromfile(filename)
+    print('output file:', filename, flush=True)
+
+    # if tmpdir is none, no staging or local dir is used
+    with StagedOutFile(filename, tmpdir=tmpdir) as sf:
+        _call(sf.path)
+
+    print('output is in:', filename, flush=True)
 
 
 @click.command()
@@ -59,54 +130,23 @@ def main(
         raise click.BadParameter(
             'You must specify only one of `--part` and `--range`')
 
-    with open(config, 'r') as fp:
-        _config = yaml.load(fp.read(), Loader=yaml.Loader)
-
-    logging.basicConfig(
-        stream=sys.stdout, level=getattr(logging, log_level.upper()))
-
-    # init meds once here
-    meds_list = [NGMixMEDS(fname) for fname in meds_files]
-    mbmeds = MultiBandNGMixMEDS(meds_list)
-
-    if part is not None:
-        part, n_parts = part.split(':')
-        part = int(part)
-        n_parts = int(n_parts)
-        start, num = _get_part_ranges(part, n_parts, mbmeds.size)
-    elif meds_range is not None:
-        start, end_plus_one, num = split_range(meds_range)
-    else:
-        start = 0
-        num = mbmeds.size
-
-    def _call(output_file):
-        run_metadetect(
-            config=_config,
-            output_file=output_file,
-            multiband_meds=mbmeds,
+    def _call_process(*, tmpdir):
+        _process(
+            meds_files=meds_files,
+            config=config,
+            output_path=output_path,
             seed=seed,
-            start=start,
-            num=num)
-
-    filename = make_output_filename(
-        output_path,
-        meds_files[0],
-        part,
-        meds_range,
-    )
-
-    makedir_fromfile(filename)
-    print('output file:', filename, flush=True)
+            part=part,
+            log_level=log_level,
+            meds_range=meds_range,
+            tmpdir=tmpdir,
+           )
 
     if use_tmpdir:
         with tempfile.TemporaryDirectory() as tmpdir:
-            with StagedOutFile(filename, tmpdir) as sf:
-                _call(sf.path)
+            _call_process(tmpdir=tmpdir)
     else:
-        _call(filename)
-
-    print('output is in:', filename, flush=True)
+        _call_process(tmpdir=None)
 
 
 if __name__ == '__main__':
