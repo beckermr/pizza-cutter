@@ -2,7 +2,6 @@
 """
 run metadetect on a slice file
 """
-import os
 import sys
 import logging
 import tempfile
@@ -11,76 +10,13 @@ import click
 import yaml
 
 from pizza_cutter.metadetect.run_metadetect import (
-    run_metadetect, _get_part_ranges)
+    run_metadetect,
+    _get_part_ranges,
+    make_output_filename,
+    split_range,
+)
 from ngmix.medsreaders import MultiBandNGMixMEDS, NGMixMEDS
-from pizza_cutter.files import StagedOutFile, expandpath, makedir_fromfile
-
-
-def _split_range(meds_range):
-    """
-    Parameters
-    ----------
-    meds_range: str
-        e.g. '3:7' is like a python slice
-
-    Returns
-    -------
-    start, end_plus_one, num
-        Start index, end+1 from the slice, and number to process
-    """
-    start, end_plus_one = meds_range.split(':')
-    start = int(start)
-    end_plus_one = int(end_plus_one)
-    num = end_plus_one - start  # last element is the end of the range + 1
-    return start, end_plus_one, num
-
-
-def _make_output_filename(directory, meds_fname, part, meds_range):
-    """
-    make the output name
-
-    Parameters
-    ----------
-    meds_fname: str
-        Example meds file name
-    part: int
-        The part of the file processed
-    meds_range: str
-        The slice to process, as as string, e.g. '3:7'
-
-    Returns
-    -------
-    file basename
-    """
-
-    run = os.path.basename(directory)
-
-    fname = os.path.basename(meds_fname)
-    fname = fname.replace('.fz', '').replace('.fits', '')
-
-    items = fname.split('_')
-    # keep real DES data names short. By convention, the first part
-    # is the tilename
-    parts = [run, items[0]]
-
-    if part is None and meds_range is None:
-        part = 0
-
-    if part is not None:
-        tail = 'part%04d.fits' % part
-    else:
-        start, end_plus_one, num = _split_range(meds_range)
-        end = end_plus_one - 1
-
-        tail = '%04d-%04d.fits' % (start, end)
-
-    parts.append(tail)
-
-    fname = '-'.join(parts)
-
-    fname = os.path.join(directory, fname)
-    fname = expandpath(fname)
-    return fname
+from pizza_cutter.files import StagedOutFile, makedir_fromfile
 
 
 @click.command()
@@ -139,7 +75,7 @@ def main(
         n_parts = int(n_parts)
         start, num = _get_part_ranges(part, n_parts, mbmeds.size)
     elif meds_range is not None:
-        start, end_plus_one, num = _split_range(meds_range)
+        start, end_plus_one, num = split_range(meds_range)
     else:
         start = 0
         num = mbmeds.size
@@ -153,7 +89,7 @@ def main(
             start=start,
             num=num)
 
-    filename = _make_output_filename(
+    filename = make_output_filename(
         output_path,
         meds_files[0],
         part,
