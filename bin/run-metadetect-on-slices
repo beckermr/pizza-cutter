@@ -83,11 +83,9 @@ def _process(*,
     makedir_fromfile(filename)
     print('output file:', filename, flush=True)
 
-    if tmpdir is not None:
-        with StagedOutFile(filename, tmpdir) as sf:
-            _call(sf.path)
-    else:
-        _call(filename)
+    # if tmpdir is none, no staging or local dir is used
+    with StagedOutFile(filename, tmpdir) as sf:
+        _call(sf.path)
 
     print('output is in:', filename, flush=True)
 
