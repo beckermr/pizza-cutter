@@ -45,7 +45,8 @@ def test_memmappednoise_fill(bad_value):
 
         assert np.std(ns[0:50, :]) < np.std(ns[50:, :])
 
-        # the noise should be close to 3, but ofc it is noise so within 0.1 is fine
+        # the noise should be close to 3, but ofc it is noise so within 0.1 is
+        # fine
         assert np.abs(np.std(ns[0:50, :]) - 3) < 0.1
 
 
