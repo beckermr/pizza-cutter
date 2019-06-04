@@ -1,6 +1,5 @@
 import os
 from os.path import expandvars
-import tempfile
 import subprocess
 import functools
 import json
@@ -52,7 +51,7 @@ def make_des_pizza_slices(
         info,
         seed,
         remove_fits_file=True,
-        use_tmpdir,
+        tmpdir=None,
         fpack_pars=None,
         coadd_config,
         single_epoch_config):
@@ -73,9 +72,8 @@ def make_des_pizza_slices(
     remove_fits_file : bool, optional
         If `True`, remove the FITS file after fpacking. Only works if not
         using a temporary directory.
-    use_tmpdir : bool
-        If True, use a tmporary directory to write data locally and then
-        copy at once to the final destination.
+    tmpdir : optional, string
+        Optional temporary directory to use for staging files
     fpack_pars : dict, optional
         A dictionary of fpack header keywords for compression.
     coadd_config : dict
@@ -125,11 +123,6 @@ def make_des_pizza_slices(
 
     eu.ostools.makedirs_fromfile(meds_path)
 
-    if use_tmpdir:
-        tmpdir = tempfile.mkdtemp()
-    else:
-        tmpdir = None
-
     with StagedOutFile(meds_path + '.fz', tmpdir=tmpdir) as sf:
 
         staged_meds_path = sf.path[:-3]
@@ -144,7 +137,9 @@ def make_des_pizza_slices(
                 position_offset=info['position_offset'],
                 coadding_weight=coadd_config['coadding_weight'],
                 seed=seed,
-                fpack_pars=fpack_pars)
+                fpack_pars=fpack_pars,
+                tmpdir=tmpdir,
+            )
 
             fits.write(metadata, extname=METADATA_EXTNAME)
             fits.write(image_info, extname=IMAGE_INFO_EXTNAME)
@@ -172,7 +167,8 @@ def make_des_pizza_slices(
 
 def _coadd_and_write_images(
         *, fits, fpack_pars, object_data, info, single_epoch_config,
-        wcs, position_offset, coadding_weight, seed):
+        wcs, position_offset, coadding_weight, seed,
+        tmpdir=None):
 
     logger.info('reserving mosaic images...')
     n_pixels = int(np.sum(object_data['box_size']**2))
@@ -251,6 +247,7 @@ def _coadd_and_write_images(
             wcs_type=single_epoch_config['wcs_type'],
             psf_type=single_epoch_config['psf_type'],
             rng=rng,
+            tmpdir=tmpdir,
         )
 
         se_image_slices, weights, slices_not_used, flags_not_used = bsres

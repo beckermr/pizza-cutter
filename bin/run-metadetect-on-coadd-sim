@@ -70,8 +70,55 @@ def _build_meds_list(*, tilename, band, sim_path, coadd_config, seed):
                     os.path.join(sim_path, cfg['psf'])
                     if isinstance(cfg['psf'], str)
                     else cfg['psf']),
-                seed=seed + i))
+                seed=seed + i),
+            tmpdir=tmpdir,
+        )
     return mlist
+
+def go(metadetect_config, coadd_config, output_path, sim_path,
+       tilename, band, tag, seed, log_level, part, tmpdir):
+
+    with open(metadetect_config, 'r') as fp:
+        _metadetect_config = yaml.load(fp.read())
+
+    logging.basicConfig(
+        stream=sys.stdout, level=getattr(logging, log_level.upper()))
+
+    part, n_parts = part.split(':')
+    part = int(part)
+    n_parts = int(n_parts)
+
+    sname = os.path.basename(coadd_config).replace('.yaml', '')
+    if tag is not None:
+        sname = '-'.join([sname, tag])
+    filename = os.path.join(
+        output_path,
+        "%s_%s_meds-pizza-slices-metadetect-output-part%04d.fits" % (
+            tilename, sname, part))
+
+    mlist = _build_meds_list(
+        tilename=tilename,
+        band=band,
+        sim_path=sim_path,
+        coadd_config=coadd_config,
+        seed=seed,
+        tmpdir=tmpdir,
+    )
+    mbmeds = MultiBandNGMixMEDS(mlist)
+
+    def _call(fname):
+        run_metadetect(
+            config=_metadetect_config,
+            output_file=fname,
+            multiband_meds=mbmeds,
+            seed=seed,
+            part=part,
+            n_parts=n_parts,
+            preprocessing_function=_make_masking_func(coadd_config))
+
+    # this works even if tmpdir is None
+    with StagedOutFile(filename, tmpdir=tmpdir) as sf:
+        _call(sf.path)
 
 
 @click.command()
@@ -120,49 +167,17 @@ def main(
         metadetect_config, coadd_config, output_path, sim_path,
         tilename, band, tag, seed, log_level, part, use_tmpdir):
     """Run metdetect on MEDS_FILES."""
-    with open(metadetect_config, 'r') as fp:
-        _metadetect_config = yaml.load(fp.read())
 
-    logging.basicConfig(
-        stream=sys.stdout, level=getattr(logging, log_level.upper()))
-
-    part, n_parts = part.split(':')
-    part = int(part)
-    n_parts = int(n_parts)
-
-    sname = os.path.basename(coadd_config).replace('.yaml', '')
-    if tag is not None:
-        sname = '-'.join([sname, tag])
-    filename = os.path.join(
-        output_path,
-        "%s_%s_meds-pizza-slices-metadetect-output-part%04d.fits" % (
-            tilename, sname, part))
-
-    mlist = _build_meds_list(
-        tilename=tilename,
-        band=band,
-        sim_path=sim_path,
-        coadd_config=coadd_config,
-        seed=seed)
-    mbmeds = MultiBandNGMixMEDS(mlist)
-
-    def _call(fname):
-        run_metadetect(
-            config=_metadetect_config,
-            output_file=fname,
-            multiband_meds=mbmeds,
-            seed=seed,
-            part=part,
-            n_parts=n_parts,
-            preprocessing_function=_make_masking_func(coadd_config))
+    def _call(tmpdir):
+        go(metadetect_config, coadd_config, output_path, sim_path,
+           tilename, band, tag, seed, log_level, part, tmpdir)
 
     if use_tmpdir:
         with tempfile.TemporaryDirectory() as tmpdir:
-            with StagedOutFile(filename, tmpdir) as sf:
-                _call(sf.path)
+            _call(tmpdir)
     else:
-        _call(filename)
-
+        tmpdir=None
+        _call(tmpdir)
 
 if __name__ == '__main__':
     main()

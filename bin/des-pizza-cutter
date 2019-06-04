@@ -2,11 +2,55 @@
 import os
 import sys
 import logging
+import tempfile
 
 import click
 import yaml
 from pizza_cutter.des_pizza_cutter import (
     make_des_pizza_slices, load_objects_into_info)
+
+def go(config, info, tag, output_path, log_level, seed, tmpdir):
+    """Create a metadetection MEDS file from a DES coadd tile."""
+
+    logging.basicConfig(stream=sys.stdout)
+    logging.getLogger('pizza_cutter').setLevel(
+        getattr(logging, log_level.upper()))
+
+    with open(config, 'r') as fp:
+        _config = fp.read()
+    cfg = yaml.load(_config, Loader=yaml.Loader)
+
+    with open(info, 'r') as fp:
+        info = yaml.load(fp, Loader=yaml.Loader)
+
+    print('tilename:', info['tilename'], flush=True)
+    print('band:', info['band'], flush=True)
+
+    # this loads all of the data we need into the info dict
+    print('loading PSF and WCS data...', flush=True)
+    load_objects_into_info(info=info)
+
+    sname = os.path.basename(config).replace('.yaml', '')
+    if tag is not None:
+        sname = '-'.join([sname, tag])
+    meds_path = os.path.join(
+        output_path,
+        "%s_%s_%s_meds-pizza-slices.fits" % (
+            info['tilename'],
+            info['band'],
+            sname))
+    print('output meds file:', meds_path, flush=True)
+
+    print('making pizza slices!', flush=True)
+    make_des_pizza_slices(
+        tmpdir=tmpdir,
+        config=_config,
+        meds_path=meds_path,
+        info=info,
+        fpack_pars=cfg.get('fpack_pars', None),
+        seed=seed,
+        coadd_config=cfg['coadd'],
+        single_epoch_config=cfg['single_epoch'])
 
 
 @click.command()
@@ -42,46 +86,15 @@ def main(
         use_tmpdir):
     """Create a metadetection MEDS file from a DES coadd tile."""
 
-    logging.basicConfig(stream=sys.stdout)
-    logging.getLogger('pizza_cutter').setLevel(
-        getattr(logging, log_level.upper()))
+    def _call(tmpdir):
+        go(config, info, tag, output_path, log_level, seed, tmpdir)
 
-    with open(config, 'r') as fp:
-        _config = fp.read()
-    cfg = yaml.load(_config, Loader=yaml.Loader)
-
-    with open(info, 'r') as fp:
-        info = yaml.load(fp, Loader=yaml.Loader)
-
-    print('tilename:', info['tilename'], flush=True)
-    print('band:', info['band'], flush=True)
-
-    # this loads all of the data we need into the info dict
-    print('loading PSF and WCS data...', flush=True)
-    load_objects_into_info(info=info)
-
-    sname = os.path.basename(config).replace('.yaml', '')
-    if tag is not None:
-        sname = '-'.join([sname, tag])
-    meds_path = os.path.join(
-        output_path,
-        "%s_%s_%s_meds-pizza-slices.fits" % (
-            info['tilename'],
-            info['band'],
-            sname))
-    print('output meds file:', meds_path, flush=True)
-
-    print('making pizza slices!', flush=True)
-    make_des_pizza_slices(
-        use_tmpdir=use_tmpdir,
-        config=_config,
-        meds_path=meds_path,
-        info=info,
-        fpack_pars=cfg.get('fpack_pars', None),
-        seed=seed,
-        coadd_config=cfg['coadd'],
-        single_epoch_config=cfg['single_epoch'])
-
+    if use_tmpdir:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            _call(tmpdir)
+    else:
+        tmpdir = None
+        _call(tmpdir)
 
 if __name__ == '__main__':
     main()

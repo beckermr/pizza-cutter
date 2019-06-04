@@ -57,7 +57,8 @@ def _build_slice_inputs(
         mask_tape_bumps,
         edge_buffer,
         wcs_type,
-        psf_type):
+        psf_type,
+        tmpdir=None):
     """Build the inputs to coadd a single slice.
 
     Parameters
@@ -85,6 +86,8 @@ def _build_slice_inputs(
         'noise' - use the maximum of the weight map for each SE image.
         'noise-fwhm' - use the maximum of the weight map divided by the
             (PSF FWHM)**4
+    tmpdir: optional, string
+        Optional temporary directory for temporary files
 
     These next options are from the 'single_epoch' section of the main
     configuration file (passed around as `single_epoch_config` in the code).
@@ -164,6 +167,7 @@ def _build_slice_inputs(
                 wcs_position_offset=se_info['position_offset'],
                 noise_seed=se_info['noise_seed'],
                 mask_tape_bumps=mask_tape_bumps,
+                tmpdir=tmpdir,
             )
 
             # first try a very rough cut on the patch center
