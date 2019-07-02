@@ -12,5 +12,6 @@ joblib
 jinja2
 blosc
 tqdm
+pylbfgs
 git+https://github.com/rmjarvis/Piff.git@master
 git+https://github.com/gbernstein/pixmappy.git
