@@ -47,6 +47,8 @@ single_epoch:
 
   mask_tape_bumps: False
 
+  interp_type: cubic
+
   spline_interp_flags:
     - 2
 

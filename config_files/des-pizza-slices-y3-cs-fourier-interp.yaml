@@ -58,7 +58,7 @@ single_epoch:
   # "SUSPECT":   2048,  #/* nominally useful pixel but not perfect    */
   # Note that SUSPECT includes tape bumps
 
-  interp_type: cubic
+  interp_type: 'cs-fourier'
 
   spline_interp_flags:
     - 1     # BPM

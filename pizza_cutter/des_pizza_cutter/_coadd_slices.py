@@ -13,6 +13,7 @@ from ..slice_utils.flag import (
     slice_has_flags,
     compute_masked_fraction)
 from ..slice_utils.interpolate import interpolate_image_and_noise
+from ..slice_utils.cs_interpolate import interpolate_image_and_noise_cs
 from ..slice_utils.symmetrize import (
     symmetrize_bmask,
     symmetrize_weight)
@@ -51,6 +52,7 @@ def _build_slice_inputs(
         symmetrize_masking,
         noise_interp_flags,
         spline_interp_flags,
+        interp_type,
         bad_image_flags,
         max_masked_fraction,
         max_unmasked_trail_fraction,
@@ -106,6 +108,14 @@ def _build_slice_inputs(
         flags will be interpolated using a cubic order interpolant over the
         good pixels. This step is done after symmetrization of the mask and
         any noise interpolation via `noise_interp_flags`.
+    interp_type : str
+        The kind of interpolant to use for the pixels flagged by
+        `spline_interp_flags`. This can be one of
+
+            'cubic' : a real-space cubic spline
+            'cs-fourier' : an interpolant built using an L1-penalized
+                loss in Fourier-space
+
     bad_image_flags : int
         An "or" of bit flags. Any image the set of SE images with any pixel
         in the coadding region set to one of these flags is ignored during
@@ -291,13 +301,27 @@ def _build_slice_inputs(
             # the same thing is done for the noise field since the noise
             # interpolation above is equivalent to drawing noise
             logger.debug('doing image interpolation')
-            interp_image, interp_noise = interpolate_image_and_noise(
-                image=se_slice.image,
-                noise=se_slice.noise,
-                weight=se_slice.weight,
-                bmask=se_slice.bmask,
-                bad_flags=spline_interp_flags,
-            )
+            if interp_type == 'cubic':
+                interp_image, interp_noise = interpolate_image_and_noise(
+                    image=se_slice.image,
+                    noise=se_slice.noise,
+                    weight=se_slice.weight,
+                    bmask=se_slice.bmask,
+                    bad_flags=spline_interp_flags,
+                )
+            elif interp_type == 'cs-fourier':
+                interp_image, interp_noise = interpolate_image_and_noise_cs(
+                    image=se_slice.image,
+                    noise=se_slice.noise,
+                    weight=se_slice.weight,
+                    bmask=se_slice.bmask,
+                    bad_flags=spline_interp_flags,
+                    rng=rng,
+                )
+            else:
+                raise ValueError(
+                    'spline interpolation type "%s" '
+                    'not recognized!' % interp_type)
 
             if interp_image is None or interp_noise is None:
                 flags |= procflags.HIGH_INTERP_MASKED_FRAC

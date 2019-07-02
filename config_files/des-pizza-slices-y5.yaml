@@ -57,6 +57,8 @@ single_epoch:
   # "SUSPECT":   2048,  #/* nominally useful pixel but not perfect    */
   # "TAPEBUMP": 16384,  #/* tape bumps                                */
 
+  interp_type: cubic
+
   spline_interp_flags:
     - 1     # BPM
     - 2     # SATURATE
