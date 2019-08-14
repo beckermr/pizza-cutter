@@ -316,6 +316,7 @@ def run_metadetect(
                 config, mbobs, seed+i*256, i, preprocessing_function)
             for i, mbobs in PBar(meds_iter(), total=num)]
     else:
+        assert False, "Check that we can actually use the potential closure in joblib here"
         outputs = joblib.Parallel(
                 verbose=10,
                 n_jobs=int(os.environ.get('OMP_NUM_THREADS', 1)),
