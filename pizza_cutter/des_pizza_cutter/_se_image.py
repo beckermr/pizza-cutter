@@ -464,6 +464,58 @@ class SEImageSlice(object):
         else:
             return x, y
 
+    def get_wcs_pixel_area(self, x, y):
+        """Get the pixel scale at a set of x-y locations.
+
+        Parameters
+        ----------
+        x : scalar or 1d array-like
+            The x/column image location in zero-indexed, pixel centered
+            coordinates.
+        y : scalar or 1d array-like
+            The y/row image location in zero-indexed, pixel centered
+            coordinates.
+
+        Returns
+        -------
+        pixel_area : scalar or 1d array-like
+            The pixel area in arcsec**2.
+        """
+        if np.ndim(x) == 0 and np.ndim(y) == 0:
+            is_scalar = True
+        else:
+            is_scalar = False
+
+        assert np.ndim(x) <= 1 and np.ndim(y) <= 1, (
+            "Inputs to image2sky must be scalars or 1d arrays")
+        assert np.ndim(x) == np.ndim(y), (
+            "Inputs to image2sky must be the same shape")
+
+        dxy = 1.0
+
+        x = np.atleast_1d(x).ravel()
+        y = np.atleast_1d(y).ravel()
+
+        ra, dec = self.image2sky(x, y)
+        ra_xp, dec_xp = self.image2sky(x + dxy, y)
+        ra_xm, dec_xm = self.image2sky(x - dxy, y)
+        ra_yp, dec_yp = self.image2sky(x, y + dxy)
+        ra_ym, dec_ym = self.image2sky(x, y - dxy)
+
+        # code here follows the computation in galsim or esutil
+        cosdec = np.cos(dec * (np.pi / 180.0))
+        dudx = -0.5 * (ra_xp - ra_xm) / dxy * cosdec * 3600
+        dudy = -0.5 * (ra_yp - ra_ym) / dxy * cosdec * 3600
+        dvdx = 0.5 * (dec_xp - dec_xm) / dxy * 3600
+        dvdy = 0.5 * (dec_yp - dec_ym) / dxy * 3600
+
+        area = np.abs(dudx * dvdy - dvdx * dudy)
+
+        if is_scalar:
+            return area[0]
+        else:
+            return area
+
     def get_wcs_jacobian(self, x, y):
         """Return the Jacobian of the WCS transformation as a
         `galsim.JacobianWCS` object.
