@@ -35,12 +35,11 @@ jobs:
             conda config --add channels conda-forge
             conda update -q conda
 
-            conda install --file requirements.txt
+            conda install -y -q --file requirements.txt
             pip install --no-deps git+https://github.com/gbernstein/pixmappy.git
             conda install -y -q \
               flake8 \
-              pytest \
-              nose \
+              pytest
             conda update --all -y -q
 
       - save_cache:
