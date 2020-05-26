@@ -62,7 +62,7 @@ jobs:
 
             git clone https://github.com/beckermr/des-y3-test-data.git
             export TEST_DESDATA=`pwd`/des-y3-test-data
-            pytest -n 4 -vvs pizza_cutter
+            pytest -n auto -vv pizza_cutter
 
 workflows:
   version: 2
