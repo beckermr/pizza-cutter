@@ -455,7 +455,7 @@ SE_WCS = esutil.wcsutil.WCS({
 
 def test_wcs_inversion():
     rng = np.random.RandomState(seed=10)
-    dim = 500
+    dim = 50
     y_out, x_out = np.mgrid[:dim+2:2, 0:dim+2:2]
     y_out = y_out.ravel()
     x_out = x_out.ravel()
@@ -463,8 +463,8 @@ def test_wcs_inversion():
 
     wcs_inv = WCSInversionInterpolator(x, y, x_out, y_out)
 
-    for _ in range(100):
-        se_pos = rng.uniform(size=2)*499 + 1
+    for _ in range(10):
+        se_pos = rng.uniform(size=2)*49 + 1
         se_pos = (se_pos[0], se_pos[1])
         coadd_pos = COADD_WCS.sky2image(*SE_WCS.image2sky(*se_pos))
         inv_se_pos = SE_WCS.sky2image(*COADD_WCS.image2sky(*coadd_pos))
