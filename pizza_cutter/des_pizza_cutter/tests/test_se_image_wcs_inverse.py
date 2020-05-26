@@ -7,6 +7,8 @@ import piff
 
 from .._se_image import _get_wcs_inverse
 
+SE_DIMS_CUT = 512
+
 
 @pytest.mark.skipif(
     os.environ.get('TEST_DESDATA', None) is None,
@@ -43,6 +45,7 @@ def test_se_image_get_wcs_inverse_pixmappy(se_image_data, coadd_image_data):
     bmask = fitsio.read(
         se_image_data['source_info']['bmask_path'],
         ext=se_image_data['source_info']['bmask_ext'])
+    bmask = bmask[:SE_DIMS_CUT, :SE_DIMS_CUT]
 
     # the apprixmate inversion assumes zero-indexed positions in and out
     wcs_inv = _get_wcs_inverse(
@@ -50,14 +53,14 @@ def test_se_image_get_wcs_inverse_pixmappy(se_image_data, coadd_image_data):
         coadd_image_data['position_offset'],
         se_wcs,
         se_image_data['source_info']['position_offset'],
-        (4096, 2048)
+        (SE_DIMS_CUT, SE_DIMS_CUT)
     )
 
     rng = np.random.RandomState(seed=100)
 
     # all of the positions here are zero indexed
-    x_se = rng.uniform(low=-0.5, high=bmask.shape[1]-0.5, size=100000)
-    y_se = rng.uniform(low=-0.5, high=bmask.shape[0]-0.5, size=100000)
+    x_se = rng.uniform(low=-0.5, high=bmask.shape[1]-0.5, size=1000)
+    y_se = rng.uniform(low=-0.5, high=bmask.shape[0]-0.5, size=1000)
     x_se_pix = (x_se + 0.5).astype(np.int64)
     y_se_pix = (y_se + 0.5).astype(np.int64)
     bmask_vals = bmask[y_se_pix, x_se_pix]
@@ -110,6 +113,7 @@ def test_se_image_get_wcs_inverse_scamp(se_image_data, coadd_image_data):
     bmask = fitsio.read(
         se_image_data['source_info']['bmask_path'],
         ext=se_image_data['source_info']['bmask_ext'])
+    bmask = bmask[:SE_DIMS_CUT, :SE_DIMS_CUT]
 
     # the apprixmate inversion assumes zero-indexed positions in and out
     wcs_inv = _get_wcs_inverse(
@@ -117,14 +121,14 @@ def test_se_image_get_wcs_inverse_scamp(se_image_data, coadd_image_data):
         coadd_image_data['position_offset'],
         se_wcs,
         se_image_data['source_info']['position_offset'],
-        (4096, 2048)
+        (SE_DIMS_CUT, SE_DIMS_CUT)
     )
 
     rng = np.random.RandomState(seed=100)
 
     # all of the positions here are zero indexed
-    x_se = rng.uniform(low=-0.5, high=bmask.shape[1]-0.5, size=100000)
-    y_se = rng.uniform(low=-0.5, high=bmask.shape[0]-0.5, size=100000)
+    x_se = rng.uniform(low=-0.5, high=bmask.shape[1]-0.5, size=1000)
+    y_se = rng.uniform(low=-0.5, high=bmask.shape[0]-0.5, size=1000)
     x_se_pix = (x_se + 0.5).astype(np.int64)
     y_se_pix = (y_se + 0.5).astype(np.int64)
     bmask_vals = bmask[y_se_pix, x_se_pix]

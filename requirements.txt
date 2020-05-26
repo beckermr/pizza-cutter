@@ -1,10 +1,13 @@
 numpy
 scipy
 galsim
-fitsio~=1.0
+fitsio
 pyyaml
 numba
-easyaccess
+des-easyaccess
+des-desmeds
+meds
+ngmix
 click
 esutil
 sep
@@ -12,5 +15,5 @@ joblib
 jinja2
 blosc
 tqdm
-git+https://github.com/rmjarvis/Piff.git@master
-git+https://github.com/gbernstein/pixmappy.git
+piff
+cfitsio

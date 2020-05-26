@@ -67,7 +67,9 @@ def _get_noise_image(weight_path, weight_ext, scale, noise_seed):
 
 @functools.lru_cache(maxsize=32)
 def _get_wcs_inverse(
-        wcs, wcs_position_offset, se_wcs, se_wcs_position_offset, se_im_shape):
+    wcs, wcs_position_offset, se_wcs, se_wcs_position_offset, se_im_shape,
+    delta=8,
+):
 
     if isinstance(se_wcs, galsim.BaseWCS):
         def _image2sky(x, y):
@@ -98,7 +100,6 @@ def _get_wcs_inverse(
 
     dim_y = se_im_shape[0]
     dim_x = se_im_shape[1]
-    delta = 8
     y_se, x_se = np.mgrid[:dim_y+delta:delta, :dim_x+delta:delta]
     y_se = y_se.ravel() - 0.5
     x_se = x_se.ravel() - 0.5
