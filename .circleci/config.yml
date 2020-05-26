@@ -49,6 +49,7 @@ jobs:
 
       - run:
           name: run tests
+          no_output_timeout: 360m
           command: |
             source `pwd`/miniconda/etc/profile.d/conda.sh
             conda activate base
