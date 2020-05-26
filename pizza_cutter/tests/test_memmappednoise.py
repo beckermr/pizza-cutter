@@ -89,7 +89,7 @@ def test_memmappednoise_sizes_different():
 
 def test_memmappednoise_sizes_weird():
     weight = np.ones((100, 100)) * 0.0001
-    ns = MemMappedNoiseImage(seed=10, weight=weight, sx=74, sy=1000)
+    ns = MemMappedNoiseImage(seed=10, weight=weight, sx=74, sy=10)
 
     ns1 = ns[0, 0]
     ns2 = ns[0, 0]
