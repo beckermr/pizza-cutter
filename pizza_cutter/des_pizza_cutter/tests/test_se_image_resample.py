@@ -23,8 +23,11 @@ def test_se_image_resample_smoke(se_image_data, coadd_image_data):
         noise_seed=10,
         mask_tape_bumps=False,
     )
-    ra, dec = se_im.image2sky(600, 700)
-    se_im.set_slice(600-250, 700-250, 500)
+    se_im._im_shape = (512, 512)
+    dim = 10
+    half = 5
+    ra, dec = se_im.image2sky(300, 150)
+    se_im.set_slice(300-half, 150-half, dim)
     se_im.set_psf(ra, dec)
     se_im.set_pmask(np.zeros_like(se_im.bmask))
     x, y = coadd_image_data['eu_wcs'].sky2image(ra, dec)
@@ -33,9 +36,9 @@ def test_se_image_resample_smoke(se_image_data, coadd_image_data):
     resampled_data = se_im.resample(
         wcs=coadd_image_data['eu_wcs'],
         wcs_position_offset=coadd_image_data['position_offset'],
-        x_start=x-250,
-        y_start=y-250,
-        box_size=500,
+        x_start=x-half,
+        y_start=y-half,
+        box_size=dim,
         psf_x_start=x-11,
         psf_y_start=y-11,
         psf_box_size=23
@@ -77,8 +80,8 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
     # applies eps_x to shift location in underlying image
     # has a position offset of 4
     pos_off = 4
-    coadd_x_start = 600
-    coadd_y_start = 700
+    coadd_x_start = 200
+    coadd_y_start = 150
 
     class FakeWCS(object):
         def image2sky(self, x, y):
@@ -102,6 +105,7 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
         noise_seed=10,
         mask_tape_bumps=False,
     )
+    se_im._im_shape = (512, 512)
 
     # we are going to override these methods for testing
     se_im._wcs.sky2image = _se_sky2image
