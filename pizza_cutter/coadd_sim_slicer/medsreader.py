@@ -33,8 +33,8 @@ CUTOUT_DEFAULT_VALUES = {
     'image_cutouts': 0.0,
     'weight_cutouts': 0.0,
     'seg_cutouts': 0,
-    'bmask_cutouts': 2**30,
-    'ormask_cutouts': 2**30,
+    'bmask_cutouts': 2**29,
+    'ormask_cutouts': 2**29,
     'noise_cutouts': 0.0,
     'psf': 0.0}
 
