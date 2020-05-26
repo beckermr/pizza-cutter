@@ -4,7 +4,10 @@ galsim
 fitsio
 pyyaml
 numba
-easyaccess
+des-easyaccess
+des-desmeds
+meds
+ngmix
 click
 esutil
 sep
