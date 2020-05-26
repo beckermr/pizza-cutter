@@ -2,42 +2,60 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/python:3.6.4
+      - image: circleci/python:3.7
 
     steps:
       - checkout
 
       - restore_cache:
           keys:
-          - v1-{{ checksum "requirements.txt" }}-{{ checksum "volatile-requirements.txt" }}-{{ checksum "dev-requirements.txt" }}
+          - v1-conda-dependencies-{{ checksum "requirements.txt" }}
+          # fallback to using the latest cache if no exact match is found
+          - v1-conda-dependencies-
 
       - run:
           name: install dependencies
           command: |
-            # patch for weirdness in mirrors - https://discuss.circleci.com/t/circleci-failing-when-using-sudo-apt-get-update/29269/9
-            sudo sed -i '/jessie-backports/d' /etc/apt/sources.list
-            sudo sed -i '/jessie-updates/d' /etc/apt/sources.list
-            sudo apt-get -qq update
-            sudo apt-get -qq upgrade
-            sudo apt-get -qq install libfftw3-dev libeigen3-dev build-essential libcfitsio-bin
-            python3 -m venv venv
-            . venv/bin/activate
-            pip install -U pip setuptools numpy cython pybind11
-            pip install --progress-bar=off -r dev-requirements.txt
-            pip install galsim
-            pip install --progress-bar=off -r requirements.txt
+            if [ ! -d miniconda ]; then
+              curl -fsSL https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -o miniconda.sh
+              bash miniconda.sh -b -p miniconda
+              rm -f miniconda.sh
+              source `pwd`/miniconda/etc/profile.d/conda.sh
+              conda activate base
+              conda config --set always_yes yes --set changeps1 no
+              conda config --add channels defaults
+              conda config --add channels conda-forge
+              conda update -q conda
+            fi
+
+            source `pwd`/miniconda/etc/profile.d/conda.sh
+            conda activate base
+            conda config --set always_yes yes --set changeps1 no
+            conda config --add channels defaults
+            conda config --add channels conda-forge
+            conda update -q conda
+
+            conda install --file requirements.txt
+            pip install --no-deps git+https://github.com/gbernstein/pixmappy.git
+            conda install -y -q \
+              flake8 \
+              pytest \
+              nose \
+            conda update --all -y -q
 
       - save_cache:
           paths:
-            - ./venv
-          key: v1-{{ checksum "requirements.txt" }}-{{ checksum "volatile-requirements.txt" }}-{{ checksum "dev-requirements.txt" }}
+            - ./miniconda
+          key: v1-conda-dependencies-{{ checksum "requirements.txt" }}
 
       - run:
           name: run tests
           command: |
-            . venv/bin/activate
-            pip install -U --progress-bar=off --no-cache-dir --upgrade-strategy=eager --force-reinstall -r volatile-requirements.txt
-            pip install -q --progress-bar=off --no-cache-dir --force-reinstall .
+            source `pwd`/miniconda/etc/profile.d/conda.sh
+            conda activate base
+
+            pip install --no-deps --progress-bar=off --no-cache-dir --upgrade-strategy=eager --force-reinstall -r volatile-requirements.txt
+            pip install -q --no-deps --progress-bar=off --no-cache-dir --force-reinstall .
             flake8 pizza_cutter
             flake8 bin
 
