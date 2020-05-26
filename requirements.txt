@@ -16,3 +16,4 @@ jinja2
 blosc
 tqdm
 piff
+cfitsio
