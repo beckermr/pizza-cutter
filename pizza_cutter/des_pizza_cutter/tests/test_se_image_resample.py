@@ -113,20 +113,22 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
 
     # now make it seem as if the image data has been read in
     # by setting it too
+    box_size = 150
+    half_box_size = 75
     rng = np.random.RandomState(seed=42)
-    se_im.image = rng.normal(size=(600, 600)) + 100
-    se_im.noise = rng.normal(size=(600, 600)) + 100
-    se_im.bmask = (rng.normal(size=(600, 600)) * 100).astype(np.int32)
+    se_im.image = rng.normal(size=(box_size, box_size)) + 100
+    se_im.noise = rng.normal(size=(box_size, box_size)) + 100
+    se_im.bmask = (rng.normal(size=(box_size, box_size)) * 100).astype(np.int32)
     se_im.x_start = x_start
     se_im.y_start = y_start
-    se_im.box_size = 600
-    se_im.pmask = (rng.normal(size=(600, 600)) * 100).astype(np.int32)
+    se_im.box_size = box_size
+    se_im.pmask = (rng.normal(size=(box_size, box_size)) * 100).astype(np.int32)
 
     # fake the PSF
     se_im.psf = rng.normal(size=(55, 55)) + 100
     se_im.psf_box_size = 55
-    se_im.psf_x_start = x_start + 300 - 27
-    se_im.psf_y_start = y_start + 300 - 27
+    se_im.psf_x_start = x_start + half_box_size - 27
+    se_im.psf_y_start = y_start + half_box_size - 27
 
     # the inputs here are zero-indexed, thus they lack pos_off
     # we apply the shifts eps_x, eps_y to test moving the coadd around
@@ -135,11 +137,11 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
     resampled_data = se_im.resample(
         wcs=FakeWCS(),
         wcs_position_offset=pos_off,
-        x_start=coadd_x_start + 250 + eps_x,
-        y_start=coadd_y_start + 250 + eps_y,
+        x_start=coadd_x_start + half_box_size - 50 + eps_x,
+        y_start=coadd_y_start + half_box_size - 50 + eps_y,
         box_size=100,
-        psf_x_start=coadd_x_start + 300 - 11 + eps_x,
-        psf_y_start=coadd_y_start + 300 - 11 + eps_y,
+        psf_x_start=coadd_x_start + half_box_size - 11 + eps_x,
+        psf_y_start=coadd_y_start + half_box_size - 11 + eps_y,
         psf_box_size=23)
 
     # first check they are finite
@@ -154,8 +156,8 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
     wcs = FakeWCS()
     ra, dec = wcs.image2sky(
         # using pos_off here since calling directly!
-        coadd_x_start + pos_off + 250 + eps_x,
-        coadd_y_start + pos_off + 250 + eps_y)
+        coadd_x_start + pos_off + half_box_size - 50 + eps_x,
+        coadd_y_start + pos_off + half_box_size - 50 + eps_y)
     final_x_start, final_y_start = _se_sky2image(ra, dec)
     final_x_start -= 1
     final_y_start -= 1
@@ -170,13 +172,13 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
     ra, dec = wcs.image2sky(
         # using pos_off here since calling directly!
         # need extra offset for the PSF stamp
-        coadd_x_start + pos_off + 300 - 11 + eps_x,
-        coadd_y_start + pos_off + 300 - 11 + eps_y)
+        coadd_x_start + pos_off + half_box_size - 11 + eps_x,
+        coadd_y_start + pos_off + half_box_size - 11 + eps_y)
     final_x_start, final_y_start = _se_sky2image(ra, dec)
     final_x_start -= 1
     final_y_start -= 1
-    final_x_start -= (x_start + 300 - 27)
-    final_y_start -= (y_start + 300 - 27)
+    final_x_start -= (x_start + half_box_size - 27)
+    final_y_start -= (y_start + half_box_size - 27)
     assert np.allclose(
         resampled_data['psf'],
         se_im.psf[final_y_start:final_y_start+23,
