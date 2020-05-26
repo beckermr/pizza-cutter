@@ -11,7 +11,7 @@ psf:
     xtol: 1.0e-05
   model: gauss
 
-  # we try many times because if this fails we get no psf info 
+  # we try many times because if this fails we get no psf info
   # for the entire patch
   ntry: 10
 
@@ -40,7 +40,7 @@ weight:
   fwhm: 1.2  # arcsec
 
 # check for hitting the edge
-bmask_flags: 1073741824  # 2**30
+bmask_flags: 536870912  # 2**29
 
 # fraction of slice where STAR or TRAIL was set.  We may cut objects detected
 # there
