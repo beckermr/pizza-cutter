@@ -39,7 +39,8 @@ jobs:
             pip install --no-deps git+https://github.com/gbernstein/pixmappy.git
             conda install -y -q \
               flake8 \
-              pytest
+              pytest \
+              pytest-xdist
             conda update --all -y -q
 
       - save_cache:
@@ -61,7 +62,7 @@ jobs:
 
             git clone https://github.com/beckermr/des-y3-test-data.git
             export TEST_DESDATA=`pwd`/des-y3-test-data
-            pytest -vvs pizza_cutter
+            pytest -n 4 -vvs pizza_cutter
 
 workflows:
   version: 2
