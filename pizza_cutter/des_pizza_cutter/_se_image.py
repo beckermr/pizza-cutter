@@ -113,8 +113,7 @@ def _get_wcs_inverse(
     return WCSInversionInterpolator(x_coadd, y_coadd, x_se, y_se)
 
 
-@functools.lru_cache(maxsize=32)
-def _get_wcs_area_interp(se_wcs, se_wcs_position_offset, se_im_shape, delta=8):
+def _compute_wcs_area(se_wcs, se_wcs_position_offset, x_se, y_se):
 
     if isinstance(se_wcs, galsim.BaseWCS):
         def _image2sky(x, y):
@@ -143,12 +142,6 @@ def _get_wcs_area_interp(se_wcs, se_wcs_position_offset, se_im_shape, delta=8):
     else:
         raise ValueError('WCS %s not recognized!' % se_wcs)
 
-    dim_y = se_im_shape[0]
-    dim_x = se_im_shape[1]
-    y_se, x_se = np.mgrid[:dim_y+delta:delta, :dim_x+delta:delta]
-    y_se = y_se.ravel() - 0.5
-    x_se = x_se.ravel() - 0.5
-
     dxy = 1
 
     ra, dec = _image2sky(x_se, y_se)
@@ -173,7 +166,19 @@ def _get_wcs_area_interp(se_wcs, se_wcs_position_offset, se_im_shape, delta=8):
         dvdx = 0.5 * (dec_xp - dec_xm) / dxy
         dvdy = 0.5 * (dec_yp - dec_ym) / dxy
 
-    area = np.abs(dudx * dvdy - dvdx * dudy)
+    return np.abs(dudx * dvdy - dvdx * dudy)
+
+
+@functools.lru_cache(maxsize=32)
+def _get_wcs_area_interp(se_wcs, se_wcs_position_offset, se_im_shape, delta=8):
+
+    dim_y = se_im_shape[0]
+    dim_x = se_im_shape[1]
+    y_se, x_se = np.mgrid[:dim_y+delta:delta, :dim_x+delta:delta]
+    y_se = y_se.ravel() - 0.5
+    x_se = x_se.ravel() - 0.5
+
+    area = _compute_wcs_area(se_wcs, se_wcs_position_offset, x_se, y_se)
 
     return WCSScalarInterpolator(x_se, y_se, area)
 
@@ -557,34 +562,10 @@ class SEImageSlice(object):
         assert np.ndim(x) == np.ndim(y), (
             "Inputs to image2sky must be the same shape")
 
-        dxy = 1.0
-
         x = np.atleast_1d(x).ravel()
         y = np.atleast_1d(y).ravel()
 
-        ra, dec = self.image2sky(x, y)
-        ra_xp, dec_xp = self.image2sky(x + dxy, y)
-        ra_xm, dec_xm = self.image2sky(x - dxy, y)
-        ra_yp, dec_yp = self.image2sky(x, y + dxy)
-        ra_ym, dec_ym = self.image2sky(x, y - dxy)
-
-        if (
-            not isinstance(self._wcs, AffineWCS)
-            and not isinstance(self._wcs, galsim.EuclideanWCS)
-        ):
-            # code here follows the computation in galsim or esutil
-            cosdec = np.cos(dec * (np.pi / 180.0))
-            dudx = -0.5 * (ra_xp - ra_xm) / dxy * cosdec * 3600
-            dudy = -0.5 * (ra_yp - ra_ym) / dxy * cosdec * 3600
-            dvdx = 0.5 * (dec_xp - dec_xm) / dxy * 3600
-            dvdy = 0.5 * (dec_yp - dec_ym) / dxy * 3600
-        else:
-            dudx = 0.5 * (ra_xp - ra_xm) / dxy
-            dudy = 0.5 * (ra_yp - ra_ym) / dxy
-            dvdx = 0.5 * (dec_xp - dec_xm) / dxy
-            dvdy = 0.5 * (dec_yp - dec_ym) / dxy
-
-        area = np.abs(dudx * dvdy - dvdx * dudy)
+        area = _compute_wcs_area(self._wcs, self._wcs_position_offset, x, y)
 
         if is_scalar:
             return area[0]
