@@ -157,22 +157,23 @@ def _get_wcs_area_interp(se_wcs, se_wcs_position_offset, se_im_shape, delta=8):
     ra_yp, dec_yp = _image2sky(x_se, y_se + dxy)
     ra_ym, dec_ym = _image2sky(x_se, y_se - dxy)
 
-    if not isinstance(se_wcs, AffineWCS):
+    if (
+        not isinstance(se_wcs, AffineWCS)
+        and not isinstance(se_wcs, galsim.EuclideanWCS)
+    ):
         # code here follows the computation in galsim or esutil
         cosdec = np.cos(dec * (np.pi / 180.0))
         dudx = -0.5 * (ra_xp - ra_xm) / dxy * cosdec * 3600
         dudy = -0.5 * (ra_yp - ra_ym) / dxy * cosdec * 3600
         dvdx = 0.5 * (dec_xp - dec_xm) / dxy * 3600
         dvdy = 0.5 * (dec_yp - dec_ym) / dxy * 3600
-
-        area = np.abs(dudx * dvdy - dvdx * dudy)
     else:
         dudx = 0.5 * (ra_xp - ra_xm) / dxy
         dudy = 0.5 * (ra_yp - ra_ym) / dxy
         dvdx = 0.5 * (dec_xp - dec_xm) / dxy
         dvdy = 0.5 * (dec_yp - dec_ym) / dxy
 
-        area = np.abs(dudx * dvdy - dvdx * dudy)
+    area = np.abs(dudx * dvdy - dvdx * dudy)
 
     return WCSScalarInterpolator(x_se, y_se, area)
 
@@ -567,12 +568,21 @@ class SEImageSlice(object):
         ra_yp, dec_yp = self.image2sky(x, y + dxy)
         ra_ym, dec_ym = self.image2sky(x, y - dxy)
 
-        # code here follows the computation in galsim or esutil
-        cosdec = np.cos(dec * (np.pi / 180.0))
-        dudx = -0.5 * (ra_xp - ra_xm) / dxy * cosdec * 3600
-        dudy = -0.5 * (ra_yp - ra_ym) / dxy * cosdec * 3600
-        dvdx = 0.5 * (dec_xp - dec_xm) / dxy * 3600
-        dvdy = 0.5 * (dec_yp - dec_ym) / dxy * 3600
+        if (
+            not isinstance(self._wcs, AffineWCS)
+            and not isinstance(self._wcs, galsim.EuclideanWCS)
+        ):
+            # code here follows the computation in galsim or esutil
+            cosdec = np.cos(dec * (np.pi / 180.0))
+            dudx = -0.5 * (ra_xp - ra_xm) / dxy * cosdec * 3600
+            dudy = -0.5 * (ra_yp - ra_ym) / dxy * cosdec * 3600
+            dvdx = 0.5 * (dec_xp - dec_xm) / dxy * 3600
+            dvdy = 0.5 * (dec_yp - dec_ym) / dxy * 3600
+        else:
+            dudx = 0.5 * (ra_xp - ra_xm) / dxy
+            dudy = 0.5 * (ra_yp - ra_ym) / dxy
+            dvdx = 0.5 * (dec_xp - dec_xm) / dxy
+            dvdy = 0.5 * (dec_yp - dec_ym) / dxy
 
         area = np.abs(dudx * dvdy - dvdx * dudy)
 
