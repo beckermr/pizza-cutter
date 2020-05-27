@@ -945,7 +945,7 @@ class SEImageSlice(object):
         se_wcs_area_interp = _get_wcs_area_interp(
             self._wcs, self._wcs_position_offset, self._im_shape)
         coadd_wcs_area_interp = _get_wcs_area_interp(
-            wcs, wcs_position_offset, wcs_interp_shape, delta=10)
+            wcs, wcs_position_offset, wcs_interp_shape, delta=100)
         logger.debug('end wcs area interp: %f', time.time() - t0)
 
         # 2. using the lookup tables, we resample each image to the

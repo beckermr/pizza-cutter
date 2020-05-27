@@ -455,16 +455,17 @@ SE_WCS = esutil.wcsutil.WCS({
 
 def test_wcs_inversion():
     rng = np.random.RandomState(seed=10)
-    dim = 50
-    y_out, x_out = np.mgrid[:dim+2:2, 0:dim+2:2]
+    dim = 64
+    delta = 8
+    y_out, x_out = np.mgrid[:dim+delta:delta, 0:dim+delta:delta]
     y_out = y_out.ravel()
     x_out = x_out.ravel()
     x, y = COADD_WCS.sky2image(*SE_WCS.image2sky(x_out, y_out))
 
     wcs_inv = WCSInversionInterpolator(x, y, x_out, y_out)
 
-    for _ in range(10):
-        se_pos = rng.uniform(size=2)*49 + 1
+    for _ in range(1000):
+        se_pos = rng.uniform(size=2)*63 + 1
         se_pos = (se_pos[0], se_pos[1])
         coadd_pos = COADD_WCS.sky2image(*SE_WCS.image2sky(*se_pos))
         inv_se_pos = SE_WCS.sky2image(*COADD_WCS.image2sky(*coadd_pos))
@@ -474,19 +475,40 @@ def test_wcs_inversion():
         assert np.allclose(se_pos, interp_se_pos)
 
 
-def test_wcs_scalar_interp():
+def test_wcs_scalar_interp_se():
     rng = np.random.RandomState(seed=10)
-    dim = 50
-    y, x = np.mgrid[:dim+2:2, 0:dim+2:2]
+    dim = 64
+    delta = 8
+    y, x = np.mgrid[:dim+delta:delta, 0:dim+delta:delta]
     y = y.ravel()
     x = x.ravel()
     tup = SE_WCS.get_jacobian(x, y)
-    area = tup[0]**2
+    area = np.abs(tup[0] * tup[3] - tup[1] * tup[2])
 
     wcs_area = WCSScalarInterpolator(x, y, area)
 
-    for _ in range(10):
-        se_pos = rng.uniform(size=2)*49 + 1
-        _area = SE_WCS.get_jacobian(se_pos[0], se_pos[1])[0]**2
+    for _ in range(1000):
+        se_pos = rng.uniform(size=2)*63 + 1
+        tup = SE_WCS.get_jacobian(se_pos[0], se_pos[1])
+        _area = np.abs(tup[0] * tup[3] - tup[1] * tup[2])
+        interp_area = wcs_area(se_pos[0], se_pos[1])
+        assert np.allclose(_area, interp_area)
+
+
+def test_wcs_scalar_interp_coadd():
+    rng = np.random.RandomState(seed=10)
+    dim = 10000
+    delta = 100
+    y, x = np.mgrid[:dim+delta:delta, 0:dim+delta:delta]
+    y = y.ravel()
+    x = x.ravel()
+    tup = COADD_WCS.get_jacobian(x, y)
+    area = np.abs(tup[0] * tup[3] - tup[1] * tup[2])
+    wcs_area = WCSScalarInterpolator(x, y, area)
+
+    for _ in range(1000):
+        se_pos = rng.uniform(size=2)*(dim-1) + 1
+        tup = COADD_WCS.get_jacobian(se_pos[0], se_pos[1])
+        _area = np.abs(tup[0] * tup[3] - tup[1] * tup[2])
         interp_area = wcs_area(se_pos[0], se_pos[1])
         assert np.allclose(_area, interp_area)
