@@ -152,7 +152,7 @@ def _compute_wcs_area(se_wcs, se_wcs_position_offset, x_se, y_se):
 
     if (
         not isinstance(se_wcs, AffineWCS)
-        and not isinstance(se_wcs, galsim.EuclideanWCS)
+        and not isinstance(se_wcs, galsim.wcs.EuclideanWCS)
     ):
         # code here follows the computation in galsim or esutil
         cosdec = np.cos(dec * (np.pi / 180.0))
