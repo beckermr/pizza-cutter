@@ -102,7 +102,7 @@ class WCSScalarInterpolator(object):
     Methods
     -------
     __call__(x, y)
-        Compute the values (x_out, y_out) corresponding to the input (x, y).
+        Compute the scalar value corresponding to the input (x, y).
     """
     def __init__(self, x_in, y_in, scalar):
         pts = np.stack([y_in, x_in]).T
