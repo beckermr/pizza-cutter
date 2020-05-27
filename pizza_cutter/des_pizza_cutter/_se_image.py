@@ -895,11 +895,10 @@ class SEImageSlice(object):
             x_rs_se,
         )
 
-        edge = edge.reshape(box_size, box_size),
         resampled_data = {
             'image': rim.reshape(box_size, box_size),
             'noise': rn.reshape(box_size, box_size),
-            'edge': edge,
+            'edge': edge.reshape(box_size, box_size),
         }
 
         # 3. do the nearest pixel for the bit mask
