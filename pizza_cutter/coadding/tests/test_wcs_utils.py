@@ -1,7 +1,7 @@
 import numpy as np
 import esutil
 
-from .._wcs_utils import WCSInversionInterpolator
+from .._wcs_utils import WCSInversionInterpolator, WCSScalarInterpolator
 
 COADD_WCS = esutil.wcsutil.WCS({
     'xtension': 'BINTABLE',
@@ -472,3 +472,21 @@ def test_wcs_inversion():
 
         assert np.allclose(inv_se_pos, interp_se_pos)
         assert np.allclose(se_pos, interp_se_pos)
+
+
+def test_wcs_scalar_interp():
+    rng = np.random.RandomState(seed=10)
+    dim = 50
+    y, x = np.mgrid[:dim+2:2, 0:dim+2:2]
+    y = y.ravel()
+    x = x.ravel()
+    tup = SE_WCS.get_jacobian(x, y)
+    area = tup[0]**2
+
+    wcs_area = WCSScalarInterpolator(x, y, area)
+
+    for _ in range(10):
+        se_pos = rng.uniform(size=2)*49 + 1
+        _area = SE_WCS.get_jacobian(se_pos[0], se_pos[1])[0]**2
+        interp_area = wcs_area(se_pos[0], se_pos[1])
+        assert np.allclose(_area, interp_area)

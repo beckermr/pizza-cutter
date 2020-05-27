@@ -80,3 +80,57 @@ class WCSInversionInterpolator(object):
             return self._x_int(pts)[0], self._y_int(pts)[0]
         else:
             return self._x_int(pts), self._y_int(pts)
+
+
+class WCSScalarInterpolator(object):
+    """Interpolator to quickly interpolate a scalar quantity as a function of
+    WCS coordinates
+
+    Parameters
+    ----------
+    x_in : float or np.ndarray
+        The input x/column value at which to evaluate the interpolant. This
+        corresponds to the output x/column value of the WCS you
+        want to invert.
+    y_in : float or np.ndarray
+        The input y/row value at which to evaluate the interpolant. This
+        corresponds to the output y/row value of the WCS you
+        want to invert.
+    scalar : float or np.ndarray
+        The scalar to interpolate.
+
+    Methods
+    -------
+    __call__(x, y)
+        Compute the values (x_out, y_out) corresponding to the input (x, y).
+    """
+    def __init__(self, x_in, y_in, scalar):
+        pts = np.stack([y_in, x_in]).T
+        self._int = CloughTocher2DInterpolator(pts, scalar)
+
+    def __call__(self, x, y):
+        """Compute the values (x_out, y_out) corresponding to the input (x, y).
+
+        Parameters
+        ----------
+        x : float or array-like
+            The x/column values at which to compute the output values.
+        y : float or array-like
+            The y/row values at which to compute the output values.
+
+        Returns
+        -------
+        scalar : float or array-like
+            The interpolated scalar.
+        """
+        if np.ndim(x) == 0 and np.ndim(y) == 0:
+            is_scaler = True
+        else:
+            is_scaler = False
+        x = np.atleast_1d(x)
+        y = np.atleast_1d(y)
+        pts = np.stack([y, x]).T
+        if is_scaler:
+            return self._int(pts)[0]
+        else:
+            return self._int(pts)
