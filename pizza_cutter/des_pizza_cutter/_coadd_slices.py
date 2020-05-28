@@ -421,6 +421,7 @@ def _coadd_slice_inputs(
         resampled_data = se_slice.resample(
             wcs=wcs,
             wcs_position_offset=wcs_position_offset,
+            wcs_interp_shape=(10000, 10000),
             x_start=start_col,
             y_start=start_row,
             box_size=box_size,

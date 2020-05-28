@@ -1,6 +1,3 @@
 # we force these to be reinstalled each time in CI since they can change
-# a lot and usually we need master
+# a lot and usually we need master from github
 git+https://github.com/esheldon/metadetect.git@master
-git+https://github.com/esheldon/ngmix.git@master
-git+https://github.com/esheldon/meds.git@master
-git+https://github.com/esheldon/desmeds.git@master

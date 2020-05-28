@@ -25,7 +25,8 @@ def _make_masking_func(coadd_config):
 
     if 'masking_config' in cfg:
         cfg = cfg['masking_config']
-
+        
+        assert False, "Double check that this pickles OK"
         mfunc = functools.partial(
             interpolate_ngmix_multiband_obs,
             se_interp_flags=sum(cfg['se_interp_flags']),

@@ -143,7 +143,7 @@ def test_memmappednoise_sizes_weird():
             seed=10,
             weight=weight,
             sx=74,
-            sy=1000,
+            sy=10,
             dir=tmpdir,
         )
 

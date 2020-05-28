@@ -9,7 +9,7 @@ from ngmix.observation import ObsList, MultiBandObsList, Observation
 
 @pytest.fixture
 def ngmix_data():
-    n_bands = 5
+    n_bands = 3
     n_obs = 2
     seed = 42
     se_interp_flags = 8

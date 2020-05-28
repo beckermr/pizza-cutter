@@ -1,8 +1,18 @@
 import numpy as np
+import math
 from numba import njit
 
 
-@njit
+@njit(fastmath=True)
+def sinc(x):
+    if abs(x) < 1e-4:
+        return 1 - (math.pi * math.pi / 6) * x * x
+    else:
+        ax = math.pi * x
+        return np.sin(ax) / ax
+
+
+@njit(fastmath=True)
 def lanczos_resample(im, rows, cols, a=3):
     """Lanczos resample one image at the input row and column positions.
 
@@ -61,14 +71,14 @@ def lanczos_resample(im, rows, cols, a=3):
                 continue
 
             dy = y - y_pix
-            sy = np.sinc(dy) * np.sinc(dy/a)
+            sy = sinc(dy) * sinc(dy/a)
 
             for x_pix in range(x_s, x_f+1):
                 if x_pix < 0 or x_pix > nx-1:
                     continue
 
                 dx = x - x_pix
-                sx = np.sinc(dx) * np.sinc(dx/a)
+                sx = sinc(dx) * sinc(dx/a)
 
                 kernel = sx*sy
 
@@ -79,7 +89,7 @@ def lanczos_resample(im, rows, cols, a=3):
     return res1, edge
 
 
-@njit
+@njit(fastmath=True)
 def lanczos_resample_two(im1, im2, rows, cols, a=3):
     """Lanczos resample two images at the input row and column positions.
 
@@ -146,14 +156,14 @@ def lanczos_resample_two(im1, im2, rows, cols, a=3):
                 continue
 
             dy = y - y_pix
-            sy = np.sinc(dy) * np.sinc(dy/a)
+            sy = sinc(dy) * sinc(dy/a)
 
             for x_pix in range(x_s, x_f+1):
                 if x_pix < 0 or x_pix > nx-1:
                     continue
 
                 dx = x - x_pix
-                sx = np.sinc(dx) * np.sinc(dx/a)
+                sx = sinc(dx) * sinc(dx/a)
 
                 kernel = sx*sy
 

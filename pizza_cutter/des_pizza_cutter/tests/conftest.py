@@ -103,7 +103,8 @@ def se_image_data():
             source_info['image_path'],
             ext=source_info['image_ext'])
         se_wcs_data = {
-            k.lower(): _se_wcs_data[k] for k in _se_wcs_data.keys()
+            k.lower(): _se_wcs_data[k]
+            for k in _se_wcs_data.keys()
             if k is not None
         }
 

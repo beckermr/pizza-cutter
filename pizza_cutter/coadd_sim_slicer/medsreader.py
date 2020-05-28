@@ -33,8 +33,8 @@ CUTOUT_DEFAULT_VALUES = {
     'image_cutouts': 0.0,
     'weight_cutouts': 0.0,
     'seg_cutouts': 0,
-    'bmask_cutouts': 2**30,
-    'ormask_cutouts': 2**30,
+    'bmask_cutouts': 2**29,
+    'ormask_cutouts': 2**29,
     'noise_cutouts': 0.0,
     'psf': 0.0}
 
@@ -403,7 +403,8 @@ def _parse_psf(*, psf, wcs_dict, eval_locals=None):
     if isinstance(psf, dict):
         return GalSimPSF(
             psf,
-            wcs=galsim.FitsWCS(header=wcs_dict),
+            wcs=galsim.FitsWCS(
+                header={k.upper(): wcs_dict[k] for k in wcs_dict.keys()}),
             eval_locals=eval_locals)
     else:
         return GalSimPSFEx(psf)
