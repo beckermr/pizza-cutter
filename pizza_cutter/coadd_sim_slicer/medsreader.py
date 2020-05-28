@@ -1,13 +1,13 @@
 import json
 
 import numpy as np
-import galsim
 import fitsio
 from ngmix.medsreaders import NGMixMEDS
 import esutil as eu
 from meds.util import get_image_info_struct, get_meds_output_struct
 
 from ..memmappednoise import MemMappedNoiseImage
+from ..gsutils import get_gs_fits_wcs_from_dict
 from .galsim_psf import GalSimPSF, GalSimPSFEx
 
 MAGZP_REF = 30.0
@@ -403,8 +403,7 @@ def _parse_psf(*, psf, wcs_dict, eval_locals=None):
     if isinstance(psf, dict):
         return GalSimPSF(
             psf,
-            wcs=galsim.FitsWCS(
-                header={k.upper(): wcs_dict[k] for k in wcs_dict.keys()}),
+            wcs=get_gs_fits_wcs_from_dict(wcs_dict),
             eval_locals=eval_locals)
     else:
         return GalSimPSFEx(psf)

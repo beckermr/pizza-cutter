@@ -6,6 +6,8 @@ import fitsio
 import galsim
 import esutil as eu
 
+from ...gsutils import get_gs_fits_wcs_from_dict
+
 
 @pytest.fixture
 def se_image_data():
@@ -116,8 +118,7 @@ def se_image_data():
         'source_info': source_info,
         'wcs_header': se_wcs_data,
         'eu_wcs': eu.wcsutil.WCS(se_wcs_data),
-        'gs_wcs': galsim.FitsWCS(
-            header={k.upper(): v for k, v in se_wcs_data.items()})
+        'gs_wcs': get_gs_fits_wcs_from_dict(se_wcs_data),
     }
 
 

@@ -2,6 +2,7 @@ import numpy as np
 import galsim
 
 from ..galsim_psf import GalSimPSF
+from ...gsutils import get_gs_fits_wcs_from_dict
 
 WCS_HEADER = dict(
     naxis1=100,
@@ -18,7 +19,7 @@ WCS_HEADER = dict(
     cunit2='deg     ',
     crval1=321.417528,
     crval2=1.444444)
-WCS = galsim.FitsWCS(header={k.upper(): v for k, v in WCS_HEADER.items()})
+WCS = get_gs_fits_wcs_from_dict(WCS_HEADER)
 
 
 def test_galsim_psf_dict():
