@@ -1,5 +1,4 @@
 import tempfile
-import os
 import numpy as np
 
 
@@ -18,9 +17,14 @@ class MemMappedNoiseImage(object):
         Size of patches to generate the noise in the x direction.
     sy : int, optional
         Size of patches to generate the noise in the y direction.
+    dir: string
+        Optional directory to hold the file
     """
 
-    def __init__(self, *, seed, weight, fill_weight=None, sx=1000, sy=1000):
+    def __init__(self, *, seed, weight,
+                 fill_weight=None, sx=1000, sy=1000,
+                 dir=None):
+
         rng = np.random.RandomState(seed=seed)
 
         # generate in chunks so that we don't use a ton of memory
@@ -40,9 +44,12 @@ class MemMappedNoiseImage(object):
         if n_sy * sy < ny:
             n_sy += 1
 
-        # we use a memmapped array on disk to avoid memory usage
-        self._temp = tempfile.TemporaryDirectory()
-        self._fname = os.path.join(self._temp.name, 'arr.dat')
+        if dir is None:
+            tmpdir = tempfile.TemporaryDirectory()
+            dir = tmpdir.name
+
+        self._fname = tempfile.mktemp(dir=dir, suffix='.dat')
+
         self._noise = np.memmap(
             self._fname,
             dtype=np.float32,

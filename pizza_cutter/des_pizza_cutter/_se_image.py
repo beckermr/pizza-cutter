@@ -54,7 +54,7 @@ def _read_image(path, ext):
 
 
 @functools.lru_cache(maxsize=32)
-def _get_noise_image(weight_path, weight_ext, scale, noise_seed):
+def _get_noise_image(weight_path, weight_ext, scale, noise_seed, tmpdir):
     """Cached generation of memory mapped noise images."""
     wgt = _read_image(weight_path, ext=weight_ext)
     zwgt_msk = wgt <= 0.0
@@ -63,7 +63,9 @@ def _get_noise_image(weight_path, weight_ext, scale, noise_seed):
     return MemMappedNoiseImage(
         seed=noise_seed,
         weight=(wgt * (~zwgt_msk) + zwgt_msk * max_wgt) / scale**2,
-        sx=1024, sy=1024)
+        dir=tmpdir,
+        sx=1024, sy=1024,
+    )
 
 
 @functools.lru_cache(maxsize=32)
@@ -211,6 +213,8 @@ class SEImageSlice(object):
     mask_tape_bumps: boold
         If True, turn on TAPEBUMP flag and turn off SUSPECT in bmask for
         tape bump regions in DES CCDs.
+    tmpdir: optional, string
+        Optional temporary directory for temporary files
 
     Methods
     -------
@@ -283,7 +287,8 @@ class SEImageSlice(object):
                  wcs,
                  wcs_position_offset,
                  noise_seed,
-                 mask_tape_bumps):
+                 mask_tape_bumps,
+                 tmpdir=None):
 
         self.source_info = source_info
         self._psf_model = psf_model
@@ -291,6 +296,7 @@ class SEImageSlice(object):
         self._wcs_position_offset = wcs_position_offset
         self._noise_seed = noise_seed
         self._mask_tape_bumps = mask_tape_bumps
+        self._tmpdir = tmpdir
 
         # get the image shape
         if 'image_shape' in source_info:
@@ -376,7 +382,9 @@ class SEImageSlice(object):
         # we are using the weight path and extension as part of the cache key
         nse = _get_noise_image(
             self.source_info['weight_path'], self.source_info['weight_ext'],
-            scale, self._noise_seed)
+            scale, self._noise_seed,
+            self._tmpdir,
+        )
         self.noise = nse[
             y_start:y_start+box_size, x_start:x_start+box_size].copy()
 

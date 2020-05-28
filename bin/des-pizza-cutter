@@ -2,6 +2,7 @@
 import os
 import sys
 import logging
+import tempfile
 
 import click
 import yaml
@@ -9,37 +10,7 @@ from pizza_cutter.des_pizza_cutter import (
     make_des_pizza_slices, load_objects_into_info)
 
 
-@click.command()
-@click.option(
-    '--config', default=None, type=str,
-    help='configuration file',
-    required=True)
-@click.option(
-    '--info', default=None, type=str,
-    help='the path to the coadd information for processing',
-    required=True)
-@click.option(
-    '--tag', default=None, type=str,
-    help='an extra tag to attach to the filename if desired')
-@click.option(
-    '--output-path', default='.', type=str,
-    help='path to write the MEDS file',
-    required=True)
-@click.option(
-    '--log-level', default='warning', type=str,
-    help=(
-        'python logging level [one of critical error, '
-        'warning, info, or debug]'))
-@click.option(
-    '--seed', default=-1, type=int,
-    help='seed for the RNG',
-    required=True)
-@click.option(
-    '--use-tmpdir', is_flag=True,
-    help='use a temporary directory to stage data')
-def main(
-        config, info, tag, output_path, log_level, seed,
-        use_tmpdir):
+def go(config, info, tag, output_path, log_level, seed, tmpdir):
     """Create a metadetection MEDS file from a DES coadd tile."""
 
     logging.basicConfig(stream=sys.stdout)
@@ -73,7 +44,7 @@ def main(
 
     print('making pizza slices!', flush=True)
     make_des_pizza_slices(
-        use_tmpdir=use_tmpdir,
+        tmpdir=tmpdir,
         config=_config,
         meds_path=meds_path,
         info=info,
@@ -81,6 +52,61 @@ def main(
         seed=seed,
         coadd_config=cfg['coadd'],
         single_epoch_config=cfg['single_epoch'])
+
+
+@click.command()
+@click.option(
+    '--config', default=None, type=str,
+    help='configuration file',
+    required=True)
+@click.option(
+    '--info', default=None, type=str,
+    help='the path to the coadd information for processing',
+    required=True)
+@click.option(
+    '--tag', default=None, type=str,
+    help='an extra tag to attach to the filename if desired')
+@click.option(
+    '--output-path', default='.', type=str,
+    help='path to write the MEDS file',
+    required=True)
+@click.option(
+    '--log-level', default='warning', type=str,
+    help=(
+        'python logging level [one of critical error, '
+        'warning, info, or debug]'))
+@click.option(
+    '--seed', default=-1, type=int,
+    help='seed for the RNG',
+    required=True)
+@click.option(
+    '--use-tmpdir', is_flag=True,
+    help=(
+        'use a temporary directory to stage data. set --tmpdir to specify the '
+        'name of the temporary directory, otherwise one will be created'))
+@click.option(
+    '--tmpdir', type=str, default=None,
+    help=(
+        'the name of the temporary directory to use. if passed without '
+        '--use-tmpdir, it will still be used.'))
+def main(
+        config, info, tag, output_path, log_level, seed,
+        use_tmpdir, tmpdir):
+    """Create a metadetection MEDS file from a DES coadd tile."""
+
+    def _call(_tmpdir):
+        go(config, info, tag, output_path, log_level, seed, _tmpdir)
+
+    if use_tmpdir and tmpdir is None:
+        tmpdir = tempfile.TemporaryDirectory().name
+
+    if tmpdir is not None:
+        try:
+            _call(tmpdir)
+        finally:
+            os.system("rm -rf %s" % os.path.join(tmpdir, "*"))
+    else:
+        _call(tmpdir)
 
 
 if __name__ == '__main__':
