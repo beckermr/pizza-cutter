@@ -13,6 +13,7 @@ from meds.util import radec_to_uv
 
 from ..coadding import (
     WCSInversionInterpolator,
+    WCSScalarInterpolator,
     lanczos_resample,
     lanczos_resample_two,
 )
@@ -110,6 +111,76 @@ def _get_wcs_inverse(
     y_coadd -= wcs_position_offset
 
     return WCSInversionInterpolator(x_coadd, y_coadd, x_se, y_se)
+
+
+def _compute_wcs_area(se_wcs, se_wcs_position_offset, x_se, y_se):
+
+    if isinstance(se_wcs, galsim.BaseWCS):
+        def _image2sky(x, y):
+            # pixmappy uses c=, but real galsim wcs use color=
+            try:
+                ra, dec = se_wcs._radec(
+                    x - se_wcs.x0 + se_wcs_position_offset,
+                    y - se_wcs.y0 + se_wcs_position_offset,
+                    c=0,  # explicitly turning off color
+                )
+            except TypeError:
+                ra, dec = se_wcs._radec(
+                    x - se_wcs.x0 + se_wcs_position_offset,
+                    y - se_wcs.y0 + se_wcs_position_offset,
+                    color=0,  # explicitly turning off color
+                )
+
+            np.degrees(ra, out=ra)
+            np.degrees(dec, out=dec)
+            return ra, dec
+    elif isinstance(se_wcs, eu.wcsutil.WCS) or isinstance(se_wcs, AffineWCS):
+        def _image2sky(x, y):
+            return se_wcs.image2sky(
+                x + se_wcs_position_offset,
+                y + se_wcs_position_offset)
+    else:
+        raise ValueError('WCS %s not recognized!' % se_wcs)
+
+    dxy = 1
+
+    ra, dec = _image2sky(x_se, y_se)
+    ra_xp, dec_xp = _image2sky(x_se + dxy, y_se)
+    ra_xm, dec_xm = _image2sky(x_se - dxy, y_se)
+    ra_yp, dec_yp = _image2sky(x_se, y_se + dxy)
+    ra_ym, dec_ym = _image2sky(x_se, y_se - dxy)
+
+    if (
+        not isinstance(se_wcs, AffineWCS)
+        and not isinstance(se_wcs, galsim.wcs.EuclideanWCS)
+    ):
+        # code here follows the computation in galsim or esutil
+        cosdec = np.cos(dec * (np.pi / 180.0))
+        dudx = -0.5 * (ra_xp - ra_xm) / dxy * cosdec * 3600
+        dudy = -0.5 * (ra_yp - ra_ym) / dxy * cosdec * 3600
+        dvdx = 0.5 * (dec_xp - dec_xm) / dxy * 3600
+        dvdy = 0.5 * (dec_yp - dec_ym) / dxy * 3600
+    else:
+        dudx = 0.5 * (ra_xp - ra_xm) / dxy
+        dudy = 0.5 * (ra_yp - ra_ym) / dxy
+        dvdx = 0.5 * (dec_xp - dec_xm) / dxy
+        dvdy = 0.5 * (dec_yp - dec_ym) / dxy
+
+    return np.abs(dudx * dvdy - dvdx * dudy)
+
+
+@functools.lru_cache(maxsize=32)
+def _get_wcs_area_interp(se_wcs, se_wcs_position_offset, se_im_shape, delta=8):
+
+    dim_y = se_im_shape[0]
+    dim_x = se_im_shape[1]
+    y_se, x_se = np.mgrid[:dim_y+delta:delta, :dim_x+delta:delta]
+    y_se = y_se.ravel() - 0.5
+    x_se = x_se.ravel() - 0.5
+
+    area = _compute_wcs_area(se_wcs, se_wcs_position_offset, x_se, y_se)
+
+    return WCSScalarInterpolator(x_se, y_se, area)
 
 
 class SEImageSlice(object):
@@ -464,6 +535,43 @@ class SEImageSlice(object):
         else:
             return x, y
 
+    def get_wcs_pixel_area(self, x, y):
+        """Get the pixel scale at a set of x-y locations.
+
+        Parameters
+        ----------
+        x : scalar or 1d array-like
+            The x/column image location in zero-indexed, pixel centered
+            coordinates.
+        y : scalar or 1d array-like
+            The y/row image location in zero-indexed, pixel centered
+            coordinates.
+
+        Returns
+        -------
+        pixel_area : scalar or 1d array-like
+            The pixel area in arcsec**2.
+        """
+        if np.ndim(x) == 0 and np.ndim(y) == 0:
+            is_scalar = True
+        else:
+            is_scalar = False
+
+        assert np.ndim(x) <= 1 and np.ndim(y) <= 1, (
+            "Inputs to image2sky must be scalars or 1d arrays")
+        assert np.ndim(x) == np.ndim(y), (
+            "Inputs to image2sky must be the same shape")
+
+        x = np.atleast_1d(x).ravel()
+        y = np.atleast_1d(y).ravel()
+
+        area = _compute_wcs_area(self._wcs, self._wcs_position_offset, x, y)
+
+        if is_scalar:
+            return area[0]
+        else:
+            return area
+
     def get_wcs_jacobian(self, x, y):
         """Return the Jacobian of the WCS transformation as a
         `galsim.JacobianWCS` object.
@@ -741,7 +849,8 @@ class SEImageSlice(object):
         self.pmask = mask
 
     def resample(
-            self, *, wcs, wcs_position_offset, x_start, y_start, box_size,
+            self, *, wcs, wcs_position_offset, wcs_interp_shape,
+            x_start, y_start, box_size,
             psf_x_start, psf_y_start, psf_box_size):
         """Resample a SEImageSlice to a new WCS.
 
@@ -765,6 +874,8 @@ class SEImageSlice(object):
             The coordinate offset, if any, to get from the zero-indexed, pixel-
             centered coordinates used by this class to the coordinate convetion
             of the input `wcs` object.
+        wcs_interp_shape : tuple of ints
+            The size of the box to be used to interpolate the wcs area
         x_start : int
             The zero-indexed, pixel-centered starting x/column in the
             destination grid.
@@ -807,7 +918,7 @@ class SEImageSlice(object):
             raise RuntimeError("You must call set_pmask before resmpling!")
 
         # 1. build the lookup table of SE position as a function of coadd
-        # position
+        # position and also table for area interpolation
         # we always go SE -> sky -> coadd because inverting the SE WCS will
         # be more expensive since they typically have distortion/tree ring
         # terms which require a root finder
@@ -820,7 +931,15 @@ class SEImageSlice(object):
             self._im_shape)
         logger.debug('end wcs interp: %f', time.time() - t0)
 
-        # 2. using the lookup table, we resample each image to the
+        logger.debug("start wcs area interp")
+        t0 = time.time()
+        se_wcs_area_interp = _get_wcs_area_interp(
+            self._wcs, self._wcs_position_offset, self._im_shape)
+        coadd_wcs_area_interp = _get_wcs_area_interp(
+            wcs, wcs_position_offset, wcs_interp_shape, delta=100)
+        logger.debug('end wcs area interp: %f', time.time() - t0)
+
+        # 2. using the lookup tables, we resample each image to the
         # coadd coordinates
 
         # compute the SE image positions using the lookup table
@@ -831,19 +950,27 @@ class SEImageSlice(object):
         # slice of the coadd image here since the WCS interp is in
         # absolute image pixel units
         x_rs_se, y_rs_se = wcs_interp(x_rs + x_start, y_rs + y_start)
+        area_coadd = coadd_wcs_area_interp(x_rs + x_start, y_rs + y_start)
 
         # remove the offset to local coords for resampling
         x_rs_se -= self.x_start
         y_rs_se -= self.y_start
 
+        y_self, x_self = np.mgrid[0:self.box_size, 0:self.box_size]
+        x_self = x_self.ravel() + self.x_start
+        y_self = y_self.ravel() + self.y_start
+        area_se = se_wcs_area_interp(x_self, y_self)
+
         rim, rn, edge = lanczos_resample_two(
-            self.image,
-            self.noise,
+            self.image / area_se.reshape(self.box_size, self.box_size),
+            self.noise / area_se.reshape(self.box_size, self.box_size),
             y_rs_se,
             x_rs_se,
         )
+        rim *= area_coadd
+        rn *= area_coadd
 
-        edge = edge.reshape(box_size, box_size),
+        edge = edge.reshape(box_size, box_size)
         resampled_data = {
             'image': rim.reshape(box_size, box_size),
             'noise': rn.reshape(box_size, box_size),

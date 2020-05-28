@@ -5,6 +5,7 @@ import pytest
 import galsim
 import piff
 
+from .._affine_wcs import AffineWCS
 from .._se_image import SEImageSlice
 
 
@@ -36,6 +37,7 @@ def test_se_image_resample_smoke(se_image_data, coadd_image_data):
     resampled_data = se_im.resample(
         wcs=coadd_image_data['eu_wcs'],
         wcs_position_offset=coadd_image_data['position_offset'],
+        wcs_interp_shape=(10000, 10000),
         x_start=x-half,
         y_start=y-half,
         box_size=dim,
@@ -83,7 +85,10 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
     coadd_x_start = 200
     coadd_y_start = 150
 
-    class FakeWCS(object):
+    class FakeWCS(AffineWCS):
+        def __init__(self):
+            pass
+
         def image2sky(self, x, y):
             # coadd position of
             # (coadd_x_start + pos_off, coadd_y_start + pos_off) should map to
@@ -108,6 +113,7 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
     se_im._im_shape = (512, 512)
 
     # we are going to override these methods for testing
+    se_im._wcs = FakeWCS()
     se_im._wcs.sky2image = _se_sky2image
     se_im._wcs.image2sky = _se_image2sky
 
@@ -137,6 +143,7 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
     resampled_data = se_im.resample(
         wcs=FakeWCS(),
         wcs_position_offset=pos_off,
+        wcs_interp_shape=(2000, 2000),
         x_start=coadd_x_start + half_box_size - 50 + eps_x,
         y_start=coadd_y_start + half_box_size - 50 + eps_y,
         box_size=100,
