@@ -7,12 +7,12 @@ import numpy as np
 import fitsio
 import yaml
 import pytest
-import galsim
 from esutil.wcsutil import WCS
 
 from ..medsreader import POSITION_OFFSET, MAGZP_REF
 from ..medsreader import CoaddSimSliceMEDS
 from ...memmappednoise import MemMappedNoiseImage
+from ...gsutils import get_gs_fits_wcs_from_dict
 from ..galsim_psf import GalSimPSF
 
 
@@ -134,7 +134,7 @@ def test_medsreader(psf_mock, data, using_psfex):
         data['config']['psf'] = gs_conf
         pex = GalSimPSF(
             gs_conf,
-            galsim.FitsWCS(header=data['wcs_header']))
+            get_gs_fits_wcs_from_dict(data['wcs_header']))
 
     with tempfile.TemporaryDirectory() as tmpdir:
         kwargs = dict(
