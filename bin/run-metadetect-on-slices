@@ -5,6 +5,7 @@ run metadetect on a slice file
 import sys
 import logging
 import tempfile
+import os
 
 import click
 import yaml
@@ -121,16 +122,21 @@ def _process(*,
 @click.option(
     '--log-level', default='warning', type=str,
     help='python logging level')
+@click.option(
+    '--tmpdir', type=str, default=None,
+    help=(
+        'the name of the temporary directory to use. if passed without '
+        '--use-tmpdir, it will still be used.'))
 def main(
         meds_files, config, output_path, seed, use_tmpdir, part, log_level,
-        meds_range):
+        meds_range, tmpdir):
     """Run metdetect on MEDS_FILES."""
 
     if part is not None and meds_range is not None:
         raise click.BadParameter(
             'You must specify only one of `--part` and `--range`')
 
-    def _call_process(*, tmpdir):
+    def _call(tmpdir):
         _process(
             meds_files=meds_files,
             config=config,
@@ -142,11 +148,16 @@ def main(
             tmpdir=tmpdir,
            )
 
-    if use_tmpdir:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            _call_process(tmpdir=tmpdir)
+    if use_tmpdir and tmpdir is None:
+        tmpdir = tempfile.TemporaryDirectory().name
+
+    if tmpdir is not None:
+        try:
+            _call(tmpdir)
+        finally:
+            os.system("rm -rf %s" % os.path.join(tmpdir, "*"))
     else:
-        _call_process(tmpdir=None)
+        _call(tmpdir)
 
 
 if __name__ == '__main__':

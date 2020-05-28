@@ -25,7 +25,7 @@ def _make_masking_func(coadd_config):
 
     if 'masking_config' in cfg:
         cfg = cfg['masking_config']
-        
+
         assert False, "Double check that this pickles OK"
         mfunc = functools.partial(
             interpolate_ngmix_multiband_obs,
@@ -37,7 +37,7 @@ def _make_masking_func(coadd_config):
         return None
 
 
-def _build_meds_list(*, tilename, band, sim_path, coadd_config, seed):
+def _build_meds_list(*, tilename, band, sim_path, coadd_config, seed, tmpdir):
     with open(coadd_config, 'r') as fp:
         _config = fp.read()
 
@@ -75,6 +75,7 @@ def _build_meds_list(*, tilename, band, sim_path, coadd_config, seed):
             tmpdir=tmpdir,
         )
     return mlist
+
 
 def go(metadetect_config, coadd_config, output_path, sim_path,
        tilename, band, tag, seed, log_level, part, tmpdir):
@@ -164,21 +165,31 @@ def go(metadetect_config, coadd_config, output_path, sim_path,
 @click.option(
     '--use-tmpdir', is_flag=True,
     help='use a temporary directory to stage data')
+@click.option(
+    '--tmpdir', type=str, default=None,
+    help=(
+        'the name of the temporary directory to use. if passed without '
+        '--use-tmpdir, it will still be used.'))
 def main(
         metadetect_config, coadd_config, output_path, sim_path,
-        tilename, band, tag, seed, log_level, part, use_tmpdir):
+        tilename, band, tag, seed, log_level, part, use_tmpdir, tmpdir):
     """Run metdetect on MEDS_FILES."""
 
     def _call(tmpdir):
         go(metadetect_config, coadd_config, output_path, sim_path,
            tilename, band, tag, seed, log_level, part, tmpdir)
 
-    if use_tmpdir:
-        with tempfile.TemporaryDirectory() as tmpdir:
+    if use_tmpdir and tmpdir is None:
+        tmpdir = tempfile.TemporaryDirectory().name
+
+    if tmpdir is not None:
+        try:
             _call(tmpdir)
+        finally:
+            os.system("rm -rf %s" % os.path.join(tmpdir, "*"))
     else:
-        tmpdir=None
         _call(tmpdir)
+
 
 if __name__ == '__main__':
     main()
