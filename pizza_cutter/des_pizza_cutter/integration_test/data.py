@@ -129,14 +129,16 @@ def generate_sim():
     rng = np.random.RandomState(seed=seed)
 
     wcs_scale = 0.25
+    wcs_var_fac = (1 + 2.0 * (rng.uniform(size=n_se_images) - 0.5) * 0.1)
     image_shape = (128, 256)
     buff = 8
     noises = 3.5e-4 + 1e-5 * np.arange(n_se_images)
+    noise_fac = 1.0
 
     # randomly rotate the WCS
     thetas = (rng.uniform(size=n_se_images) - 0.5) * 2.0 * np.pi / 1e2
-    dudxs = np.cos(thetas) * wcs_scale
-    dudys = -np.sin(thetas) * wcs_scale
+    dudxs = np.cos(thetas) * wcs_scale * wcs_var_fac
+    dudys = -np.sin(thetas) * wcs_scale * wcs_var_fac
     dvdxs = -dudys.copy()
     dvdys = dudxs.copy()
 
@@ -184,7 +186,7 @@ def generate_sim():
     bkgs = []
 
     psf_fwhms = 0.7 + 0.1*rng.uniform(size=n_se_images)
-    gal = galsim.Gaussian(fwhm=0.5).shear(g1=0, g2=0.5)
+    gal = galsim.Gaussian(fwhm=2.5).shear(g1=-0.2, g2=0.5)
 
     for (dudx, dudy, dvdx, dvdy, x0, y0, position_offset,
          scale, noise, psf_fwhm) in zip(
@@ -200,11 +202,15 @@ def generate_sim():
             'y0': float(y0)}
         ii['scale'] = float(scale)
         ii['position_offset'] = float(position_offset)
-        ii['galsim_psf_config'] = {'type': 'Gaussian', 'fwhm': psf_fwhm}
+        ii['galsim_psf_config'] = {
+            'type': 'Gaussian',
+            'fwhm': psf_fwhm,
+            'shear': {'type': 'G1G2', 'g1': 0.1, 'g2': -0.1}
+        }
         ii['image_shape'] = list(image_shape)
         ii['image_flags'] = 0
 
-        psf = galsim.Gaussian(fwhm=psf_fwhm)
+        psf = galsim.Gaussian(fwhm=psf_fwhm).shear(g1=0.1, g2=-0.1)
 
         image = generate_input_se_image(
             gal=gal,
@@ -214,11 +220,10 @@ def generate_sim():
             position_offset=position_offset,
             scale=scale)
 
-        bkg = np.random.normal(size=image.shape) * noise + 5 * noise
+        bkg = (np.random.normal(size=image.shape) * noise + 5 * noise) * noise_fac
         weight = np.zeros_like(image)
         weight[:, :] = 1.0 / noise / noise * scale * scale
-        image += (rng.normal(size=image.shape) * noise / scale)
-
+        image += (rng.normal(size=image.shape) * noise / scale * noise_fac)
         image += bkg
 
         images.append(image)
