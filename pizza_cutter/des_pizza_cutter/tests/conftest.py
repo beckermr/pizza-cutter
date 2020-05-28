@@ -3,7 +3,6 @@ import pytest
 import yaml
 import fitsio
 
-import galsim
 import esutil as eu
 
 from ...gsutils import get_gs_fits_wcs_from_dict

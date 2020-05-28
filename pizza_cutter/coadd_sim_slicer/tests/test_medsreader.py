@@ -7,7 +7,6 @@ import numpy as np
 import fitsio
 import yaml
 import pytest
-import galsim
 from esutil.wcsutil import WCS
 
 from ..medsreader import POSITION_OFFSET, MAGZP_REF
