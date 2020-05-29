@@ -115,7 +115,7 @@ def test_lanczos3_resample_two_smoke():
     _check(val2, im2)
 
 
-@pytest.mark.parametrize('a', [1, 2, 3, 4, 5])
+@pytest.mark.parametrize('a', [1, 2, 3])
 def test_lanczos_resample_two_interp_grid(a):
     rng = np.random.RandomState(seed=10)
     im1 = rng.normal(size=(11, 25))
