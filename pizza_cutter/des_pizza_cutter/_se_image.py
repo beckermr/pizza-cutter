@@ -30,6 +30,9 @@ from ._tape_bumps import TAPE_BUMPS
 
 logger = logging.getLogger(__name__)
 
+# TODO: make a config option?
+PIFF_STAMP_SIZE = 25
+
 
 @functools.lru_cache(maxsize=2048)
 def _get_image_shape(*, image_path, image_ext):
@@ -744,11 +747,11 @@ class SEImageSlice(object):
             # piff requires no offset since it renders in the actual
             # SE image pixel grid, not a hypothetical grid with the
             # star at a pixel center
-            # again always 21 pixels for DES Y3+
             im = self._psf_model.draw(
                 x=x + self._wcs_position_offset,
                 y=y + self._wcs_position_offset,
-                stamp_size=21)
+                stamp_size=PIFF_STAMP_SIZE,
+            )
             psf_im = im.array.copy()
         else:
             raise ValueError('PSF %s not recognized!' % self._psf_model)
