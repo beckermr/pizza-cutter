@@ -163,6 +163,9 @@ def test_se_image_psf_piff(se_image_data, eps_x, eps_y, wcs_pos_offset):
     x = 10 + eps_x
     y = 11 + eps_y
 
+    dx = x - int(x + 0.49999999999999)
+    dy = y - int(y + 0.49999999999999)
+
     psf_mod = piff.PSF.read(se_image_data['source_info']['piff_path'])
     se_im = SEImageSlice(
         source_info=se_image_data['source_info'],
@@ -174,6 +177,16 @@ def test_se_image_psf_piff(se_image_data, eps_x, eps_y, wcs_pos_offset):
     )
 
     psf_im = se_im.get_psf_image(x, y)
+
+    cen = (psf_im.shape[0] - 1) / 2
+
+    # check mean (x, y) to make sure it is not the center
+    _y, _x = np.mgrid[:psf_im.shape[0], :psf_im.shape[1]]
+    xbar = np.mean((_x - cen) * psf_im) / np.mean(psf_im)
+    ybar = np.mean((_y - cen) * psf_im) / np.mean(psf_im)
+    # Piff is not exactly centered, so the tolerance here is bigger
+    assert np.abs(xbar - dx) < 1e-1, 'x: %g xbar: %g dx: %g' % (x, xbar, dx)
+    assert np.abs(ybar - dy) < 1e-1, ybar
 
     psf_mod = piff.PSF.read(se_image_data['source_info']['piff_path'])
     true_psf_im = psf_mod.draw(
