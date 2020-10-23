@@ -5,7 +5,7 @@ import pytest
 import galsim
 import piff
 
-from .._se_image import SEImageSlice
+from .._se_image import SEImageSlice, PIFF_STAMP_SIZE
 
 
 @pytest.mark.skipif(
@@ -149,6 +149,10 @@ def test_se_image_psf_psfex(
     assert np.array_equal(psf_im, true_psf_im)
 
 
+def get_center_delta(x):
+    return x - np.ceil(x-0.5)
+
+
 @pytest.mark.skipif(
     os.environ.get('TEST_DESDATA', None) is None,
     reason=(
@@ -156,14 +160,15 @@ def test_se_image_psf_psfex(
         'test data is at TEST_DESDATA'))
 @pytest.mark.parametrize('wcs_pos_offset', [0, 1])
 @pytest.mark.parametrize('eps_x', [
-    -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75])
+    -0.75, -0.50, -0.25, 0.0, 0.25, 0.50, 0.75])
 @pytest.mark.parametrize('eps_y', [
-    -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75])
+    -0.75, -0.50, -0.25, 0.0, 0.25, 0.50, 0.75])
 def test_se_image_psf_piff(se_image_data, eps_x, eps_y, wcs_pos_offset):
     x = 10 + eps_x
     y = 11 + eps_y
-    dx = x - int(x + 0.5)
-    dy = y - int(y + 0.5)
+
+    dx = get_center_delta(x)
+    dy = get_center_delta(y)
 
     psf_mod = piff.PSF.read(se_image_data['source_info']['piff_path'])
     se_im = SEImageSlice(
@@ -176,18 +181,21 @@ def test_se_image_psf_piff(se_image_data, eps_x, eps_y, wcs_pos_offset):
     )
 
     psf_im = se_im.get_psf_image(x, y)
+
     cen = (psf_im.shape[0] - 1) / 2
 
     # check mean (x, y) to make sure it is not the center
     _y, _x = np.mgrid[:psf_im.shape[0], :psf_im.shape[1]]
     xbar = np.mean((_x - cen) * psf_im) / np.mean(psf_im)
     ybar = np.mean((_y - cen) * psf_im) / np.mean(psf_im)
+
     # Piff is not exactly centered, so the tolerance here is bigger
-    assert np.abs(xbar - dx) < 1e-1, xbar
+    assert np.abs(xbar - dx) < 1e-1, 'x: %g xbar: %g dx: %g' % (x, xbar, dx)
     assert np.abs(ybar - dy) < 1e-1, ybar
 
     psf_mod = piff.PSF.read(se_image_data['source_info']['piff_path'])
     true_psf_im = psf_mod.draw(
-        x=x+wcs_pos_offset, y=y+wcs_pos_offset, stamp_size=21).array
+        x=x+wcs_pos_offset, y=y+wcs_pos_offset, stamp_size=PIFF_STAMP_SIZE,
+    ).array
     true_psf_im /= np.sum(true_psf_im)
     assert np.array_equal(psf_im, true_psf_im)
