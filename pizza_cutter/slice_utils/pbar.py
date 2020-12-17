@@ -9,7 +9,7 @@ import sys
 import time
 
 
-def PBar(iterable, desc='', total=None, leave=True, file=sys.stderr,
+def PBar(iterable, desc='', total=None, leave=True, file=sys.stdout,
          mininterval=0.5, miniters=1, n_bars=20):
     """
     Get an iterable object, and return an iterator which acts exactly like the
