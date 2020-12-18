@@ -41,7 +41,7 @@ single_epoch:
   # Y6 already deals with tapebump in a sensible way
   mask_tape_bumps: False
 
-  # DES Y3 bit mask flags
+  # DES Y6 bit mask flags
   # "BPM":          1,  #/* set in bpm (hot/dead pixel/column)        */
   # "SATURATE":     2,  #/* saturated pixel                           */
   # "INTERP":       4,  #/* interpolated pixel                        */
