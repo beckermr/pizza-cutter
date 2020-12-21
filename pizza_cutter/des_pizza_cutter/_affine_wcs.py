@@ -36,6 +36,8 @@ class AffineWCS(object):
         Convert sky coordinates to image coordinates.
     get_jacobian(x, y)
         Get the local Jacobian of the affine transformation.
+    is_celestial()
+        Always returns False.
 
     Attributes
     ----------
@@ -52,6 +54,27 @@ class AffineWCS(object):
         self._det = dudx * dvdy - dvdx * dudy
         if self._det == 0:
             raise ValueError("Affine transformation is not invertible!")
+
+    def __repr__(self):
+        return "AffineWCS(dudx=%s, dudy=%s, dvdx=%s, dvdy=%s, x0=%s, y0=%s)" % (
+            self.dudx,
+            self.dudy,
+            self.dvdx,
+            self.dvdy,
+            self.x0,
+            self.y0,
+        )
+
+    def __str__(self):
+        return self.__repr__()
+
+    # you have to set both the __hash__ and __eq__ for the python functools.lru_cache
+    # to work properly with this object
+    def __hash__(self):
+        return hash(self.__repr__())
+
+    def __eq__(self, other):
+        return hash(self) == hash(other)
 
     def image2sky(self, x, y):
         """Convert image coordinates to sky coordinates.
@@ -116,3 +139,7 @@ class AffineWCS(object):
             self.dvdx,
             self.dvdy
         )
+
+    def is_celestial(self):
+        """Always returns False since this WCS is not defined on the sphere."""
+        return False

@@ -1,6 +1,7 @@
 import functools
 import logging
 import time
+import pprint
 
 import fitsio
 import numpy as np
@@ -37,7 +38,7 @@ PIFF_STAMP_SIZE = 25
 @functools.lru_cache(maxsize=2048)
 def _get_image_shape(*, image_path, image_ext):
 
-    logger.debug('cache miss image shape: "%s" "%s"' % (image_path, image_ext))
+    logger.warning('cache miss image shape: "%s" "%s"' % (image_path, image_ext))
 
     h = fitsio.read_header(image_path, ext=image_ext)
     if 'znaxis1' in h:
@@ -72,37 +73,15 @@ def _get_noise_image(weight_path, weight_ext, scale, noise_seed, tmpdir):
 
 
 @functools.lru_cache(maxsize=32)
-def _get_wcs_inverse(
-    wcs, wcs_position_offset, se_wcs, se_wcs_position_offset, se_im_shape,
-    delta=8,
-):
-
-    if isinstance(se_wcs, galsim.BaseWCS):
-        def _image2sky(x, y):
-            # pixmappy uses c=, but real galsim wcs use color=
-            try:
-                ra, dec = se_wcs._radec(
-                    x - se_wcs.x0 + se_wcs_position_offset,
-                    y - se_wcs.y0 + se_wcs_position_offset,
-                    c=0,  # explicitly turning off color
-                )
-            except TypeError:
-                ra, dec = se_wcs._radec(
-                    x - se_wcs.x0 + se_wcs_position_offset,
-                    y - se_wcs.y0 + se_wcs_position_offset,
-                    color=0,  # explicitly turning off color
-                )
-
-            np.degrees(ra, out=ra)
-            np.degrees(dec, out=dec)
-            return ra, dec
-    elif isinstance(se_wcs, eu.wcsutil.WCS) or isinstance(se_wcs, AffineWCS):
-        def _image2sky(x, y):
-            return se_wcs.image2sky(
-                x + se_wcs_position_offset,
-                y + se_wcs_position_offset)
+def _get_wcs_inverse(wcs, wcs_position_offset, se_wcs, se_im_shape, delta=8):
+    if hasattr(se_wcs, "source_info"):
+        logger.warning(
+            "wcs inverse cache miss for %s/%s",
+            se_wcs.source_info["path"],
+            se_wcs.source_info["filename"],
+        )
     else:
-        raise ValueError('WCS %s not recognized!' % se_wcs)
+        logger.warning("wcs inverse cache miss for %s", se_wcs)
 
     dim_y = se_im_shape[0]
     dim_x = se_im_shape[1]
@@ -110,7 +89,7 @@ def _get_wcs_inverse(
     y_se = y_se.ravel() - 0.5
     x_se = x_se.ravel() - 0.5
 
-    x_coadd, y_coadd = wcs.sky2image(*_image2sky(x_se, y_se))
+    x_coadd, y_coadd = wcs.sky2image(*se_wcs.image2sky(x_se, y_se))
 
     x_coadd -= wcs_position_offset
     y_coadd -= wcs_position_offset
@@ -118,47 +97,14 @@ def _get_wcs_inverse(
     return WCSInversionInterpolator(x_coadd, y_coadd, x_se, y_se)
 
 
-def _compute_wcs_area(se_wcs, se_wcs_position_offset, x_se, y_se):
+def _compute_wcs_area(se_wcs, x_se, y_se, dxy=1):
+    ra, dec = se_wcs.image2sky(x_se, y_se)
+    ra_xp, dec_xp = se_wcs.image2sky(x_se + dxy, y_se)
+    ra_xm, dec_xm = se_wcs.image2sky(x_se - dxy, y_se)
+    ra_yp, dec_yp = se_wcs.image2sky(x_se, y_se + dxy)
+    ra_ym, dec_ym = se_wcs.image2sky(x_se, y_se - dxy)
 
-    if isinstance(se_wcs, galsim.BaseWCS):
-        def _image2sky(x, y):
-            # pixmappy uses c=, but real galsim wcs use color=
-            try:
-                ra, dec = se_wcs._radec(
-                    x - se_wcs.x0 + se_wcs_position_offset,
-                    y - se_wcs.y0 + se_wcs_position_offset,
-                    c=0,  # explicitly turning off color
-                )
-            except TypeError:
-                ra, dec = se_wcs._radec(
-                    x - se_wcs.x0 + se_wcs_position_offset,
-                    y - se_wcs.y0 + se_wcs_position_offset,
-                    color=0,  # explicitly turning off color
-                )
-
-            np.degrees(ra, out=ra)
-            np.degrees(dec, out=dec)
-            return ra, dec
-    elif isinstance(se_wcs, eu.wcsutil.WCS) or isinstance(se_wcs, AffineWCS):
-        def _image2sky(x, y):
-            return se_wcs.image2sky(
-                x + se_wcs_position_offset,
-                y + se_wcs_position_offset)
-    else:
-        raise ValueError('WCS %s not recognized!' % se_wcs)
-
-    dxy = 1
-
-    ra, dec = _image2sky(x_se, y_se)
-    ra_xp, dec_xp = _image2sky(x_se + dxy, y_se)
-    ra_xm, dec_xm = _image2sky(x_se - dxy, y_se)
-    ra_yp, dec_yp = _image2sky(x_se, y_se + dxy)
-    ra_ym, dec_ym = _image2sky(x_se, y_se - dxy)
-
-    if (
-        not isinstance(se_wcs, AffineWCS)
-        and not isinstance(se_wcs, galsim.wcs.EuclideanWCS)
-    ):
+    if isinstance(se_wcs, eu.wcsutil.WCS) or se_wcs.is_celestial():
         # code here follows the computation in galsim or esutil
         cosdec = np.cos(dec * (np.pi / 180.0))
         dudx = -0.5 * (ra_xp - ra_xm) / dxy * cosdec * 3600
@@ -175,7 +121,15 @@ def _compute_wcs_area(se_wcs, se_wcs_position_offset, x_se, y_se):
 
 
 @functools.lru_cache(maxsize=32)
-def _get_wcs_area_interp(se_wcs, se_wcs_position_offset, se_im_shape, delta=8):
+def _get_wcs_area_interp(se_wcs, se_im_shape, delta=8, position_offset=0):
+    if hasattr(se_wcs, "source_info"):
+        logger.warning(
+            "wcs area interp cache miss for %s/%s",
+            se_wcs.source_info["path"],
+            se_wcs.source_info["filename"],
+        )
+    else:
+        logger.warning("wcs area interp cache miss for %s", se_wcs)
 
     dim_y = se_im_shape[0]
     dim_x = se_im_shape[1]
@@ -183,9 +137,18 @@ def _get_wcs_area_interp(se_wcs, se_wcs_position_offset, se_im_shape, delta=8):
     y_se = y_se.ravel() - 0.5
     x_se = x_se.ravel() - 0.5
 
-    area = _compute_wcs_area(se_wcs, se_wcs_position_offset, x_se, y_se)
+    area = _compute_wcs_area(se_wcs, x_se + position_offset, y_se + position_offset)
 
     return WCSScalarInterpolator(x_se, y_se, area)
+
+
+def clear_image_and_wcs_caches():
+    """Clear the global image and WCS caches."""
+    _get_image_shape.cache_clear()
+    _read_image.cache_clear()
+    _get_noise_image.cache_clear()
+    _get_wcs_inverse.cache_clear()
+    _get_wcs_area_interp.cache_clear()
 
 
 class SEImageSlice(object):
@@ -331,6 +294,48 @@ class SEImageSlice(object):
         # init ccd bounds
         self._ccd_bnds = Bounds(0, self._im_shape[0]-1, 0, self._im_shape[1]-1)
 
+    def __repr__(self):
+        if not hasattr(self, "_state"):
+            state = {}
+            state.update(self.source_info)
+            state["__internals"] = {}
+            for attr in [
+                "_psf_model",
+                "_wcs",
+                "_wcs_position_offset",
+                "_noise_seed",
+                "_mask_tape_bumps",
+            ]:
+                state["__internals"][attr] = repr(getattr(self, attr))
+            self._state = "SEImageSlice: " + pprint.pformat(state)
+
+        return self._state
+
+    def __str__(self):
+        return self.__repr__()
+
+    # you have to set both the __hash__ and __eq__ for the python functools.lru_cache
+    # to work properly with this object
+    # for now the repr is not eval-able since its inputs are not.
+    # thus I set it to something very unique and wrote a test that this is working
+    # the image name and path is in the __repr__ along with the actual PSF object
+    # objects
+
+    def __hash__(self):
+        return hash(self.__repr__())
+
+    def __eq__(self, other):
+        return hash(self) == hash(other)
+
+    def is_celestial(self):
+        if (
+            isinstance(self._wcs, AffineWCS)
+            or isinstance(self._wcs, galsim.wcs.EuclideanWCS)
+        ):
+            return False
+        else:
+            return True
+
     def set_slice(self, x_start, y_start, box_size):
         """Set the slice location and read a square slice of the
         image, weight map, bit mask, and the noise field.
@@ -406,7 +411,7 @@ class SEImageSlice(object):
         The TAPEBUMP bit is set and SUSPECT is unset
         """
 
-        logger.debug('masking tape bumps')
+        logger.info('masking tape bumps')
 
         ccdnum = self.source_info['ccdnum']
         bumps = TAPE_BUMPS[ccdnum]
@@ -576,7 +581,7 @@ class SEImageSlice(object):
         x = np.atleast_1d(x).ravel()
         y = np.atleast_1d(y).ravel()
 
-        area = _compute_wcs_area(self._wcs, self._wcs_position_offset, x, y)
+        area = _compute_wcs_area(self, x, y)
 
         if is_scalar:
             return area[0]
@@ -934,21 +939,24 @@ class SEImageSlice(object):
         # be more expensive since they typically have distortion/tree ring
         # terms which require a root finder
         # we use a buffer to make sure edge pixels are ok
-        logger.debug('start wcs interp')
         t0 = time.time()
         wcs_interp = _get_wcs_inverse(
             wcs, wcs_position_offset,
-            self._wcs, self._wcs_position_offset,
+            self,
             self._im_shape)
-        logger.debug('end wcs interp: %f', time.time() - t0)
+        logger.debug('wcs interp cache info: %s', _get_wcs_inverse.cache_info())
+        logger.debug('wcs interp took %f seconds', time.time() - t0)
 
-        logger.debug("start wcs area interp")
         t0 = time.time()
-        se_wcs_area_interp = _get_wcs_area_interp(
-            self._wcs, self._wcs_position_offset, self._im_shape)
+        se_wcs_area_interp = _get_wcs_area_interp(self, self._im_shape)
+        logger.debug('SE wcs area cache info: %s', _get_wcs_area_interp.cache_info())
+        logger.debug('SE wcs area interp took %f seconds', time.time() - t0)
+
+        t0 = time.time()
         coadd_wcs_area_interp = _get_wcs_area_interp(
-            wcs, wcs_position_offset, wcs_interp_shape, delta=100)
-        logger.debug('end wcs area interp: %f', time.time() - t0)
+            wcs, wcs_interp_shape, delta=100, position_offset=wcs_position_offset)
+        logger.debug('coadd wcs area cache info: %s', _get_wcs_area_interp.cache_info())
+        logger.debug('coadd wcs area interp took %f seconds', time.time() - t0)
 
         # 2. using the lookup tables, we resample each image to the
         # coadd coordinates
@@ -980,6 +988,9 @@ class SEImageSlice(object):
         )
         rim *= area_coadd
         rn *= area_coadd
+
+        if np.all(rim == 0):
+            logger.warning("resampled SE image is all zero!")
 
         edge = edge.reshape(box_size, box_size)
         resampled_data = {

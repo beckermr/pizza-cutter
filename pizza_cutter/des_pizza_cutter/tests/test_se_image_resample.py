@@ -6,7 +6,7 @@ import galsim
 import piff
 
 from .._affine_wcs import AffineWCS
-from .._se_image import SEImageSlice
+from .._se_image import SEImageSlice, clear_image_and_wcs_caches
 
 
 @pytest.mark.skipif(
@@ -61,6 +61,9 @@ def test_se_image_resample_smoke(se_image_data, coadd_image_data):
 @pytest.mark.parametrize('eps_x', [-3, 0, 3])
 @pytest.mark.parametrize('eps_y', [-5, 0, 5])
 def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
+    # we reset the private methods on this class but our caches rely on the
+    # filenames and source info, so we clear them by hand
+    clear_image_and_wcs_caches()
 
     # SE WCS defs
     # starts at x_start, y_start in image coords
@@ -87,7 +90,12 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
 
     class FakeWCS(AffineWCS):
         def __init__(self):
-            pass
+            self.dudx = None
+            self.dudy = None
+            self.dvdx = None
+            self.dvdy = None
+            self.x0 = None
+            self.y0 = None
 
         def image2sky(self, x, y):
             # coadd position of
@@ -102,6 +110,24 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
                 longitude + pos_off + coadd_x_start,
                 latitude + pos_off + coadd_y_start)
 
+    class DummyWCS(AffineWCS):
+        def __init__(self):
+            self.dudx = None
+            self.dudy = None
+            self.dvdx = None
+            self.dvdy = None
+            self.x0 = None
+            self.y0 = None
+
+        def get_jacobian(self, x, y):
+            raise NotImplementedError()
+
+        def image2sky(self, x, y):
+            raise NotImplementedError()
+
+        def sky2image(self, longitude, latitude):
+            raise NotImplementedError()
+
     se_im = SEImageSlice(
         source_info=se_image_data['source_info'],
         psf_model=galsim.Gaussian(fwhm=0.8),
@@ -113,7 +139,7 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
     se_im._im_shape = (512, 512)
 
     # we are going to override these methods for testing
-    se_im._wcs = FakeWCS()
+    se_im._wcs = DummyWCS()
     se_im._wcs.sky2image = _se_sky2image
     se_im._wcs.image2sky = _se_image2sky
 

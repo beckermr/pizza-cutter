@@ -80,7 +80,6 @@ def _check_and_log(info):
 @lru_cache(maxsize=128)
 def get_piff_psf(psf_path):
     """load a piff.PSF object from the specified file"""
-    logger.info('reading: %s' % psf_path)
     return piff.read(psf_path)
 
 

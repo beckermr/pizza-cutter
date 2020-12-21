@@ -5,9 +5,52 @@ import fitsio
 
 import piff
 
-from .._se_image import _get_wcs_inverse
+from .._se_image import _get_wcs_inverse, SEImageSlice
 
 SE_DIMS_CUT = 512
+
+
+def test_se_image_get_wcs_inverse_caches(se_image_data, coadd_image_data):
+    _get_wcs_inverse.cache_clear()
+
+    psf_mod = piff.PSF.read(se_image_data['source_info']['piff_path'])
+    se_im = SEImageSlice(
+        source_info=se_image_data['source_info'],
+        psf_model=psf_mod,
+        wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=1,
+        noise_seed=10,
+        mask_tape_bumps=False,
+    )
+    se_im._im_shape = (512, 512)
+    _get_wcs_inverse(
+        coadd_image_data['eu_wcs'],
+        coadd_image_data['position_offset'],
+        se_im,
+        se_im._im_shape)
+    assert _get_wcs_inverse.cache_info().hits == 0
+    _get_wcs_inverse(
+        coadd_image_data['eu_wcs'],
+        coadd_image_data['position_offset'],
+        se_im,
+        se_im._im_shape)
+    assert _get_wcs_inverse.cache_info().hits == 1
+
+    se_im = SEImageSlice(
+        source_info=se_image_data['source_info'],
+        psf_model=psf_mod,
+        wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=1,
+        noise_seed=10,
+        mask_tape_bumps=False,
+    )
+    se_im._im_shape = (512, 512)
+    _get_wcs_inverse(
+        coadd_image_data['eu_wcs'],
+        coadd_image_data['position_offset'],
+        se_im,
+        se_im._im_shape)
+    assert _get_wcs_inverse.cache_info().hits == 2
 
 
 @pytest.mark.skipif(
@@ -20,7 +63,7 @@ def test_se_image_get_wcs_inverse_pixmappy(se_image_data, coadd_image_data):
 
     se_wcs = piff.PSF.read(se_image_data['source_info']['piff_path']).wcs[0]
 
-    # this hack mocks up an esutil=like interface to the pixmappy WCS
+    # this hack mocks up an esutil-like interface to the pixmappy WCS
     def se_image2sky(x, y):
         if np.ndim(x) == 0 and np.ndim(y) == 0:
             is_scalar = True
@@ -48,13 +91,21 @@ def test_se_image_get_wcs_inverse_pixmappy(se_image_data, coadd_image_data):
     bmask = bmask[:SE_DIMS_CUT, :SE_DIMS_CUT]
 
     # the apprixmate inversion assumes zero-indexed positions in and out
+    _get_wcs_inverse.cache_clear()
     wcs_inv = _get_wcs_inverse(
         coadd_wcs,
         coadd_image_data['position_offset'],
         se_wcs,
-        se_image_data['source_info']['position_offset'],
         (SE_DIMS_CUT, SE_DIMS_CUT)
     )
+    assert _get_wcs_inverse.cache_info().hits == 0
+    wcs_inv = _get_wcs_inverse(
+        coadd_wcs,
+        coadd_image_data['position_offset'],
+        se_wcs,
+        (SE_DIMS_CUT, SE_DIMS_CUT)
+    )
+    assert _get_wcs_inverse.cache_info().hits == 1
 
     rng = np.random.RandomState(seed=100)
 
@@ -120,7 +171,6 @@ def test_se_image_get_wcs_inverse_scamp(se_image_data, coadd_image_data):
         coadd_wcs,
         coadd_image_data['position_offset'],
         se_wcs,
-        se_image_data['source_info']['position_offset'],
         (SE_DIMS_CUT, SE_DIMS_CUT)
     )
 
@@ -146,9 +196,7 @@ def test_se_image_get_wcs_inverse_scamp(se_image_data, coadd_image_data):
         (y_se_pix >= buff) &
         (y_se_pix < bmask.shape[0] - buff))
 
-    coadd_pos = coadd_wcs.sky2image(*se_wcs.image2sky(
-        x_se+se_image_data['source_info']['position_offset'],
-        y_se+se_image_data['source_info']['position_offset']))
+    coadd_pos = coadd_wcs.sky2image(*se_wcs.image2sky(x_se, y_se))
     # outputs are one-indexed so we convert back
     coadd_x = coadd_pos[0] - coadd_image_data['position_offset']
     coadd_y = coadd_pos[1] - coadd_image_data['position_offset']

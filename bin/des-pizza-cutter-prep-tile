@@ -57,31 +57,46 @@ def main():
 
     cfg = yaml.load(config_text, Loader=yaml.Loader)
 
-    cfg['des_data']['medsconf'] \
-        = os.path.basename(args.config).replace('.yaml', '')
+    medsconf = os.path.basename(args.config).replace('.yaml', '')
 
-    # Preparator uses medsconf, campaign, source_type from config
-    prep = desmeds.desdm_maker.Preparator(
-        cfg['des_data'],
+    # we have to reset the source dir to be safe here
+    source_dir = os.path.join(
+        desmeds.files.get_meds_dir(medsconf, args.tilename),
+        'sources-%s' % args.band,
+    )
+
+    csrc = desmeds.coaddsrc.CoaddSrc(
+        medsconf,
         args.tilename,
         args.band,
+        campaign=cfg["des_data"]["campaign"],
     )
+    csrc["source_dir"] = source_dir
+
+    coadd = desmeds.coaddinfo.Coadd(
+        medsconf,
+        args.tilename,
+        args.band,
+        campaign=cfg["des_data"]["campaign"],
+        sources=csrc,
+    )
+    coadd["source_dir"] = source_dir
+
     if args.clean:
         # remove the source-${band} tree. This leaves the PSFs and list files
         # in place
-        prep.clean()
-
+        coadd.clean()
     else:
         # download the data
-        prep.go()
+        coadd.download()
 
-        info = prep.coadd.get_info()
+        info = coadd.get_info()
 
         piff_run = cfg['des_data'].get('piff_run', None)
         add_extra_des_coadd_tile_info(info=info, piff_run=piff_run)
 
         output_path = get_des_info_file(
-            cfg['des_data']['medsconf'],
+            medsconf,
             args.tilename,
             args.band,
         )
