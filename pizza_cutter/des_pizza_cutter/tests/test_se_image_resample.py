@@ -106,6 +106,9 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
         def __init__(self):
             pass
 
+        def get_jacobian(self, x, y):
+            raise NotImplementedError()
+
         def image2sky(self, x, y):
             raise NotImplementedError()
 
