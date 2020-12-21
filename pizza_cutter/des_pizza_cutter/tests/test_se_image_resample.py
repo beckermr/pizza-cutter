@@ -102,6 +102,16 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
                 longitude + pos_off + coadd_x_start,
                 latitude + pos_off + coadd_y_start)
 
+    class DummyWCS(AffineWCS):
+        def __init__(self):
+            pass
+
+        def image2sky(self, x, y):
+            raise NotImplementedError()
+
+        def sky2image(self, longitude, latitude):
+            raise NotImplementedError()
+
     se_im = SEImageSlice(
         source_info=se_image_data['source_info'],
         psf_model=galsim.Gaussian(fwhm=0.8),
@@ -113,7 +123,7 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
     se_im._im_shape = (512, 512)
 
     # we are going to override these methods for testing
-    se_im._wcs = FakeWCS()
+    se_im._wcs = DummyWCS()
     se_im._wcs.sky2image = _se_sky2image
     se_im._wcs.image2sky = _se_image2sky
 

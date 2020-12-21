@@ -11,6 +11,8 @@ SE_DIMS_CUT = 512
 
 
 def test_se_image_get_wcs_inverse_caches(se_image_data, coadd_image_data):
+    _get_wcs_inverse.cache_clear()
+
     psf_mod = piff.PSF.read(se_image_data['source_info']['piff_path'])
     se_im = SEImageSlice(
         source_info=se_image_data['source_info'],
@@ -89,12 +91,14 @@ def test_se_image_get_wcs_inverse_pixmappy(se_image_data, coadd_image_data):
     bmask = bmask[:SE_DIMS_CUT, :SE_DIMS_CUT]
 
     # the apprixmate inversion assumes zero-indexed positions in and out
+    _get_wcs_inverse.cache_clear()
     wcs_inv = _get_wcs_inverse(
         coadd_wcs,
         coadd_image_data['position_offset'],
         se_wcs,
         (SE_DIMS_CUT, SE_DIMS_CUT)
     )
+    assert _get_wcs_inverse.cache_info().hits == 0
     wcs_inv = _get_wcs_inverse(
         coadd_wcs,
         coadd_image_data['position_offset'],

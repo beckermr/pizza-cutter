@@ -50,6 +50,8 @@ def write_sim(*, path, info, images, weights, bmasks, bkgs):
     info['image_flags'] = 0
     info['magzp'] = MAGZP_REF
     info['scale'] = 1.0
+    info['path'] = None
+    info['filename'] = None
 
     for ind, (image, weight, bmask, bkg) in enumerate(
             zip(images, weights, bmasks, bkgs)):
@@ -65,6 +67,7 @@ def write_sim(*, path, info, images, weights, bmasks, bkgs):
         info['src_info'][ind]['image_ext'] = ext
 
         info['src_info'][ind]['filename'] = os.path.basename(fname)
+        info['src_info'][ind]['path'] = os.path.dirname(fname)
 
         fname = os.path.join(path, 'wgt%s.fits' % uuid.uuid4().hex)
         ext = '%s' % uuid.uuid4().hex[0:3]
