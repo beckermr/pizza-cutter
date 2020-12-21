@@ -5,6 +5,18 @@ import pytest
 from .._affine_wcs import AffineWCS
 
 
+def test_affine_wcs_is_celestial():
+    wcs = AffineWCS(
+        dudx=0.5,
+        dudy=0.7,
+        dvdx=-0.1,
+        dvdy=-2.5,
+        x0=56,
+        y0=-1345
+    )
+    assert not wcs.is_celestial
+
+
 def test_affine_wcs_values():
     wcs = AffineWCS(
         dudx=0.5,

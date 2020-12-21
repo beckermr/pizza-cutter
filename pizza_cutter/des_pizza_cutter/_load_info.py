@@ -58,6 +58,7 @@ def load_objects_into_info(*, info):
             'affine_wcs_config' : a dictionary used to build an `AffineWCS`
                 instance
     """
+    logger.info("loading image data products for %s/%s", info["path"], info["filename"])
     try:
         info['image_wcs'] = eu.wcsutil.WCS(
             _munge_fits_header(fitsio.read_header(
@@ -76,6 +77,7 @@ def load_objects_into_info(*, info):
         info['image_shape'] = tuple(info['image_shape'])
 
     for index, ii in enumerate(info['src_info']):
+        logger.info("loading image data products for %s/%s", ii["path"], ii["filename"])
         # wcs info
         try:
             ii['image_wcs'] = eu.wcsutil.WCS(
@@ -124,8 +126,9 @@ def load_objects_into_info(*, info):
                     if isinstance(
                             ii['pixmappy_wcs'].origin,
                             galsim._galsim.PositionD):
-                        logger.debug(
-                            "adjusting the pixmappy origin to fix a bug!")
+                        logger.warning(
+                            "adjusting the pixmappy origin to fix a bug!"
+                        )
                         ii['pixmappy_wcs']._origin = galsim.PositionD(
                             ii['pixmappy_wcs']._origin.x,
                             ii['pixmappy_wcs']._origin.y)

@@ -252,7 +252,8 @@ def _coadd_and_write_images(
 
         se_image_slices, weights, slices_not_used, flags_not_used = bsres
 
-        logger.debug('using nepoch: %d' % len(weights))
+        logger.info('weights: %s' % weights)
+        logger.info('using nepoch: %d' % len(weights))
         epochs_info.append(_make_epochs_info(
             object_data=object_data[i],
             weights=weights,
@@ -278,6 +279,9 @@ def _coadd_and_write_images(
                 psf_box_size=object_data['psf_box_size'][i],
                 se_image_slices=se_image_slices,
                 weights=weights)
+
+            if np.all(image == 0):
+                logger.warning("coadded image is all zero!")
 
             # write the image, bmask, ormask, noise and weight map
             _write_single_image(

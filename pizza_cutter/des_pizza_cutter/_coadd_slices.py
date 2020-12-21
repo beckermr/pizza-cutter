@@ -155,7 +155,7 @@ def _build_slice_inputs(
 
     # we first do a rough cut of the images
     # this is fast and lets us stop if nothing can be used
-    logger.debug('generating slice objects')
+    logger.info('generating slice objects for ra,dec = %s|%s', ra, dec)
     possible_slices = []
     for se_info in se_src_info:
         if se_info['image_flags'] == 0:
@@ -178,7 +178,14 @@ def _build_slice_inputs(
                 patch_bnds = se_slice.compute_slice_bounds(
                     ra, dec, box_size)
                 if se_slice.ccd_contains_bounds(
-                        patch_bnds, buffer=edge_buffer):
+                    patch_bnds, buffer=edge_buffer
+                ):
+                    logger.debug(
+                        'found possible image %s/%s',
+                        se_slice.source_info['path'],
+                        se_slice.source_info['filename'],
+                    )
+
                     # we found one - set the slice (also does i/o of image
                     # data products)
                     se_slice.set_slice(
@@ -188,12 +195,11 @@ def _build_slice_inputs(
 
                     # we will want this for storing in the meds file,
                     # even if this slice doesn't ultimately get used
-                    logger.debug('drawing the PSF')
                     se_slice.set_psf(ra_psf, dec_psf)
 
                     possible_slices.append(se_slice)
 
-    logger.debug('images found in rough cut: %d', len(possible_slices))
+    logger.info('images found in rough cut: %d', len(possible_slices))
 
     # just stop now if we find nothing
     if not possible_slices:
@@ -202,11 +208,11 @@ def _build_slice_inputs(
     # we reject outliers after scaling the images to the same zero points
     # every here is passed by reference so this just works
     if reject_outliers:
-        logger.debug('rejecting outliers')
+        logger.info('rejecting outliers')
         nreject = meds.meds.reject_outliers(
             [s.image for s in possible_slices],
             [s.weight for s in possible_slices])
-        logger.debug('# of rejected pixels: %d', nreject)
+        logger.info('# of rejected pixels: %d', nreject)
 
     # finally, we do the final set of cuts and interpolation
     # any image that passes those gets bad pixels interpolated (slow!)
@@ -216,7 +222,11 @@ def _build_slice_inputs(
     slices_not_used = []
     flags_not_used = []
     for se_slice in possible_slices:
-        logger.debug('proccseeing image %s', se_slice.source_info['filename'])
+        logger.info(
+            'pre-proccseeing image %s/%s',
+            se_slice.source_info["path"],
+            se_slice.source_info['filename'],
+        )
 
         flags = 0
 
@@ -271,8 +281,11 @@ def _build_slice_inputs(
                 flags |= procflags.HIGH_UNMASKED_TRAIL_FRAC
 
             msg = '; '.join(msg)
-            logger.debug('rejecting image %s: %s',
-                         se_slice.source_info['filename'], msg)
+            logger.info(
+                'rejecting image %s: %s',
+                se_slice.source_info['filename'],
+                msg,
+            )
 
             slices_not_used.append(se_slice)
             flags_not_used.append(flags)
@@ -308,7 +321,7 @@ def _build_slice_inputs(
                 slices_not_used.append(se_slice)
                 flags_not_used.append(flags)
 
-                logger.debug(
+                logger.info(
                     'rejecting image %s: interpolated region too big',
                     se_slice.source_info['filename'])
                 continue
@@ -417,7 +430,11 @@ def _coadd_slice_inputs(
         (psf_box_size, psf_box_size), dtype=se_image_slices[0].image.dtype)
 
     for se_slice, weight in zip(se_image_slices, weights):
-        logger.debug('resampling image %s', se_slice.source_info['filename'])
+        logger.info(
+            'resampling image %s/%s',
+            se_slice.source_info["path"],
+            se_slice.source_info['filename'],
+        )
         resampled_data = se_slice.resample(
             wcs=wcs,
             wcs_position_offset=wcs_position_offset,
@@ -429,6 +446,13 @@ def _coadd_slice_inputs(
             psf_y_start=psf_start_row,
             psf_box_size=psf_box_size
         )
+
+        if np.all(resampled_data['image'] == 0):
+            logger.warning(
+                "resampled image %s/%s is all zero!",
+                se_slice.source_info["path"],
+                se_slice.source_info["filename"],
+            )
 
         image += (resampled_data['image'] * weight)
         noise += (resampled_data['noise'] * weight)

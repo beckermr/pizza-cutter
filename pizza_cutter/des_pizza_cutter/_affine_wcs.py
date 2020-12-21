@@ -36,6 +36,8 @@ class AffineWCS(object):
         Convert sky coordinates to image coordinates.
     get_jacobian(x, y)
         Get the local Jacobian of the affine transformation.
+    is_celestial()
+        Always returns False.
 
     Attributes
     ----------
@@ -116,3 +118,7 @@ class AffineWCS(object):
             self.dvdx,
             self.dvdy
         )
+
+    def is_celestial(self):
+        """Always returns False since this WCS is not defined on the sphere."""
+        return False

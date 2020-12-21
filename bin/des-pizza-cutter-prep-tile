@@ -59,7 +59,7 @@ def main():
 
     medsconf = os.path.basename(args.config).replace('.yaml', '')
 
-    # Preparator uses medsconf, campaign, source_type from config
+    # we have to reset the source dir to be safe here
     source_dir = os.path.join(
         desmeds.files.get_meds_dir(medsconf, args.tilename),
         'sources-%s' % args.band,
