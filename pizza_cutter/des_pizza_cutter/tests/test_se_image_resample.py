@@ -6,7 +6,7 @@ import galsim
 import piff
 
 from .._affine_wcs import AffineWCS
-from .._se_image import SEImageSlice
+from .._se_image import SEImageSlice, clear_image_and_wcs_caches
 
 
 @pytest.mark.skipif(
@@ -61,6 +61,9 @@ def test_se_image_resample_smoke(se_image_data, coadd_image_data):
 @pytest.mark.parametrize('eps_x', [-3, 0, 3])
 @pytest.mark.parametrize('eps_y', [-5, 0, 5])
 def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
+    # we reset the private methods on this class but our caches rely on the
+    # filenames and source info, so we clear them by hand
+    clear_image_and_wcs_caches()
 
     # SE WCS defs
     # starts at x_start, y_start in image coords

@@ -142,6 +142,15 @@ def _get_wcs_area_interp(se_wcs, se_im_shape, delta=8, position_offset=0):
     return WCSScalarInterpolator(x_se, y_se, area)
 
 
+def clear_image_and_wcs_caches():
+    """Clear the global image and WCS caches."""
+    _get_image_shape.cache_clear()
+    _read_image.cache_clear()
+    _get_noise_image.cache_clear()
+    _get_wcs_inverse.cache_clear()
+    _get_wcs_area_interp.cache_clear()
+
+
 class SEImageSlice(object):
     """A single-epoch image w/ associated metadata.
 
@@ -931,7 +940,7 @@ class SEImageSlice(object):
 
         t0 = time.time()
         coadd_wcs_area_interp = _get_wcs_area_interp(
-            wcs, wcs_interp_shape, delta=100, position_offset=1)
+            wcs, wcs_interp_shape, delta=100, position_offset=wcs_position_offset)
         logger.debug('coadd wcs area cache info: %s', _get_wcs_area_interp.cache_info())
         logger.debug('coadd wcs area interp took %f seconds', time.time() - t0)
 
