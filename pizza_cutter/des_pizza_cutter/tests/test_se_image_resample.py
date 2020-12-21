@@ -90,7 +90,12 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
 
     class FakeWCS(AffineWCS):
         def __init__(self):
-            pass
+            self.dudx = None
+            self.dudy = None
+            self.dvdx = None
+            self.dvdy = None
+            self.x0 = None
+            self.y0 = None
 
         def image2sky(self, x, y):
             # coadd position of
@@ -107,7 +112,12 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
 
     class DummyWCS(AffineWCS):
         def __init__(self):
-            pass
+            self.dudx = None
+            self.dudy = None
+            self.dvdx = None
+            self.dvdy = None
+            self.x0 = None
+            self.y0 = None
 
         def get_jacobian(self, x, y):
             raise NotImplementedError()
