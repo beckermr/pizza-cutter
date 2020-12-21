@@ -288,6 +288,13 @@ class SEImageSlice(object):
     def __str__(self):
         return self.__repr__()
 
+    # you have to set both the __hash__ and __eq__ for the python functools.lru_cache
+    # to work properly with this object
+    # for now the repr is not eval-able since its inputs are not.
+    # thus I set it to something very unique and wrote a test that this is working
+    # the image name and path is in the __repr__ along with the actual PSF object
+    # objects
+
     def __hash__(self):
         return hash(self.__repr__())
 
