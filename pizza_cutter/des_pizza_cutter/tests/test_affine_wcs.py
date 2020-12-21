@@ -14,7 +14,7 @@ def test_affine_wcs_is_celestial():
         x0=56,
         y0=-1345
     )
-    assert not wcs.is_celestial
+    assert not wcs.is_celestial()
 
 
 def test_affine_wcs_values():

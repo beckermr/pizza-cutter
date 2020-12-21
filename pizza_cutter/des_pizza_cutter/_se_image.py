@@ -74,11 +74,14 @@ def _get_noise_image(weight_path, weight_ext, scale, noise_seed, tmpdir):
 
 @functools.lru_cache(maxsize=32)
 def _get_wcs_inverse(wcs, wcs_position_offset, se_wcs, se_im_shape, delta=8):
-    logger.warning(
-        "wcs inverse cache miss for %s/%s",
-        se_wcs.source_info["path"],
-        se_wcs.source_info["filename"],
-    )
+    if hasattr(se_wcs, "source_info"):
+        logger.warning(
+            "wcs inverse cache miss for %s/%s",
+            se_wcs.source_info["path"],
+            se_wcs.source_info["filename"],
+        )
+    else:
+        logger.warning("wcs inverse cache miss for %s", se_wcs)
 
     dim_y = se_im_shape[0]
     dim_x = se_im_shape[1]
