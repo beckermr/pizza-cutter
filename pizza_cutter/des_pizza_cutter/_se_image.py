@@ -295,7 +295,21 @@ class SEImageSlice(object):
         self._ccd_bnds = Bounds(0, self._im_shape[0]-1, 0, self._im_shape[1]-1)
 
     def __repr__(self):
-        return "SEImageSlice for " + pprint.pformat(self.source_info)
+        if not hasattr(self, "_state"):
+            state = {}
+            state.update(self.source_info)
+            state["__internals"] = {}
+            for attr in [
+                "_psf_model",
+                "_wcs",
+                "_wcs_position_offset",
+                "_noise_seed",
+                "_mask_tape_bumps",
+            ]:
+                state["__internals"][attr] = repr(getattr(self, attr))
+            self._state = "SEImageSlice: " + pprint.pformat(state)
+
+        return self._state
 
     def __str__(self):
         return self.__repr__()

@@ -5,6 +5,32 @@ import pytest
 from .._affine_wcs import AffineWCS
 
 
+def test_affine_wcs_repr_hash():
+    wcs1 = AffineWCS(
+        dudx=0.5,
+        dudy=0.7,
+        dvdx=-0.1,
+        dvdy=-2.5,
+        x0=56,
+        y0=-1345
+    )
+    wcs2 = AffineWCS(
+        dudx=0.5,
+        dudy=0.7,
+        dvdx=-0.1,
+        dvdy=-2.5,
+        x0=56,
+        y0=-1345
+    )
+    assert wcs1 == wcs2
+    wcs3 = eval(repr(wcs1))
+    assert wcs1 == wcs3
+    d = {}
+    d[wcs1] = 10
+    assert wcs2 in d
+    assert wcs3 in d
+
+
 def test_affine_wcs_is_celestial():
     wcs = AffineWCS(
         dudx=0.5,
