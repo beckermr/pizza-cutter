@@ -1,7 +1,7 @@
 import numpy as np
 import esutil
 
-from .._wcs_utils import WCSInversionInterpolator, WCSScalarInterpolator
+from .._wcs_utils import WCSInversionInterpolator, WCSGridScalarInterpolator
 
 COADD_WCS = esutil.wcsutil.WCS({
     'xtension': 'BINTABLE',
@@ -477,15 +477,22 @@ def test_wcs_inversion():
 
 def test_wcs_scalar_interp_se():
     rng = np.random.RandomState(seed=10)
-    dim = 64
+    dimx = 64
+    dimy = 512
     delta = 8
-    y, x = np.mgrid[:dim+delta:delta, 0:dim+delta:delta]
+    y, x = np.mgrid[:dimy+delta:delta, 0:dimx+delta:delta]
+    shape = y.shape
     y = y.ravel()
     x = x.ravel()
     tup = SE_WCS.get_jacobian(x, y)
     area = np.abs(tup[0] * tup[3] - tup[1] * tup[2])
+    area = area.reshape(shape).T
 
-    wcs_area = WCSScalarInterpolator(x, y, area)
+    wcs_area = WCSGridScalarInterpolator(
+        np.mgrid[:dimx+delta:delta],
+        np.mgrid[:dimy+delta:delta],
+        area,
+    )
 
     for _ in range(1000):
         se_pos = rng.uniform(size=2)*63 + 1
@@ -497,17 +504,24 @@ def test_wcs_scalar_interp_se():
 
 def test_wcs_scalar_interp_coadd():
     rng = np.random.RandomState(seed=10)
-    dim = 10000
+    dimx = 10000
+    dimy = 500
     delta = 100
-    y, x = np.mgrid[:dim+delta:delta, 0:dim+delta:delta]
+    y, x = np.mgrid[:dimy+delta:delta, 0:dimx+delta:delta]
+    shape = y.shape
     y = y.ravel()
     x = x.ravel()
     tup = COADD_WCS.get_jacobian(x, y)
     area = np.abs(tup[0] * tup[3] - tup[1] * tup[2])
-    wcs_area = WCSScalarInterpolator(x, y, area)
+    area = area.reshape(shape).T
+    wcs_area = WCSGridScalarInterpolator(
+        np.mgrid[:dimx+delta:delta],
+        np.mgrid[:dimy+delta:delta],
+        area,
+    )
 
     for _ in range(1000):
-        se_pos = rng.uniform(size=2)*(dim-1) + 1
+        se_pos = rng.uniform(size=2)*(dimy-1) + 1
         tup = COADD_WCS.get_jacobian(se_pos[0], se_pos[1])
         _area = np.abs(tup[0] * tup[3] - tup[1] * tup[2])
         interp_area = wcs_area(se_pos[0], se_pos[1])

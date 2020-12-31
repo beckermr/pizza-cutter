@@ -14,7 +14,7 @@ from meds.util import radec_to_uv
 
 from ..coadding import (
     WCSInversionInterpolator,
-    WCSScalarInterpolator,
+    WCSGridScalarInterpolator,
     lanczos_resample,
     lanczos_resample_two,
 )
@@ -37,9 +37,6 @@ PIFF_STAMP_SIZE = 25
 
 @functools.lru_cache(maxsize=2048)
 def _get_image_shape(*, image_path, image_ext):
-
-    logger.warning('cache miss image shape: "%s" "%s"' % (image_path, image_ext))
-
     h = fitsio.read_header(image_path, ext=image_ext)
     if 'znaxis1' in h:
         return h['znaxis2'], h['znaxis1']
@@ -75,13 +72,13 @@ def _get_noise_image(weight_path, weight_ext, scale, noise_seed, tmpdir):
 @functools.lru_cache(maxsize=32)
 def _get_wcs_inverse(wcs, wcs_position_offset, se_wcs, se_im_shape, delta=8):
     if hasattr(se_wcs, "source_info"):
-        logger.warning(
+        logger.debug(
             "wcs inverse cache miss for %s/%s",
             se_wcs.source_info["path"],
             se_wcs.source_info["filename"],
         )
     else:
-        logger.warning("wcs inverse cache miss for %s", se_wcs)
+        logger.debug("wcs inverse cache miss for %s", se_wcs)
 
     dim_y = se_im_shape[0]
     dim_x = se_im_shape[1]
@@ -123,23 +120,29 @@ def _compute_wcs_area(se_wcs, x_se, y_se, dxy=1):
 @functools.lru_cache(maxsize=32)
 def _get_wcs_area_interp(se_wcs, se_im_shape, delta=8, position_offset=0):
     if hasattr(se_wcs, "source_info"):
-        logger.warning(
+        logger.debug(
             "wcs area interp cache miss for %s/%s",
             se_wcs.source_info["path"],
             se_wcs.source_info["filename"],
         )
     else:
-        logger.warning("wcs area interp cache miss for %s", se_wcs)
+        logger.debug("wcs area interp cache miss for %s", se_wcs)
 
     dim_y = se_im_shape[0]
     dim_x = se_im_shape[1]
     y_se, x_se = np.mgrid[:dim_y+delta:delta, :dim_x+delta:delta]
+    shape = y_se.shape
     y_se = y_se.ravel() - 0.5
     x_se = x_se.ravel() - 0.5
 
     area = _compute_wcs_area(se_wcs, x_se + position_offset, y_se + position_offset)
+    area = area.reshape(shape).T  # put x dim first
 
-    return WCSScalarInterpolator(x_se, y_se, area)
+    return WCSGridScalarInterpolator(
+        np.mgrid[:dim_x+delta:delta],
+        np.mgrid[:dim_y+delta:delta],
+        area,
+    )
 
 
 def clear_image_and_wcs_caches():
