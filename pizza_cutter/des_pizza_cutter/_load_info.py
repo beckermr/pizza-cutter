@@ -10,6 +10,7 @@ import pixmappy
 
 from ._piff_tools import get_piff_psf
 from ._affine_wcs import AffineWCS
+from ..slice_utils.pbar import PBar
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +59,7 @@ def load_objects_into_info(*, info):
             'affine_wcs_config' : a dictionary used to build an `AffineWCS`
                 instance
     """
+    print('loading coadd image data', flush=True)
     logger.info("loading image data products for %s/%s", info["path"], info["filename"])
     try:
         info['image_wcs'] = eu.wcsutil.WCS(
@@ -76,7 +78,11 @@ def load_objects_into_info(*, info):
     if 'image_shape' in info:
         info['image_shape'] = tuple(info['image_shape'])
 
-    for index, ii in enumerate(info['src_info']):
+    for index, ii in PBar(
+        enumerate(info['src_info']),
+        total=len(info["src_info"]),
+        desc="loading SE image data",
+    ):
         logger.info("loading image data products for %s/%s", ii["path"], ii["filename"])
         # wcs info
         try:
