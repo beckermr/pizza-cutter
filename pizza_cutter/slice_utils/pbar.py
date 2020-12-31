@@ -10,7 +10,7 @@ import time
 
 
 def PBar(iterable, desc='', total=None, leave=True, file=sys.stdout,
-         mininterval=0.5, miniters=1, n_bars=20):
+         mininterval=0.5, miniters=1, n_bars=20, pad=None, flush=False):
     """
     Get an iterable object, and return an iterator which acts exactly like the
     iterable, but prints a progress meter and updates it every time a value is
@@ -37,6 +37,14 @@ def PBar(iterable, desc='', total=None, leave=True, file=sys.stdout,
 
         If less than mininterval seconds or miniters iterations have passed
         since the last progress meter update, it is not updated again.
+    n_bars: int, optional
+        The width of the bar.
+    pad: int, optional
+        The number of characters to pad integers to. Default of None does
+        no padding.
+    flush: bool, optional
+        If True, each progress update is flushed with a newline instead of
+        overwriting the old bar. Default is False.
     """
     if total is None:
         try:
@@ -46,8 +54,8 @@ def PBar(iterable, desc='', total=None, leave=True, file=sys.stdout,
 
     prefix = desc+': ' if desc else ''
 
-    sp = StatusPrinter(file)
-    sp.print_status(prefix + format_meter(0, total, 0, n_bars=n_bars))
+    sp = StatusPrinter(file, flush=flush)
+    sp.print_status(prefix + format_meter(0, total, 0, n_bars=n_bars, pad=pad))
 
     start_t = last_print_t = time.time()
     last_print_n = 0
@@ -65,13 +73,14 @@ def PBar(iterable, desc='', total=None, leave=True, file=sys.stdout,
                     total,
                     cur_t-start_t,
                     n_bars=n_bars,
+                    pad=pad,
                 )
                 sp.print_status(prefix + pstat)
 
                 last_print_n = n
                 last_print_t = cur_t
 
-    if not leave:
+    if not leave and not flush:
         sp.print_status('')
         sys.stdout.write('\r')
     else:
@@ -83,9 +92,11 @@ def PBar(iterable, desc='', total=None, leave=True, file=sys.stdout,
                 total,
                 cur_t-start_t,
                 n_bars=n_bars,
+                pad=pad,
             )
             sp.print_status(prefix + pstat)
-        file.write('\n')
+        if not flush:
+            file.write('\n')
 
 
 def prange(*args, **kwargs):
@@ -112,7 +123,7 @@ def format_interval(t):
         return '%02d:%02d' % (m, s)
 
 
-def format_meter(n, total, elapsed, n_bars=20):
+def format_meter(n, total, elapsed, n_bars=20, pad=None):
     # n - number of finished iterations
     # total - total number of iterations, or None
     # elapsed - number of seconds passed since start
@@ -131,19 +142,35 @@ def format_meter(n, total, elapsed, n_bars=20):
 
         left_str = format_interval(elapsed / n * (total-n)) if n else '?'
 
-        return '|%s| %d/%d %s [elapsed: %s left: %s]' % (
-            bar, n, total, percentage, elapsed_str, left_str)
-
+        if pad is None:
+            return '|%s| %d/%d %s [elapsed: %s left: %s]' % (
+                bar, n, total, percentage, elapsed_str, left_str)
+        else:
+            pstr = '%d' % pad
+            barstr = '|%s| %' + pstr + 'd/%' + pstr + 'd %s [elapsed: %s left: %s]'
+            barstr = barstr % (
+                bar, n, total, percentage, elapsed_str, left_str)
+            return barstr
     else:
-        return '%d [elapsed: %s]' % (n, elapsed_str)
+        if pad is None:
+            return '%d [elapsed: %s]' % (n, elapsed_str)
+        else:
+            pstr = '%d' % pad
+            barstr = '%' + pstr + 'd [elapsed: %s]'
+            barstr = barstr % (n, elapsed_str)
+            return barstr
 
 
 class StatusPrinter(object):
-    def __init__(self, file):
+    def __init__(self, file, flush=True):
         self.file = file
         self.last_printed_len = 0
+        self.flush = flush
 
     def print_status(self, s):
-        self.file.write('\r'+s+' '*max(self.last_printed_len-len(s), 0))
+        if self.flush:
+            self.file.write(s + "\n")
+        else:
+            self.file.write('\r'+s+' '*max(self.last_printed_len-len(s), 0))
         self.file.flush()
         self.last_printed_len = len(s)
