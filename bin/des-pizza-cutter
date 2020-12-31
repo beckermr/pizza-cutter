@@ -10,7 +10,10 @@ from pizza_cutter.des_pizza_cutter import (
     make_des_pizza_slices, load_objects_into_info)
 
 
-def go(config, info, tag, output_path, log_level, seed, tmpdir):
+def go(
+    config, info, tag, output_path, log_level, seed, tmpdir,
+    chunk_size, max_workers,
+):
     """Create a metadetection MEDS file from a DES coadd tile."""
 
     logging.basicConfig(stream=sys.stdout)
@@ -28,7 +31,6 @@ def go(config, info, tag, output_path, log_level, seed, tmpdir):
     print('band:', info['band'], flush=True)
 
     # this loads all of the data we need into the info dict
-    print('loading PSF and WCS data...', flush=True)
     load_objects_into_info(info=info)
 
     sname = os.path.basename(config).replace('.yaml', '')
@@ -51,7 +53,10 @@ def go(config, info, tag, output_path, log_level, seed, tmpdir):
         fpack_pars=cfg.get('fpack_pars', None),
         seed=seed,
         coadd_config=cfg['coadd'],
-        single_epoch_config=cfg['single_epoch'])
+        single_epoch_config=cfg['single_epoch'],
+        max_workers=max_workers,
+        chunk_size=chunk_size,
+    )
 
 
 @click.command()
@@ -89,13 +94,34 @@ def go(config, info, tag, output_path, log_level, seed, tmpdir):
     help=(
         'the name of the temporary directory to use. if passed without '
         '--use-tmpdir, it will still be used.'))
+@click.option(
+    '--chunk-size', type=int, default=64,
+    help=(
+        'The size of each chunk of slices processed. Making this smaller consumes '
+        'less memory but will cost more CPU time when running the code in parallel.'
+    )
+)
+@click.option(
+    '--max-workers', type=int, default=1,
+    help=(
+        'The number of processes to use for making pizza slices. A value of 0 '
+        'uses the system default.'
+    )
+)
 def main(
         config, info, tag, output_path, log_level, seed,
-        use_tmpdir, tmpdir):
+        use_tmpdir, tmpdir, chunk_size, max_workers,
+):
     """Create a metadetection MEDS file from a DES coadd tile."""
 
+    if max_workers <= 0:
+        max_workers = None
+
     def _call(_tmpdir):
-        go(config, info, tag, output_path, log_level, seed, _tmpdir)
+        go(
+            config, info, tag, output_path, log_level, seed, _tmpdir,
+            chunk_size, max_workers,
+        )
 
     if use_tmpdir and tmpdir is None:
         tmpdir = tempfile.TemporaryDirectory().name

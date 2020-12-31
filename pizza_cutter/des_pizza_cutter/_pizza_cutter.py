@@ -4,6 +4,9 @@ import subprocess
 import functools
 import json
 import logging
+import time
+from concurrent.futures import ProcessPoolExecutor
+import multiprocessing
 
 import numpy as np
 import fitsio
@@ -39,7 +42,7 @@ from ..files import StagedOutFile
 from ._coadd_slices import (
     _build_slice_inputs, _coadd_slice_inputs)
 
-from ..slice_utils.pbar import prange
+from ..slice_utils.pbar import prange, format_interval, PBar
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +57,10 @@ def make_des_pizza_slices(
         tmpdir=None,
         fpack_pars=None,
         coadd_config,
-        single_epoch_config):
+        single_epoch_config,
+        chunk_size=64,
+        max_workers=1,
+):
     """Build a MEDS pizza slices file.
 
     Parameters
@@ -100,6 +106,12 @@ def make_des_pizza_slices(
         the single epoch images. See the documentaion of
         `pizza_cutter.des_pizza_cutter._coadd_slices._build_slice_inputs`
         for details on the required entries.
+    chunk_size : int, optional
+        The size of each chunk of slices processed. Making this smaller consumes
+        less memory but will cost more CPU time when running the code in parallel.
+    max_workers : int, optional
+        The number of processes to use for making pizza slices. A value of None
+        uses the system default.
     """
 
     metadata = _build_metadata(config=config)
@@ -139,6 +151,8 @@ def make_des_pizza_slices(
                 seed=seed,
                 fpack_pars=fpack_pars,
                 tmpdir=tmpdir,
+                chunk_size=chunk_size,
+                max_workers=max_workers,
             )
 
             fits.write(metadata, extname=METADATA_EXTNAME)
@@ -165,159 +179,286 @@ def make_des_pizza_slices(
     validate_meds(meds_path + '.fz')
 
 
+def _process_slice(
+    i, object_data, info, single_epoch_config, wcs, position_offset,
+    coadding_weight, seed, tmpdir, slice_seeds,
+):
+    results = {"i": i}
+
+    logger.info('processing object %d', i)
+
+    _rng = np.random.RandomState(seed=slice_seeds[i])
+
+    # we center the PSF at the nearest pixel center near the patch center
+    col, row = wcs.sky2image(object_data['ra'][i], object_data['dec'][i])
+    # this col, row includes the position offset
+    # we don't need to remove it when putting them back into the WCS
+    # but we will remove it later since we work in zero-indexed coords
+    col = int(col + 0.5)
+    row = int(row + 0.5)
+    # ra, dec of the pixel center
+    ra_psf, dec_psf = wcs.image2sky(col, row)
+
+    # now we find the lower left location of the PSF image
+    half = (object_data['psf_box_size'][i] - 1) / 2
+    assert int(half) == half, "PSF images must have odd dimensions!"
+    # here we remove the position offset
+    col -= position_offset
+    row -= position_offset
+    psf_orig_start_col = col - half
+    psf_orig_start_row = row - half
+
+    bsres = _build_slice_inputs(
+        ra=object_data['ra'][i],
+        dec=object_data['dec'][i],
+        ra_psf=ra_psf,
+        dec_psf=dec_psf,
+        box_size=object_data['box_size'][i],
+        coadd_info=info,
+        start_row=object_data['orig_start_row'][i, 0],
+        start_col=object_data['orig_start_col'][i, 0],
+        se_src_info=info['src_info'],
+        reject_outliers=single_epoch_config['reject_outliers'],
+        symmetrize_masking=single_epoch_config['symmetrize_masking'],
+        coadding_weight=coadding_weight,
+        noise_interp_flags=sum(single_epoch_config['noise_interp_flags']),
+        spline_interp_flags=sum(
+            single_epoch_config['spline_interp_flags']),
+        bad_image_flags=sum(single_epoch_config['bad_image_flags']),
+        max_masked_fraction=single_epoch_config['max_masked_fraction'],
+        max_unmasked_trail_fraction=single_epoch_config[
+            'max_unmasked_trail_fraction'],
+        mask_tape_bumps=single_epoch_config['mask_tape_bumps'],
+        edge_buffer=single_epoch_config['edge_buffer'],
+        wcs_type=single_epoch_config['wcs_type'],
+        psf_type=single_epoch_config['psf_type'],
+        rng=_rng,
+        tmpdir=tmpdir,
+    )
+
+    se_image_slices, weights, slices_not_used, flags_not_used = bsres
+
+    logger.info('weights: %s' % weights)
+    logger.info('using nepoch: %d' % len(weights))
+    results["epochs_info"] = _make_epochs_info(
+        object_data=object_data[i],
+        weights=weights,
+        slices=se_image_slices,
+        slices_not_used=slices_not_used,
+        flags_not_used=flags_not_used
+    )
+    results["weights"] = weights
+
+    # did we get anything?
+    if np.array(weights).size > 0:
+        image, bmask, ormask, noise, psf, weight = _coadd_slice_inputs(
+            wcs=wcs,
+            wcs_position_offset=position_offset,
+            start_row=object_data['orig_start_row'][i, 0],
+            start_col=object_data['orig_start_col'][i, 0],
+            box_size=object_data['box_size'][i],
+            psf_start_row=psf_orig_start_row,
+            psf_start_col=psf_orig_start_col,
+            psf_box_size=object_data['psf_box_size'][i],
+            se_image_slices=se_image_slices,
+            weights=weights)
+
+        if np.all(image == 0):
+            logger.warning("coadded image is all zero!")
+
+        results["image"] = image
+        results["bmask"] = bmask
+        results["ormask"] = ormask
+        results["noise"] = noise
+        results["psf"] = psf
+        results["weight"] = weight
+        results["psf_sigma"] = measure_fwhm(psf)
+
+    return results
+
+
+def _process_slice_chunk(
+    start, num, object_data, info, single_epoch_config, wcs, position_offset,
+    coadding_weight, seed, tmpdir, slice_seeds,
+):
+    if num == 1:
+        ritr = range(start, start+num)
+    else:
+        ritr = prange(
+            start,
+            start+num,
+            desc="processing objects [%4d, %4d)" % (start, start+num),
+            pad=4,
+            flush=True,
+        )
+
+    results_arr = []
+    for i in ritr:
+        results_arr.append(
+            _process_slice(
+                i, object_data, info, single_epoch_config, wcs, position_offset,
+                coadding_weight, seed, tmpdir, slice_seeds,
+            )
+        )
+    return results_arr, start, num
+
+
 def _coadd_and_write_images(
         *, fits, fpack_pars, object_data, info, single_epoch_config,
         wcs, position_offset, coadding_weight, seed,
-        tmpdir=None):
+        tmpdir=None, chunk_size=64, max_workers=1
+):
 
-    logger.info('reserving mosaic images...')
     n_pixels = int(np.sum(object_data['box_size']**2))
     _reserve_images(fits, n_pixels, fpack_pars)
 
     rng = np.random.RandomState(seed=seed)
+    slice_seeds = rng.randint(1, 2**32-1, size=len(object_data))
     n_psf_pixels = int(np.sum(object_data['psf_box_size']**2))
 
     # set the noise image seeds for each SE image via the RNG once
     for i in range(len(info['src_info'])):
         info['src_info'][i]['noise_seed'] = rng.randint(low=1, high=2**30)
 
-    # some constraints
-    # - we don't want to keep all of the data for each object in memory
-    # - we also probably want to write the PSFs in another loop even though we
-    #   we get them now (allows us to set the object data properly)
-    # - we are going to get back a ton of SE bit masks which we may
-    #   want to keep
-    #
-    # thus we do the following
-    # - write the big slice images to disk right away
-    # - keep the PSF images (smaller) in memory
-    # - keep the single epoch bit masks in memory in a compressed format
-    #
-    # then at the end we write any daya we have in memory to disk
     psf_data = np.zeros(n_psf_pixels, dtype=CUTOUT_DTYPES[PSF_CUTOUT_EXTNAME])
     psf_data += CUTOUT_DEFAULT_VALUES[PSF_CUTOUT_EXTNAME]
     start_row = 0
     psf_start_row = 0
     epochs_info = []
 
-    for i in prange(len(object_data)):
-        logger.info('processing object %d', i)
+    def _process_slice_results(fut_results, start_row, psf_start_row):
+        results_arr, start_res, _chunk_size_res = fut_results
+        assert start_res + _chunk_size_res <= len(object_data)
 
-        # we center the PSF at the nearest pixel center near the patch center
-        col, row = wcs.sky2image(object_data['ra'][i], object_data['dec'][i])
-        # this col, row includes the position offset
-        # we don't need to remove it when putting them back into the WCS
-        # but we will remove it later since we work in zero-indexed coords
-        col = int(col + 0.5)
-        row = int(row + 0.5)
-        # ra, dec of the pixel center
-        ra_psf, dec_psf = wcs.image2sky(col, row)
+        for _i, results in enumerate(results_arr):
+            i = start_res + _i
+            assert results["i"] == i
 
-        # now we find the lower left location of the PSF image
-        half = (object_data['psf_box_size'][i] - 1) / 2
-        assert int(half) == half, "PSF images must have odd dimensions!"
-        # here we remove the position offset
-        col -= position_offset
-        row -= position_offset
-        psf_orig_start_col = col - half
-        psf_orig_start_row = row - half
+            epochs_info.append(results["epochs_info"])
 
-        bsres = _build_slice_inputs(
-            ra=object_data['ra'][i],
-            dec=object_data['dec'][i],
-            ra_psf=ra_psf,
-            dec_psf=dec_psf,
-            box_size=object_data['box_size'][i],
-            coadd_info=info,
-            start_row=object_data['orig_start_row'][i, 0],
-            start_col=object_data['orig_start_col'][i, 0],
-            se_src_info=info['src_info'],
-            reject_outliers=single_epoch_config['reject_outliers'],
-            symmetrize_masking=single_epoch_config['symmetrize_masking'],
-            coadding_weight=coadding_weight,
-            noise_interp_flags=sum(single_epoch_config['noise_interp_flags']),
-            spline_interp_flags=sum(
-                single_epoch_config['spline_interp_flags']),
-            bad_image_flags=sum(single_epoch_config['bad_image_flags']),
-            max_masked_fraction=single_epoch_config['max_masked_fraction'],
-            max_unmasked_trail_fraction=single_epoch_config[
-                'max_unmasked_trail_fraction'],
-            mask_tape_bumps=single_epoch_config['mask_tape_bumps'],
-            edge_buffer=single_epoch_config['edge_buffer'],
-            wcs_type=single_epoch_config['wcs_type'],
-            psf_type=single_epoch_config['psf_type'],
-            rng=rng,
-            tmpdir=tmpdir,
+            # did we get anything?
+            if np.array(results["weights"]).size > 0:
+                object_data['ncutout'][i] = 1
+                object_data['nepoch'][i] = results["weights"].size
+                object_data['nepoch_eff'][i] = (
+                    results["weights"].sum() / results["weights"].max()
+                )
+
+                # write the image, bmask, ormask, noise and weight map
+                _write_single_image(
+                    fits=fits, data=results["image"],
+                    ext=IMAGE_CUTOUT_EXTNAME, start_row=start_row)
+
+                _write_single_image(
+                    fits=fits, data=results["bmask"],
+                    ext=BMASK_CUTOUT_EXTNAME, start_row=start_row)
+
+                _write_single_image(
+                    fits=fits, data=results["ormask"],
+                    ext=ORMASK_CUTOUT_EXTNAME, start_row=start_row)
+
+                _write_single_image(
+                    fits=fits, data=results["noise"],
+                    ext=NOISE_CUTOUT_EXTNAME, start_row=start_row)
+
+                _write_single_image(
+                    fits=fits, data=results["weight"],
+                    ext=WEIGHT_CUTOUT_EXTNAME, start_row=start_row)
+
+                # we need to keep the PSFs for writing later
+                _psf_size = object_data['psf_box_size'][i]**2
+                psf_data[psf_start_row:psf_start_row + _psf_size] = \
+                    results["psf"].ravel()
+
+                object_data['psf_sigma'][i, 0] = results["psf_sigma"]
+
+                # now we need to set the start row so we know where the data is
+                object_data['start_row'][i, 0] = start_row
+                object_data['psf_start_row'][i, 0] = psf_start_row
+
+                # finally we increment so that we have the next pixel for the
+                # next sliee
+                start_row += object_data['box_size'][i]**2
+                psf_start_row += _psf_size
+
+        return start_row, psf_start_row
+
+    if max_workers == 1:
+        for i_sub in prange(len(object_data)):
+            fut_results = _process_slice_chunk(
+                i_sub, 1,
+                object_data, info, single_epoch_config, wcs, position_offset,
+                coadding_weight, seed, tmpdir, slice_seeds,
+            )
+            start_row, psf_start_row = _process_slice_results(
+                fut_results, start_row, psf_start_row,
+            )
+    else:
+        num_chunks = len(object_data) // chunk_size
+        if chunk_size * num_chunks < len(object_data):
+            num_chunks += 1
+
+        if max_workers is None:
+            max_workers = multiprocessing.cpu_count()
+        print(
+            "building slices with %d workers on %d chunks" % (max_workers, num_chunks),
+            flush=True,
         )
 
-        se_image_slices, weights, slices_not_used, flags_not_used = bsres
+        i_done = 0
+        t0 = time.time()
+        futs = []
+        with ProcessPoolExecutor(max_workers=max_workers) as exec:
+            for i_sub in range(num_chunks):
+                start_sub = i_sub * chunk_size
+                if start_sub + chunk_size >= len(object_data):
+                    _chunk_size_sub = len(object_data) - start_sub
+                else:
+                    _chunk_size_sub = chunk_size
 
-        logger.info('weights: %s' % weights)
-        logger.info('using nepoch: %d' % len(weights))
-        epochs_info.append(_make_epochs_info(
-            object_data=object_data[i],
-            weights=weights,
-            slices=se_image_slices,
-            slices_not_used=slices_not_used,
-            flags_not_used=flags_not_used
-        ))
+                futs.append(
+                    exec.submit(
+                        _process_slice_chunk,
+                        start_sub, _chunk_size_sub,
+                        object_data, info, single_epoch_config, wcs, position_offset,
+                        coadding_weight, seed, tmpdir, slice_seeds,
+                    )
+                )
 
-        # did we get anything?
-        if np.array(weights).size > 0:
-            object_data['ncutout'][i] = 1
-            object_data['nepoch'][i] = weights.size
-            object_data['nepoch_eff'][i] = weights.sum()/weights.max()
+                if i_sub >= max_workers - 1:
+                    fut = futs.pop(0)
+                    start_row, psf_start_row = _process_slice_results(
+                        fut.result(), start_row, psf_start_row,
+                    )
+                    i_done += 1
+                    print(
+                        "finished chunk %d of %d: elapsed %s - eta %s" % (
+                            i_done,
+                            num_chunks,
+                            format_interval(time.time() - t0),
+                            format_interval(
+                                (time.time() - t0) / i_done * (num_chunks - i_done)
+                            ),
+                        ),
+                        flush=True,
+                    )
 
-            image, bmask, ormask, noise, psf, weight = _coadd_slice_inputs(
-                wcs=wcs,
-                wcs_position_offset=position_offset,
-                start_row=object_data['orig_start_row'][i, 0],
-                start_col=object_data['orig_start_col'][i, 0],
-                box_size=object_data['box_size'][i],
-                psf_start_row=psf_orig_start_row,
-                psf_start_col=psf_orig_start_col,
-                psf_box_size=object_data['psf_box_size'][i],
-                se_image_slices=se_image_slices,
-                weights=weights)
-
-            if np.all(image == 0):
-                logger.warning("coadded image is all zero!")
-
-            # write the image, bmask, ormask, noise and weight map
-            _write_single_image(
-                fits=fits, data=image,
-                ext=IMAGE_CUTOUT_EXTNAME, start_row=start_row)
-
-            _write_single_image(
-                fits=fits, data=bmask,
-                ext=BMASK_CUTOUT_EXTNAME, start_row=start_row)
-
-            _write_single_image(
-                fits=fits, data=ormask,
-                ext=ORMASK_CUTOUT_EXTNAME, start_row=start_row)
-
-            _write_single_image(
-                fits=fits, data=noise,
-                ext=NOISE_CUTOUT_EXTNAME, start_row=start_row)
-
-            _write_single_image(
-                fits=fits, data=weight,
-                ext=WEIGHT_CUTOUT_EXTNAME, start_row=start_row)
-
-            # we need to keep the PSFs for writing later
-            _psf_size = object_data['psf_box_size'][i]**2
-            psf_data[psf_start_row:psf_start_row + _psf_size] = psf.ravel()
-
-            object_data['psf_sigma'][i, 0] = measure_fwhm(psf)
-
-            # now we need to set the start row so we know where the data is
-            object_data['start_row'][i, 0] = start_row
-            object_data['psf_start_row'][i, 0] = psf_start_row
-
-            # finally we increment so that we have the next pixel for the
-            # next sliee
-            start_row += object_data['box_size'][i]**2
-            psf_start_row += _psf_size
+        for fut in futs:
+            start_row, psf_start_row = _process_slice_results(
+                fut.result(), start_row, psf_start_row
+            )
+            i_done += 1
+            print(
+                "finished chunk %d of %d: elapsed %s - eta %s" % (
+                    i_done,
+                    num_chunks,
+                    format_interval(time.time() - t0),
+                    format_interval(
+                        (time.time() - t0) / i_done * (num_chunks - i_done)
+                    ),
+                ),
+                flush=True,
+            )
 
     fits.write(object_data, extname=OBJECT_DATA_EXTNAME)
 
@@ -339,13 +480,17 @@ def _coadd_and_write_images(
 def _reserve_images(fits, n_pixels, fpack_pars):
     """Does everything but the PSF image."""
     dims = [n_pixels]
-    for ext in [
+    for ext in PBar(
+        [
             IMAGE_CUTOUT_EXTNAME,
             WEIGHT_CUTOUT_EXTNAME,
             SEG_CUTOUT_EXTNAME,
             BMASK_CUTOUT_EXTNAME,
             ORMASK_CUTOUT_EXTNAME,
-            NOISE_CUTOUT_EXTNAME]:
+            NOISE_CUTOUT_EXTNAME,
+        ],
+        desc='reserving mosaic images',
+    ):
         fits.create_image_hdu(
             img=None,
             dtype=CUTOUT_DTYPES[ext],

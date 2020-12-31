@@ -21,6 +21,8 @@ from ..slice_utils.measure import measure_fwhm
 from ._se_image import SEImageSlice
 from ._constants import BMASK_SPLINE_INTERP, BMASK_NOISE_INTERP
 
+SE_SLICE_CACHE = {}
+
 logger = logging.getLogger(__name__)
 
 
@@ -153,6 +155,8 @@ def _build_slice_inputs(
         List of flag values for the slices not used.
     """
 
+    global SE_SLICE_CACHE
+
     # we first do a rough cut of the images
     # this is fast and lets us stop if nothing can be used
     logger.info('generating slice objects for ra,dec = %s|%s', ra, dec)
@@ -160,15 +164,19 @@ def _build_slice_inputs(
     for se_info in se_src_info:
         if se_info['image_flags'] == 0:
             # no flags so init the object
-            se_slice = SEImageSlice(
-                source_info=se_info,
-                psf_model=se_info['%s_psf' % psf_type],
-                wcs=se_info['%s_wcs' % wcs_type],
-                wcs_position_offset=se_info['position_offset'],
-                noise_seed=se_info['noise_seed'],
-                mask_tape_bumps=mask_tape_bumps,
-                tmpdir=tmpdir,
-            )
+            se_key = (se_info["path"], se_info["filename"])
+            if se_key not in SE_SLICE_CACHE:
+                SE_SLICE_CACHE[se_key] = SEImageSlice(
+                    source_info=se_info,
+                    psf_model=se_info['%s_psf' % psf_type],
+                    wcs=se_info['%s_wcs' % wcs_type],
+                    wcs_position_offset=se_info['position_offset'],
+                    noise_seed=se_info['noise_seed'],
+                    mask_tape_bumps=mask_tape_bumps,
+                    tmpdir=tmpdir,
+                )
+
+            se_slice = SE_SLICE_CACHE[se_key]
 
             # first try a very rough cut on the patch center
             if se_slice.ccd_contains_radec(ra, dec):
