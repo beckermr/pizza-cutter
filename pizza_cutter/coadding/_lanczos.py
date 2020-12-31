@@ -1,5 +1,5 @@
 import numpy as np
-from numba import njit
+from numba import njit, prange
 
 if False:
     from ._sinc import sinc
@@ -7,7 +7,7 @@ else:
     from ._sinc import sinc_pade as sinc
 
 
-@njit(fastmath=True)
+@njit(fastmath=True, parallel=True)
 def lanczos_resample(im, rows, cols, a=3):
     """Lanczos resample one image at the input row and column positions.
 
@@ -44,7 +44,7 @@ def lanczos_resample(im, rows, cols, a=3):
     res1 = np.zeros(outsize, dtype=np.float64)
     edge = np.zeros(outsize, dtype=np.bool_)
 
-    for i in range(rows.shape[0]):
+    for i in prange(rows.shape[0]):
         y = rows[i]
         x = cols[i]
 
@@ -89,7 +89,7 @@ def lanczos_resample(im, rows, cols, a=3):
     return res1, edge
 
 
-@njit(fastmath=True)
+@njit(fastmath=True, parallel=True)
 def lanczos_resample_two(im1, im2, rows, cols, a=3):
     """Lanczos resample two images at the input row and column positions.
 
@@ -128,7 +128,7 @@ def lanczos_resample_two(im1, im2, rows, cols, a=3):
     res2 = np.zeros(outsize, dtype=np.float64)
     edge = np.zeros(outsize, dtype=np.bool_)
 
-    for i in range(rows.shape[0]):
+    for i in prange(rows.shape[0]):
         y = rows[i]
         x = cols[i]
 
