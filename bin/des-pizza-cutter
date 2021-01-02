@@ -60,53 +60,55 @@ def go(
 
 
 @click.command()
+@click.option('--config', type=str, help='configuration file', required=True)
 @click.option(
-    '--config', default=None, type=str,
-    help='configuration file',
-    required=True)
-@click.option(
-    '--info', default=None, type=str,
+    '--info', type=str,
     help='the path to the coadd information for processing',
-    required=True)
+    required=True,
+)
 @click.option(
     '--tag', default=None, type=str,
-    help='an extra tag to attach to the filename if desired')
+    help='an extra tag to attach to the filename if desired',
+)
 @click.option(
     '--output-path', default='.', type=str,
     help='path to write the MEDS file',
-    required=True)
+)
 @click.option(
     '--log-level', default='warning', type=str,
     help=(
         'python logging level [one of critical error, '
-        'warning, info, or debug]'))
-@click.option(
-    '--seed', default=-1, type=int,
-    help='seed for the RNG',
-    required=True)
+        'warning, info, or debug]'
+    ),
+)
+@click.option('--seed', type=int, help='seed for the RNG', required=True)
 @click.option(
     '--use-tmpdir', is_flag=True,
     help=(
         'use a temporary directory to stage data. set --tmpdir to specify the '
-        'name of the temporary directory, otherwise one will be created'))
+        'name of the temporary directory, otherwise one will be created'
+    ),
+)
 @click.option(
     '--tmpdir', type=str, default=None,
     help=(
         'the name of the temporary directory to use. if passed without '
-        '--use-tmpdir, it will still be used.'))
+        '--use-tmpdir, it will still be used.'
+    ),
+)
 @click.option(
-    '--chunk-size', type=int, default=64,
+    '--chunk-size', type=int, default=1,
     help=(
         'The size of each chunk of slices processed. Making this smaller consumes '
         'less memory but will cost more CPU time when running the code in parallel.'
-    )
+    ),
 )
 @click.option(
     '--max-workers', type=int, default=1,
     help=(
         'The number of processes to use for making pizza slices. A value of 0 '
         'uses the system default.'
-    )
+    ),
 )
 def main(
         config, info, tag, output_path, log_level, seed,

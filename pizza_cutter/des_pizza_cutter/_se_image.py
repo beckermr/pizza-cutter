@@ -31,6 +31,8 @@ from ._tape_bumps import TAPE_BUMPS
 
 logger = logging.getLogger(__name__)
 
+IMAGE_CACHE_SIZE = 128
+
 # TODO: make a config option?
 PIFF_STAMP_SIZE = 25
 
@@ -44,17 +46,18 @@ def _get_image_shape(*, image_path, image_ext):
         return h['naxis2'], h['naxis1']
 
 
-@functools.lru_cache(maxsize=32)
+@functools.lru_cache(maxsize=IMAGE_CACHE_SIZE)
 def _read_image(path, ext):
     """Cached reads of images.
 
     Each SE image in DES is ~33 MB in float. Thus we use at most ~0.5 GB of
     memory with a 16 element cache.
     """
+    logger.debug("image I/O cache miss: %s[%s]", path, ext)
     return fitsio.read(path, ext=ext)
 
 
-@functools.lru_cache(maxsize=32)
+@functools.lru_cache(maxsize=IMAGE_CACHE_SIZE)
 def _get_noise_image(weight_path, weight_ext, scale, noise_seed, tmpdir):
     """Cached generation of memory mapped noise images."""
     wgt = _read_image(weight_path, ext=weight_ext)
@@ -69,7 +72,7 @@ def _get_noise_image(weight_path, weight_ext, scale, noise_seed, tmpdir):
     )
 
 
-@functools.lru_cache(maxsize=32)
+@functools.lru_cache(maxsize=2048)
 def _get_wcs_inverse(wcs, wcs_position_offset, se_wcs, se_im_shape, delta=8):
     if hasattr(se_wcs, "source_info"):
         logger.debug(
@@ -117,7 +120,7 @@ def _compute_wcs_area(se_wcs, x_se, y_se, dxy=1):
     return np.abs(dudx * dvdy - dvdx * dudy)
 
 
-@functools.lru_cache(maxsize=32)
+@functools.lru_cache(maxsize=2048)
 def _get_wcs_area_interp(se_wcs, se_im_shape, delta=8, position_offset=0):
     if hasattr(se_wcs, "source_info"):
         logger.debug(
@@ -142,6 +145,21 @@ def _get_wcs_area_interp(se_wcs, se_im_shape, delta=8, position_offset=0):
         np.mgrid[:dim_x+delta:delta],
         np.mgrid[:dim_y+delta:delta],
         area,
+    )
+
+
+@functools.lru_cache(maxsize=2048)
+def _cached_get_rough_sky_bounds(
+    *,
+    im_shape, wcs, position_offset, bounds_buffer_uv, n_grid, celestial
+):
+    return get_rough_sky_bounds(
+        im_shape=im_shape,
+        wcs=wcs,  # the magic of APIs and duck typing - quack!
+        position_offset=position_offset,
+        bounds_buffer_uv=bounds_buffer_uv,  # in arcsec
+        n_grid=n_grid,
+        celestial=celestial,
     )
 
 
@@ -283,13 +301,14 @@ class SEImageSlice(object):
         else:
             self._wcs_is_celestial = True
 
-        sky_bnds, ra_ccd, dec_ccd = get_rough_sky_bounds(
+        sky_bnds, ra_ccd, dec_ccd = _cached_get_rough_sky_bounds(
             im_shape=self._im_shape,
             wcs=self,  # the magic of APIs and duck typing - quack!
             position_offset=0,  # the wcs on this class is zero-indexed
             bounds_buffer_uv=16.0,  # in arcsec
             n_grid=4,
-            celestial=self._wcs_is_celestial)
+            celestial=self._wcs_is_celestial,
+        )
         self._sky_bnds = sky_bnds
         self._ra_ccd = ra_ccd
         self._dec_ccd = dec_ccd
@@ -947,23 +966,33 @@ class SEImageSlice(object):
             wcs, wcs_position_offset,
             self,
             self._im_shape)
-        logger.debug('wcs interp cache info: %s', _get_wcs_inverse.cache_info())
-        logger.debug('wcs interp took %f seconds', time.time() - t0)
+        logger.debug(
+            'wcs interp: time = %f seconds - cache info = %s',
+            time.time() - t0,
+            _get_wcs_inverse.cache_info()
+        )
 
         t0 = time.time()
         se_wcs_area_interp = _get_wcs_area_interp(self, self._im_shape)
-        logger.debug('SE wcs area cache info: %s', _get_wcs_area_interp.cache_info())
-        logger.debug('SE wcs area interp took %f seconds', time.time() - t0)
+        logger.debug(
+            'SE wcs area interp: time = %f seconds - cache info = %s',
+            time.time() - t0,
+            _get_wcs_area_interp.cache_info()
+        )
 
         t0 = time.time()
         coadd_wcs_area_interp = _get_wcs_area_interp(
             wcs, wcs_interp_shape, delta=100, position_offset=wcs_position_offset)
-        logger.debug('coadd wcs area cache info: %s', _get_wcs_area_interp.cache_info())
-        logger.debug('coadd wcs area interp took %f seconds', time.time() - t0)
+        logger.debug(
+            'coadd wcs area interp: time = %f seconds - cache info = %s',
+            time.time() - t0,
+            _get_wcs_area_interp.cache_info()
+        )
 
         # 2. using the lookup tables, we resample each image to the
         # coadd coordinates
 
+        t0 = time.time()
         # compute the SE image positions using the lookup table
         y_rs, x_rs = np.mgrid[0:box_size, 0:box_size]
         y_rs = y_rs.ravel()
@@ -982,7 +1011,9 @@ class SEImageSlice(object):
         x_self = x_self.ravel() + self.x_start
         y_self = y_self.ravel() + self.y_start
         area_se = se_wcs_area_interp(x_self, y_self)
+        logger.debug("wcs interp calls took %f seconds", time.time() - t0)
 
+        t0 = time.time()
         rim, rn, edge = lanczos_resample_two(
             self.image / area_se.reshape(self.box_size, self.box_size),
             self.noise / area_se.reshape(self.box_size, self.box_size),
@@ -1001,8 +1032,10 @@ class SEImageSlice(object):
             'noise': rn.reshape(box_size, box_size),
             'edge': edge,
         }
+        logger.debug("resampling images took %f seconds", time.time() - t0)
 
         # 3. do the nearest pixel for the bit mask
+        t0 = time.time()
         y_rs_se = (y_rs_se + 0.5).astype(np.int64)
         x_rs_se = (x_rs_se + 0.5).astype(np.int64)
         msk = (
@@ -1020,8 +1053,10 @@ class SEImageSlice(object):
             y_rs_se[msk], x_rs_se[msk]]
         pmask[y_rs[~msk], x_rs[~msk]] = BMASK_EDGE
         resampled_data['pmask'] = pmask
+        logger.debug("resampling bit masks took %f seconds", time.time() - t0)
 
         # 5. do the PSF image
+        t0 = time.time()
         y_rs, x_rs = np.mgrid[0:psf_box_size, 0:psf_box_size]
         y_rs = y_rs.ravel() + psf_y_start
         x_rs = x_rs.ravel() + psf_x_start
@@ -1030,9 +1065,12 @@ class SEImageSlice(object):
         # remove the offset to local coords for resampling
         x_rs_se -= self.psf_x_start
         y_rs_se -= self.psf_y_start
+        logger.debug("PSF wcs interp took %f seconds", time.time() - t0)
 
+        t0 = time.time()
         rs_psf, edge = lanczos_resample(self.psf, y_rs_se, x_rs_se)
         rs_psf[edge] = 0
         resampled_data['psf'] = rs_psf.reshape(psf_box_size, psf_box_size)
+        logger.debug("resampling PSF took %f seconds", time.time() - t0)
 
         return resampled_data

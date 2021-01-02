@@ -4,8 +4,7 @@ import subprocess
 import functools
 import json
 import logging
-import time
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 import multiprocessing
 
 import numpy as np
@@ -42,7 +41,7 @@ from ..files import StagedOutFile
 from ._coadd_slices import (
     _build_slice_inputs, _coadd_slice_inputs)
 
-from ..slice_utils.pbar import prange, format_interval, PBar
+from ..slice_utils.pbar import prange, PBar
 
 logger = logging.getLogger(__name__)
 
@@ -312,6 +311,7 @@ def _coadd_and_write_images(
     n_pixels = int(np.sum(object_data['box_size']**2))
     _reserve_images(fits, n_pixels, fpack_pars)
 
+    print("preparing random seeds and PSF data")
     rng = np.random.RandomState(seed=seed)
     slice_seeds = rng.randint(1, 2**32-1, size=len(object_data))
     n_psf_pixels = int(np.sum(object_data['psf_box_size']**2))
@@ -383,10 +383,20 @@ def _coadd_and_write_images(
 
         return start_row, psf_start_row
 
+    num_chunks = len(object_data) // chunk_size
+    if chunk_size * num_chunks < len(object_data):
+        num_chunks += 1
+
     if max_workers == 1:
-        for i_sub in prange(len(object_data)):
+        for i_sub in prange(num_chunks, desc='processing chunks', flush=True, pad=3):
+            start_sub = i_sub * chunk_size
+            if start_sub + chunk_size >= len(object_data):
+                _chunk_size_sub = len(object_data) - start_sub
+            else:
+                _chunk_size_sub = chunk_size
+
             fut_results = _process_slice_chunk(
-                i_sub, 1,
+                start_sub, _chunk_size_sub,
                 object_data, info, single_epoch_config, wcs, position_offset,
                 coadding_weight, seed, tmpdir, slice_seeds,
             )
@@ -394,10 +404,6 @@ def _coadd_and_write_images(
                 fut_results, start_row, psf_start_row,
             )
     else:
-        num_chunks = len(object_data) // chunk_size
-        if chunk_size * num_chunks < len(object_data):
-            num_chunks += 1
-
         if max_workers is None:
             max_workers = multiprocessing.cpu_count()
         print(
@@ -405,10 +411,8 @@ def _coadd_and_write_images(
             flush=True,
         )
 
-        i_done = 0
-        t0 = time.time()
         futs = []
-        with ProcessPoolExecutor(max_workers=max_workers) as exec:
+        with ThreadPoolExecutor(max_workers=max_workers) as exec:
             for i_sub in range(num_chunks):
                 start_sub = i_sub * chunk_size
                 if start_sub + chunk_size >= len(object_data):
@@ -425,40 +429,11 @@ def _coadd_and_write_images(
                     )
                 )
 
-                if i_sub >= max_workers - 1:
-                    fut = futs.pop(0)
-                    start_row, psf_start_row = _process_slice_results(
-                        fut.result(), start_row, psf_start_row,
-                    )
-                    i_done += 1
-                    print(
-                        "finished chunk %d of %d: elapsed %s - eta %s" % (
-                            i_done,
-                            num_chunks,
-                            format_interval(time.time() - t0),
-                            format_interval(
-                                (time.time() - t0) / i_done * (num_chunks - i_done)
-                            ),
-                        ),
-                        flush=True,
-                    )
-
-        for fut in futs:
-            start_row, psf_start_row = _process_slice_results(
-                fut.result(), start_row, psf_start_row
-            )
-            i_done += 1
-            print(
-                "finished chunk %d of %d: elapsed %s - eta %s" % (
-                    i_done,
-                    num_chunks,
-                    format_interval(time.time() - t0),
-                    format_interval(
-                        (time.time() - t0) / i_done * (num_chunks - i_done)
-                    ),
-                ),
-                flush=True,
-            )
+            for fut in PBar(futs, desc='processing chunks', flush=True, pad=3):
+                fut = futs.pop(0)
+                start_row, psf_start_row = _process_slice_results(
+                    fut.result(), start_row, psf_start_row,
+                )
 
     fits.write(object_data, extname=OBJECT_DATA_EXTNAME)
 

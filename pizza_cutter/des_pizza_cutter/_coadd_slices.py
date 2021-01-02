@@ -1,4 +1,5 @@
 import logging
+import time
 
 import numpy as np
 
@@ -21,8 +22,6 @@ from ..slice_utils.measure import measure_fwhm
 from ._se_image import SEImageSlice
 from ._constants import BMASK_SPLINE_INTERP, BMASK_NOISE_INTERP
 
-SE_SLICE_CACHE = {}
-
 logger = logging.getLogger(__name__)
 
 
@@ -41,6 +40,175 @@ def _build_coadd_weight(*, coadding_weight, weight, psf):
             "Coadding weight type '%s' not recognized!" % coadding_weight)
 
     return wt
+
+
+def _roughcut_se_slice(se_slice, ra, dec, box_size, edge_buffer, ra_psf, dec_psf):
+    retval = None
+
+    # first try a very rough cut on the patch center
+    if se_slice.ccd_contains_radec(ra, dec):
+
+        # if the rough cut worked, then we do a more exact
+        # intersection test
+        patch_bnds = se_slice.compute_slice_bounds(ra, dec, box_size)
+
+        if se_slice.ccd_contains_bounds(patch_bnds, buffer=edge_buffer):
+            logger.debug(
+                'found possible image %s/%s',
+                se_slice.source_info['path'],
+                se_slice.source_info['filename'],
+            )
+
+            # we found one - set the slice (also does i/o of image
+            # data products)
+            se_slice.set_slice(patch_bnds.colmin, patch_bnds.rowmin, box_size)
+
+            # we will want this for storing in the meds file,
+            # even if this slice doesn't ultimately get used
+            se_slice.set_psf(ra_psf, dec_psf)
+
+            retval = se_slice
+
+    return retval
+
+
+def _preprocess_se_slice(
+    se_slice,
+    spline_interp_flags,
+    noise_interp_flags,
+    symmetrize_masking,
+    bad_image_flags,
+    max_masked_fraction,
+    max_unmasked_trail_fraction,
+    rng,
+    coadding_weight,
+):
+    logger.info(
+        'pre-proccseeing image %s/%s',
+        se_slice.source_info["path"],
+        se_slice.source_info['filename'],
+    )
+
+    se_slice_used = False
+    weight = None
+    flags = 0
+
+    # the test for interpolating a full edge is done only with the
+    # non-noise flags (se_interp_flags)
+    # however, we compute the masked fraction using both the noise and
+    # interp flags (called bad_flags below)
+    # we also symmetrize both
+    bad_flags = spline_interp_flags | noise_interp_flags
+
+    # this operates in place on references
+    if symmetrize_masking:
+        logger.debug('symmetrizing the masks')
+        symmetrize_bmask(bmask=se_slice.bmask)
+        symmetrize_weight(weight=se_slice.weight)
+
+    skip_edge_masked = slice_full_edge_masked(
+            weight=se_slice.weight, bmask=se_slice.bmask,
+            bad_flags=spline_interp_flags)
+    skip_has_flags = slice_has_flags(
+        bmask=se_slice.bmask, flags=bad_image_flags)
+    skip_masked_fraction = (
+        compute_masked_fraction(
+            weight=se_slice.weight, bmask=se_slice.bmask,
+            bad_flags=bad_flags) >=
+        max_masked_fraction)
+    skip_unmasked_trail_too_big = compute_unmasked_trail_fraction(
+        bmask=se_slice.bmask) >= max_unmasked_trail_fraction
+
+    skip = (
+        skip_edge_masked or
+        skip_has_flags or
+        skip_masked_fraction or
+        skip_unmasked_trail_too_big)
+
+    if skip:
+        msg = []
+        if skip_edge_masked:
+            msg.append('full edge masked')
+            flags |= procflags.FULL_EDGE_MASKED
+
+        if skip_has_flags:
+            msg.append('bad image flags')
+            flags |= procflags.SLICE_HAS_FLAGS
+
+        if skip_masked_fraction:
+            msg.append('masked fraction too high')
+            flags |= procflags.HIGH_MASKED_FRAC
+
+        if skip_unmasked_trail_too_big:
+            msg.append('unmasked bleed trail too big')
+            flags |= procflags.HIGH_UNMASKED_TRAIL_FRAC
+
+        msg = '; '.join(msg)
+        logger.info(
+            'rejecting image %s: %s',
+            se_slice.source_info['filename'],
+            msg,
+        )
+        return se_slice, flags, weight, se_slice_used
+    else:
+        # first we do the noise interp
+        logger.debug('doing noise interpolation')
+        msk = (se_slice.bmask & noise_interp_flags) != 0
+        if np.any(msk):
+            zmsk = se_slice.weight <= 0.0
+            se_wgt = (
+                se_slice.weight * (~zmsk) +
+                np.max(se_slice.weight[~zmsk]) * zmsk)
+            noise = (
+                rng.normal(size=se_slice.weight.shape) *
+                np.sqrt(1.0/se_wgt))
+            se_slice.image[msk] = noise[msk]
+
+        # now do the cubic interp - note that this will use the noise
+        # inteprolated values
+        # the same thing is done for the noise field since the noise
+        # interpolation above is equivalent to drawing noise
+        logger.debug('doing image interpolation')
+        interp_image, interp_noise = interpolate_image_and_noise(
+            image=se_slice.image,
+            noise=se_slice.noise,
+            weight=se_slice.weight,
+            bmask=se_slice.bmask,
+            bad_flags=spline_interp_flags,
+        )
+
+        if interp_image is None or interp_noise is None:
+            flags |= procflags.HIGH_INTERP_MASKED_FRAC
+            logger.info(
+                'rejecting image %s: interpolated region too big',
+                se_slice.source_info['filename'])
+
+            return se_slice, flags, weight, se_slice_used
+
+        se_slice.image = interp_image
+        se_slice.noise = interp_noise
+
+        # make an image processing mask and set it
+        # note we have to make sure this is int32 to get all of the flags
+        pmask = np.zeros(se_slice.bmask.shape, dtype=np.int32)
+
+        msk = (se_slice.bmask & noise_interp_flags) != 0
+        pmask[msk] |= BMASK_NOISE_INTERP
+
+        msk = (
+            (se_slice.weight <= 0) |
+            ((se_slice.bmask & spline_interp_flags) != 0))
+        pmask[msk] |= BMASK_SPLINE_INTERP
+        se_slice.set_pmask(pmask)
+
+        weight = _build_coadd_weight(
+            coadding_weight=coadding_weight,
+            weight=se_slice.weight,
+            psf=se_slice.psf)
+
+        se_slice_used = True
+
+    return se_slice, flags, weight, se_slice_used
 
 
 def _build_slice_inputs(
@@ -155,63 +323,37 @@ def _build_slice_inputs(
         List of flag values for the slices not used.
     """
 
-    global SE_SLICE_CACHE
-
     # we first do a rough cut of the images
     # this is fast and lets us stop if nothing can be used
     logger.info('generating slice objects for ra,dec = %s|%s', ra, dec)
+    t0 = time.time()
     possible_slices = []
     for se_info in se_src_info:
         if se_info['image_flags'] == 0:
             # no flags so init the object
-            se_key = (se_info["path"], se_info["filename"])
-            if se_key not in SE_SLICE_CACHE:
-                SE_SLICE_CACHE[se_key] = SEImageSlice(
-                    source_info=se_info,
-                    psf_model=se_info['%s_psf' % psf_type],
-                    wcs=se_info['%s_wcs' % wcs_type],
-                    wcs_position_offset=se_info['position_offset'],
-                    noise_seed=se_info['noise_seed'],
-                    mask_tape_bumps=mask_tape_bumps,
-                    tmpdir=tmpdir,
-                )
+            se_slice = SEImageSlice(
+                source_info=se_info,
+                psf_model=se_info['%s_psf' % psf_type],
+                wcs=se_info['%s_wcs' % wcs_type],
+                wcs_position_offset=se_info['position_offset'],
+                noise_seed=se_info['noise_seed'],
+                mask_tape_bumps=mask_tape_bumps,
+                tmpdir=tmpdir,
+            )
+            possible_slices.append(_roughcut_se_slice(
+                se_slice, ra, dec, box_size, edge_buffer, ra_psf, dec_psf
+            ))
 
-            se_slice = SE_SLICE_CACHE[se_key]
+    possible_slices = [ps for ps in possible_slices if ps is not None]
 
-            # first try a very rough cut on the patch center
-            if se_slice.ccd_contains_radec(ra, dec):
-
-                # if the rough cut worked, then we do a more exact
-                # intersection test
-                patch_bnds = se_slice.compute_slice_bounds(
-                    ra, dec, box_size)
-                if se_slice.ccd_contains_bounds(
-                    patch_bnds, buffer=edge_buffer
-                ):
-                    logger.debug(
-                        'found possible image %s/%s',
-                        se_slice.source_info['path'],
-                        se_slice.source_info['filename'],
-                    )
-
-                    # we found one - set the slice (also does i/o of image
-                    # data products)
-                    se_slice.set_slice(
-                        patch_bnds.colmin,
-                        patch_bnds.rowmin,
-                        box_size)
-
-                    # we will want this for storing in the meds file,
-                    # even if this slice doesn't ultimately get used
-                    se_slice.set_psf(ra_psf, dec_psf)
-
-                    possible_slices.append(se_slice)
-
+    logger.debug("SE slice rough cut took %f seconds", time.time() - t0)
     logger.info('images found in rough cut: %d', len(possible_slices))
 
     # just stop now if we find nothing
     if not possible_slices:
         return [], [], [], []
+
+    t0 = time.time()
 
     # we reject outliers after scaling the images to the same zero points
     # every here is passed by reference so this just works
@@ -230,138 +372,55 @@ def _build_slice_inputs(
     slices_not_used = []
     flags_not_used = []
     for se_slice in possible_slices:
-        logger.info(
-            'pre-proccseeing image %s/%s',
-            se_slice.source_info["path"],
-            se_slice.source_info['filename'],
+        _rng = np.random.RandomState(seed=rng.randint(1, 2**32-1))
+        _se_slice, flags, weight, se_slice_used = _preprocess_se_slice(
+            se_slice,
+            spline_interp_flags,
+            noise_interp_flags,
+            symmetrize_masking,
+            bad_image_flags,
+            max_masked_fraction,
+            max_unmasked_trail_fraction,
+            _rng,
+            coadding_weight,
         )
 
-        flags = 0
-
-        # the test for interpolating a full edge is done only with the
-        # non-noise flags (se_interp_flags)
-        # however, we compute the masked fraction using both the noise and
-        # interp flags (called bad_flags below)
-        # we also symmetrize both
-        bad_flags = spline_interp_flags | noise_interp_flags
-
-        # this operates in place on references
-        if symmetrize_masking:
-            logger.debug('symmetrizing the masks')
-            symmetrize_bmask(bmask=se_slice.bmask)
-            symmetrize_weight(weight=se_slice.weight)
-
-        skip_edge_masked = slice_full_edge_masked(
-                weight=se_slice.weight, bmask=se_slice.bmask,
-                bad_flags=spline_interp_flags)
-        skip_has_flags = slice_has_flags(
-            bmask=se_slice.bmask, flags=bad_image_flags)
-        skip_masked_fraction = (
-            compute_masked_fraction(
-                weight=se_slice.weight, bmask=se_slice.bmask,
-                bad_flags=bad_flags) >=
-            max_masked_fraction)
-        skip_unmasked_trail_too_big = compute_unmasked_trail_fraction(
-            bmask=se_slice.bmask) >= max_unmasked_trail_fraction
-
-        skip = (
-            skip_edge_masked or
-            skip_has_flags or
-            skip_masked_fraction or
-            skip_unmasked_trail_too_big)
-
-        if skip:
-            msg = []
-            if skip_edge_masked:
-                msg.append('full edge masked')
-                flags |= procflags.FULL_EDGE_MASKED
-
-            if skip_has_flags:
-                msg.append('bad image flags')
-                flags |= procflags.SLICE_HAS_FLAGS
-
-            if skip_masked_fraction:
-                msg.append('masked fraction too high')
-                flags |= procflags.HIGH_MASKED_FRAC
-
-            if skip_unmasked_trail_too_big:
-                msg.append('unmasked bleed trail too big')
-                flags |= procflags.HIGH_UNMASKED_TRAIL_FRAC
-
-            msg = '; '.join(msg)
-            logger.info(
-                'rejecting image %s: %s',
-                se_slice.source_info['filename'],
-                msg,
-            )
-
-            slices_not_used.append(se_slice)
-            flags_not_used.append(flags)
+        if se_slice_used:
+            slices.append(_se_slice)
+            weights.append(weight)
         else:
-            # first we do the noise interp
-            logger.debug('doing noise interpolation')
-            msk = (se_slice.bmask & noise_interp_flags) != 0
-            if np.any(msk):
-                zmsk = se_slice.weight <= 0.0
-                se_wgt = (
-                    se_slice.weight * (~zmsk) +
-                    np.max(se_slice.weight[~zmsk]) * zmsk)
-                noise = (
-                    rng.normal(size=se_slice.weight.shape) *
-                    np.sqrt(1.0/se_wgt))
-                se_slice.image[msk] = noise[msk]
-
-            # now do the cubic interp - note that this will use the noise
-            # inteprolated values
-            # the same thing is done for the noise field since the noise
-            # interpolation above is equivalent to drawing noise
-            logger.debug('doing image interpolation')
-            interp_image, interp_noise = interpolate_image_and_noise(
-                image=se_slice.image,
-                noise=se_slice.noise,
-                weight=se_slice.weight,
-                bmask=se_slice.bmask,
-                bad_flags=spline_interp_flags,
-            )
-
-            if interp_image is None or interp_noise is None:
-                flags |= procflags.HIGH_INTERP_MASKED_FRAC
-                slices_not_used.append(se_slice)
-                flags_not_used.append(flags)
-
-                logger.info(
-                    'rejecting image %s: interpolated region too big',
-                    se_slice.source_info['filename'])
-                continue
-
-            se_slice.image = interp_image
-            se_slice.noise = interp_noise
-
-            # make an image processing mask and set it
-            # note we have to make sure this is int32 to get all of the flags
-            pmask = np.zeros(se_slice.bmask.shape, dtype=np.int32)
-
-            msk = (se_slice.bmask & noise_interp_flags) != 0
-            pmask[msk] |= BMASK_NOISE_INTERP
-
-            msk = (
-                (se_slice.weight <= 0) |
-                ((se_slice.bmask & spline_interp_flags) != 0))
-            pmask[msk] |= BMASK_SPLINE_INTERP
-            se_slice.set_pmask(pmask)
-
-            slices.append(se_slice)
-
-            weights.append(_build_coadd_weight(
-                coadding_weight=coadding_weight,
-                weight=se_slice.weight,
-                psf=se_slice.psf))
+            slices_not_used.append(_se_slice)
+            flags_not_used.append(flags)
 
     if weights:
         weights = np.array(weights)
         weights /= np.sum(weights)
 
+    logger.debug("SE slice preprocessing took %f seconds", time.time() - t0)
+
     return slices, weights, slices_not_used, flags_not_used
+
+
+def _resample_se_slice(
+    se_slice, wcs, wcs_position_offset, start_col, start_row,
+    box_size, psf_start_col, psf_start_row, psf_box_size,
+):
+    logger.info(
+        'resampling image %s/%s',
+        se_slice.source_info["path"],
+        se_slice.source_info['filename'],
+    )
+    return se_slice.resample(
+        wcs=wcs,
+        wcs_position_offset=wcs_position_offset,
+        wcs_interp_shape=(10000, 10000),
+        x_start=start_col,
+        y_start=start_row,
+        box_size=box_size,
+        psf_x_start=psf_start_col,
+        psf_y_start=psf_start_row,
+        psf_box_size=psf_box_size
+    )
 
 
 def _coadd_slice_inputs(
@@ -438,21 +497,9 @@ def _coadd_slice_inputs(
         (psf_box_size, psf_box_size), dtype=se_image_slices[0].image.dtype)
 
     for se_slice, weight in zip(se_image_slices, weights):
-        logger.info(
-            'resampling image %s/%s',
-            se_slice.source_info["path"],
-            se_slice.source_info['filename'],
-        )
-        resampled_data = se_slice.resample(
-            wcs=wcs,
-            wcs_position_offset=wcs_position_offset,
-            wcs_interp_shape=(10000, 10000),
-            x_start=start_col,
-            y_start=start_row,
-            box_size=box_size,
-            psf_x_start=psf_start_col,
-            psf_y_start=psf_start_row,
-            psf_box_size=psf_box_size
+        resampled_data = _resample_se_slice(
+            se_slice, wcs, wcs_position_offset, start_col, start_row,
+            box_size, psf_start_col, psf_start_row, psf_box_size,
         )
 
         if np.all(resampled_data['image'] == 0):
