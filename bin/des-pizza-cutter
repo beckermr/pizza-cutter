@@ -31,15 +31,18 @@ def go(config, info, tag, output_path, log_level, seed, tmpdir):
     print('loading PSF and WCS data...', flush=True)
     load_objects_into_info(info=info)
 
-    sname = os.path.basename(config).replace('.yaml', '')
-    if tag is not None:
-        sname = '-'.join([sname, tag])
-    meds_path = os.path.join(
-        output_path,
-        "%s_%s_%s_meds-pizza-slices.fits" % (
-            info['tilename'],
-            info['band'],
-            sname))
+    if output_path.endswith(".fits"):
+        meds_path = output_path
+    else:
+        sname = os.path.basename(config).replace('.yaml', '')
+        if tag is not None:
+            sname = '-'.join([sname, tag])
+        meds_path = os.path.join(
+            output_path,
+            "%s_%s_%s_meds-pizza-slices.fits" % (
+                info['tilename'],
+                info['band'],
+                sname))
     print('output meds file:', meds_path, flush=True)
 
     print('making pizza slices!', flush=True)
