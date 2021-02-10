@@ -33,6 +33,9 @@ def go(config, info, tag, output_path, log_level, seed, tmpdir):
 
     if output_path.endswith(".fits"):
         meds_path = output_path
+    elif output_path.endswith(".fits.fz"):
+        # the extension will get added back
+        meds_path = output_path[:-3]
     else:
         sname = os.path.basename(config).replace('.yaml', '')
         if tag is not None:
