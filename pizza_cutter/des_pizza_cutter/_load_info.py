@@ -15,7 +15,7 @@ from ..slice_utils.pbar import PBar
 logger = logging.getLogger(__name__)
 
 
-def load_objects_into_info(*, info):
+def load_objects_into_info(*, info, verbose=True):
     """Load the data from objects in the info structure.
 
     NOTE: This function adds the following keys to `info` or the 'src_info'
@@ -58,8 +58,11 @@ def load_objects_into_info(*, info):
                 file entry to build the PSF as a galsim object.
             'affine_wcs_config' : a dictionary used to build an `AffineWCS`
                 instance
+    verbose : bool, optional
+        If True, make noise, otherwise do not. Default is True.
     """
-    print('loading coadd image data', flush=True)
+    if verbose:
+        print('loading coadd image data', flush=True)
     logger.info("loading image data products for %s/%s", info["path"], info["filename"])
     try:
         info['image_wcs'] = eu.wcsutil.WCS(
@@ -78,11 +81,15 @@ def load_objects_into_info(*, info):
     if 'image_shape' in info:
         info['image_shape'] = tuple(info['image_shape'])
 
-    for index, ii in PBar(
-        enumerate(info['src_info']),
-        total=len(info["src_info"]),
-        desc="loading SE image data",
-    ):
+    if verbose:
+        _itrbl = PBar(
+            enumerate(info['src_info']),
+            total=len(info["src_info"]),
+            desc="loading SE image data",
+        )
+    else:
+        _itrbl = enumerate(info['src_info'])
+    for index, ii in _itrbl:
         logger.info("loading image data products for %s/%s", ii["path"], ii["filename"])
         # wcs info
         try:
