@@ -44,8 +44,15 @@ def _get_image_shape(*, image_path, image_ext):
         return h['naxis2'], h['naxis1']
 
 
-@functools.lru_cache(maxsize=32)
 def _read_image(path, ext):
+    if isinstance(path, np.ndarray):
+        return path
+    else:
+        return _read_image_cached(path, ext)
+
+
+@functools.lru_cache(maxsize=32)
+def _read_image_cached(path, ext):
     """Cached reads of images.
 
     Each SE image in DES is ~33 MB in float. Thus we use at most ~0.5 GB of
@@ -54,9 +61,7 @@ def _read_image(path, ext):
     return fitsio.read(path, ext=ext)
 
 
-@functools.lru_cache(maxsize=32)
-def _get_noise_image(weight_path, weight_ext, scale, noise_seed, tmpdir):
-    """Cached generation of memory mapped noise images."""
+def _get_noise_image_impl(weight_path, weight_ext, scale, noise_seed, tmpdir):
     wgt = _read_image(weight_path, ext=weight_ext)
     zwgt_msk = wgt <= 0.0
     max_wgt = np.max(wgt[~zwgt_msk])
@@ -67,6 +72,22 @@ def _get_noise_image(weight_path, weight_ext, scale, noise_seed, tmpdir):
         dir=tmpdir,
         sx=1024, sy=1024,
     )
+
+
+def _get_noise_image(weight_path, weight_ext, scale, noise_seed, tmpdir):
+    """Cached generation of memory mapped noise images."""
+    if isinstance(weight_path, np.ndarray):
+        return _get_noise_image_impl(weight_path, weight_ext, scale, noise_seed, tmpdir)
+    else:
+        return _get_noise_image_cached(
+            weight_path, weight_ext, scale, noise_seed, tmpdir
+        )
+
+
+@functools.lru_cache(maxsize=32)
+def _get_noise_image_cached(weight_path, weight_ext, scale, noise_seed, tmpdir):
+    """Cached generation of memory mapped noise images."""
+    return _get_noise_image_impl(weight_path, weight_ext, scale, noise_seed, tmpdir)
 
 
 @functools.lru_cache(maxsize=32)
@@ -148,8 +169,8 @@ def _get_wcs_area_interp(se_wcs, se_im_shape, delta=8, position_offset=0):
 def clear_image_and_wcs_caches():
     """Clear the global image and WCS caches."""
     _get_image_shape.cache_clear()
-    _read_image.cache_clear()
-    _get_noise_image.cache_clear()
+    _read_image_cached.cache_clear()
+    _get_noise_image_cached.cache_clear()
     _get_wcs_inverse.cache_clear()
     _get_wcs_area_interp.cache_clear()
 
@@ -325,7 +346,9 @@ class SEImageSlice(object):
     # objects
 
     def __hash__(self):
-        return hash(self.__repr__())
+        if not hasattr(self, "_state_hash"):
+            self._state_hash = hash(self.__repr__())
+        return self._state_hash
 
     def __eq__(self, other):
         return hash(self) == hash(other)
