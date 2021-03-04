@@ -43,6 +43,7 @@ def _build_coadd_weight(*, coadding_weight, weight, psf):
 
 def _build_slice_inputs(
         *, ra, dec, ra_psf, dec_psf, box_size,
+        frac_buffer,
         coadd_info, start_row, start_col,
         se_src_info,
         rng,
@@ -75,6 +76,10 @@ def _build_slice_inputs(
         center of a coadd pixel near the center of a coadd patch.
     box_size : int
         The size of the coadd in pixels.
+    frac_buffer : float
+        The fractional amount by which to increse the coadd box size. Set
+        up to sqrt(2) to account for full position angle rotations. In DES
+        this number should be very tiny or zero.
     se_src_info : list of dicts
         The 'src_info' entry from the info file.
     rng : np.random.RandomState
@@ -176,7 +181,7 @@ def _build_slice_inputs(
                 # if the rough cut worked, then we do a more exact
                 # intersection test
                 patch_bnds = se_slice.compute_slice_bounds(
-                    ra, dec, box_size)
+                    ra, dec, box_size, frac_buffer)
                 if se_slice.ccd_contains_bounds(
                     patch_bnds, buffer=edge_buffer
                 ):
@@ -188,10 +193,7 @@ def _build_slice_inputs(
 
                     # we found one - set the slice (also does i/o of image
                     # data products)
-                    se_slice.set_slice(
-                        patch_bnds.colmin,
-                        patch_bnds.rowmin,
-                        box_size)
+                    se_slice.set_slice(patch_bnds)
 
                     # we will want this for storing in the meds file,
                     # even if this slice doesn't ultimately get used

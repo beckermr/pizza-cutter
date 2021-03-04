@@ -4,6 +4,7 @@ import pytest
 
 import galsim
 import piff
+from meds.bounds import Bounds
 
 from .._affine_wcs import AffineWCS
 from .._se_image import SEImageSlice, clear_image_and_wcs_caches
@@ -28,7 +29,13 @@ def test_se_image_resample_smoke(se_image_data, coadd_image_data):
     dim = 10
     half = 5
     ra, dec = se_im.image2sky(300, 150)
-    se_im.set_slice(300-half, 150-half, dim)
+    patch_bnds = Bounds(
+        rowmin=150-half,
+        rowmax=150-half+dim-1,
+        colmin=300-half,
+        colmax=300-half+dim-1,
+    )
+    se_im.set_slice(patch_bnds)
     se_im.set_psf(ra, dec)
     se_im.set_pmask(np.zeros_like(se_im.bmask))
     x, y = coadd_image_data['eu_wcs'].sky2image(ra, dec)

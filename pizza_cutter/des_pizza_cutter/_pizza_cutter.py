@@ -228,6 +228,7 @@ def _coadd_and_write_images(
             ra_psf=ra_psf,
             dec_psf=dec_psf,
             box_size=object_data['box_size'][i],
+            frac_buffer=single_epoch_config['frac_buffer'],
             coadd_info=info,
             start_row=object_data['orig_start_row'][i, 0],
             start_col=object_data['orig_start_col'][i, 0],

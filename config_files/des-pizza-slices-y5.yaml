@@ -24,6 +24,10 @@ coadd:
   coadding_weight: 'noise'
 
 single_epoch:
+  # fractional amount to increase coadd box size when getting SE region for
+  # coadding - set to sqrt(2) for full position angle rotations
+  frac_buffer: 1
+
   # which SE WCS to use - one of piff, pixmappy or image
   wcs_type: image
 

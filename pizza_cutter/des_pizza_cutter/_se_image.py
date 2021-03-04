@@ -208,7 +208,7 @@ class SEImageSlice(object):
 
     Methods
     -------
-    set_slice(x_start, y_start, box_size)
+    set_slice(patch_bnds)
         Set the slice location and read a square slice of the
         image, weight map, bit mask, and the noise field. Sets the `image`
         and related attributes. See the attribute list below.
@@ -227,7 +227,7 @@ class SEImageSlice(object):
         with another bounds object.
     get_psf_image(x, y)
         Get an image of the PSF as a numpy array at the given location.
-    compute_slice_bounds(ra, dec, box_size)
+    compute_slice_bounds(ra, dec, box_size, frac_buffer)
         Compute the patch bounds for a given ra,dec image and box size.
     set_psf(ra, dec)
         Set the PSF of the slice using the input (ra, dec). Sets the `psf`,
@@ -362,19 +362,20 @@ class SEImageSlice(object):
         else:
             return True
 
-    def set_slice(self, x_start, y_start, box_size):
+    def set_slice(self, patch_bnds):
         """Set the slice location and read a square slice of the
         image, weight map, bit mask, and the noise field.
 
         Parameters
         ----------
-        x_start : int
-            The zero-indexed x/column location for the start of the slice.
-        y_start : int
-            The zero-indexed y/row location for the start of the slice.
-        box_size : int
-            The size of the square slice.
+        patch_bnds : meds.bounds.Bounds
+            A Bounds object encoding the square slice bounds.
         """
+        x_start = patch_bnds.colmin
+        y_start = patch_bnds.rowmin
+        box_size = patch_bnds.colmax - patch_bnds.colmin + 1
+        assert box_size == patch_bnds.rowmax - patch_bnds.rowmin + 1
+
         self.x_start = x_start
         self.y_start = y_start
         self.box_size = box_size
@@ -825,8 +826,9 @@ class SEImageSlice(object):
 
         return ccd_bnds.contains_bounds(bounds)
 
-    def compute_slice_bounds(self, ra, dec, box_size):
-        """Compute the patch bounds for a given ra,dec image and box size.
+    def compute_slice_bounds(self, ra, dec, box_size, frac_buffer):
+        """Compute the patch bounds for a given ra,dec image, coadd box size,
+        and frac buffer.
 
         Parameters
         ----------
@@ -836,21 +838,31 @@ class SEImageSlice(object):
             The declination of the sky position.
         box_size : int
             The size of the square slice.
+        frac_buffer : float
+            The fractional amount by which to increse the coadd box size when computing
+            the bounding box of the coadd grid in the SE image coords. This
+            parameter can be used to account for position angle rotations by
+            setting it up to sqrt(2) to account for full position angle rotations.
+            In DES this number should be very close to 1.
 
         Returns
         -------
         patch_bounds : meds.bounds.Bounds
             The boundaries of the patch.
         """
-        box_cen = (box_size - 1) / 2
+        buff_box_size = int(frac_buffer * box_size)
+        if buff_box_size % 2 != box_size % 2:
+            buff_box_size += 1
+
+        buff_box_cen = (buff_box_size - 1) / 2
         col, row = self.sky2image(ra, dec)
-        se_start_row = int(row - box_cen + 0.5)
-        se_start_col = int(col - box_cen + 0.5)
+        se_start_row = int(row - buff_box_cen + 0.5)
+        se_start_col = int(col - buff_box_cen + 0.5)
         patch_bnds = Bounds(
             rowmin=se_start_row,
-            rowmax=se_start_row+box_size-1,
+            rowmax=se_start_row+buff_box_size-1,
             colmin=se_start_col,
-            colmax=se_start_col+box_size-1)
+            colmax=se_start_col+buff_box_size-1)
 
         return patch_bnds
 

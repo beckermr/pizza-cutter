@@ -36,6 +36,7 @@ coadd:
   coadding_weight: 'noise'
 
 single_epoch:
+  frac_buffer: 1
   psf_type: galsim
   wcs_type: affine
 
