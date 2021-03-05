@@ -284,7 +284,7 @@ def test_coadding_end2end_psf(coadd_end2end):
     )
     assert np.abs(
         galsim.ImageD(psf_im, scale=0.25).calculateFWHM() -
-        galsim.ImageD(psf_m, scale=0.25).calculateFWHM()) < 3e-3
+        galsim.ImageD(psf_m, scale=0.25).calculateFWHM()) < 4e-3
 
 
 def test_coadding_end2end_gal(coadd_end2end):
