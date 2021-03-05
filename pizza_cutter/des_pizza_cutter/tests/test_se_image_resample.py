@@ -186,7 +186,7 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
         psf_y_start=coadd_y_start + half_box_size - 11 + eps_y,
         psf_box_size=23,
         se_wcs_interp_delta=8,
-        coadd_wcs_interp_delta=100,
+        coadd_wcs_interp_delta=10,
     )
 
     # first check they are finite
@@ -224,7 +224,13 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
     final_y_start -= 1
     final_x_start -= (x_start + half_box_size - 27)
     final_y_start -= (y_start + half_box_size - 27)
+
+    true_psf = se_im.psf[
+        final_y_start:final_y_start+23,
+        final_x_start:final_x_start+23
+    ].copy()
+    true_psf /= np.sum(true_psf)
     assert np.allclose(
         resampled_data['psf'],
-        se_im.psf[final_y_start:final_y_start+23,
-                  final_x_start:final_x_start+23]), k
+        true_psf,
+    )
