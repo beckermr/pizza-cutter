@@ -851,7 +851,7 @@ class SEImageSlice(object):
         box_size : int
             The size of the square slice.
         frac_buffer : float
-            The fractional amount by which to increse the coadd box size when computing
+            The fractional amount by which to increase the coadd box size when computing
             the bounding box of the coadd grid in the SE image coords. This
             parameter can be used to account for position angle rotations by
             setting it up to sqrt(2) to account for full position angle rotations.
