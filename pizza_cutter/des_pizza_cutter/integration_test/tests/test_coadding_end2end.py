@@ -36,6 +36,10 @@ coadd:
   coadding_weight: 'noise'
 
 single_epoch:
+  # pixel spacing for building various WCS interpolants
+  se_wcs_interp_delta: 8
+  coadd_wcs_interp_delta: 8
+
   frac_buffer: 1
   psf_type: galsim
   wcs_type: affine

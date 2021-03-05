@@ -269,9 +269,10 @@ def _coadd_and_write_images(
             object_data['nepoch'][i] = weights.size
             object_data['nepoch_eff'][i] = weights.sum()/weights.max()
 
-            image, bmask, ormask, noise, psf, weight = _coadd_slice_inputs(
+            image, bmask, ormask, noise, psf, weight, _ = _coadd_slice_inputs(
                 wcs=wcs,
                 wcs_position_offset=position_offset,
+                wcs_image_shape=info["image_shape"],
                 start_row=object_data['orig_start_row'][i, 0],
                 start_col=object_data['orig_start_col'][i, 0],
                 box_size=object_data['box_size'][i],
@@ -279,7 +280,10 @@ def _coadd_and_write_images(
                 psf_start_col=psf_orig_start_col,
                 psf_box_size=object_data['psf_box_size'][i],
                 se_image_slices=se_image_slices,
-                weights=weights)
+                weights=weights,
+                se_wcs_interp_delta=single_epoch_config["se_wcs_interp_delta"],
+                coadd_wcs_interp_delta=single_epoch_config["coadd_wcs_interp_delta"],
+            )
 
             if np.all(image == 0):
                 logger.warning("coadded image is all zero!")

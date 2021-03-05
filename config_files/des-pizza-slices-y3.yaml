@@ -25,6 +25,10 @@ coadd:
   coadding_weight: 'noise'
 
 single_epoch:
+  # pixel spacing for building various WCS interpolants
+  se_wcs_interp_delta: 8
+  coadd_wcs_interp_delta: 100
+
   # fractional amount to increase coadd box size when getting SE region for
   # coadding - set to sqrt(2) for full position angle rotations
   frac_buffer: 1

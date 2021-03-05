@@ -50,7 +50,9 @@ def test_se_image_resample_smoke(se_image_data, coadd_image_data):
         box_size=dim,
         psf_x_start=x-11,
         psf_y_start=y-11,
-        psf_box_size=23
+        psf_box_size=23,
+        se_wcs_interp_delta=1,
+        coadd_wcs_interp_delta=1,
     )
 
     # we are simply looking for weird outputs here to make sure it actually
@@ -182,7 +184,10 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
         box_size=100,
         psf_x_start=coadd_x_start + half_box_size - 11 + eps_x,
         psf_y_start=coadd_y_start + half_box_size - 11 + eps_y,
-        psf_box_size=23)
+        psf_box_size=23,
+        se_wcs_interp_delta=1,
+        coadd_wcs_interp_delta=1,
+    )
 
     # first check they are finite
     for k in resampled_data:
