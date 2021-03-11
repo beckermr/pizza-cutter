@@ -4,6 +4,7 @@ import pytest
 import tempfile
 
 import fitsio
+from meds.bounds import Bounds
 
 from .._se_image import SEImageSlice
 from .._constants import MAGZP_REF
@@ -30,7 +31,13 @@ def test_se_image_slice_read(monkeypatch, se_image_data):
             mask_tape_bumps=False,
             tmpdir=tmpdir,
         )
-        se_im.set_slice(10, 50, 32)
+        patch_bnds = Bounds(
+            rowmin=50,
+            rowmax=50+32-1,
+            colmin=10,
+            colmax=10+32-1,
+        )
+        se_im.set_slice(patch_bnds)
 
         # check the attributes
         assert se_im.x_start == 10
@@ -90,7 +97,13 @@ def test_se_image_slice_noise_adjacent(monkeypatch, se_image_data):
             mask_tape_bumps=False,
             tmpdir=tmpdir,
         )
-        se_im.set_slice(10, 50, 30)
+        patch_bnds = Bounds(
+            rowmin=50,
+            rowmax=50+30-1,
+            colmin=10,
+            colmax=10+30-1,
+        )
+        se_im.set_slice(patch_bnds)
 
         se_im_adj = SEImageSlice(
             source_info=se_image_data['source_info'],
@@ -101,7 +114,13 @@ def test_se_image_slice_noise_adjacent(monkeypatch, se_image_data):
             mask_tape_bumps=False,
             tmpdir=tmpdir,
         )
-        se_im_adj.set_slice(20, 50, 30)
+        patch_bnds = Bounds(
+            rowmin=50,
+            rowmax=50+30-1,
+            colmin=20,
+            colmax=20+30-1,
+        )
+        se_im_adj.set_slice(patch_bnds)
 
         # make sure the overlapping parts of the noise field are the same
         assert np.array_equal(se_im.noise[:, 10:], se_im_adj.noise[:, :-10])
@@ -126,8 +145,13 @@ def test_se_image_slice_double_use(monkeypatch, se_image_data):
             mask_tape_bumps=False,
             tmpdir=tmpdir,
         )
-
-        se_im.set_slice(10, 50, 32)
+        patch_bnds = Bounds(
+            rowmin=50,
+            rowmax=50+32-1,
+            colmin=10,
+            colmax=10+32-1,
+        )
+        se_im.set_slice(patch_bnds)
 
         assert se_im.x_start == 10
         assert se_im.y_start == 50
@@ -145,7 +169,13 @@ def test_se_image_slice_double_use(monkeypatch, se_image_data):
         assert np.array_equal(im[50:82, 10:42], se_im.image)
 
         # now we move to another spot
-        se_im.set_slice(20, 50, 32)
+        patch_bnds = Bounds(
+            rowmin=50,
+            rowmax=50+32-1,
+            colmin=20,
+            colmax=20+32-1,
+        )
+        se_im.set_slice(patch_bnds)
 
         assert se_im.x_start == 20
         assert se_im.y_start == 50
@@ -182,8 +212,13 @@ def test_se_image_slice_two_obj(monkeypatch, se_image_data):
             mask_tape_bumps=False,
             tmpdir=tmpdir,
         )
-
-        se_im.set_slice(10, 50, 32)
+        patch_bnds = Bounds(
+            rowmin=50,
+            rowmax=50+32-1,
+            colmin=10,
+            colmax=10+32-1,
+        )
+        se_im.set_slice(patch_bnds)
 
         assert se_im.x_start == 10
         assert se_im.y_start == 50
@@ -210,8 +245,13 @@ def test_se_image_slice_two_obj(monkeypatch, se_image_data):
             mask_tape_bumps=False,
             tmpdir=tmpdir,
         )
-
-        se_im1.set_slice(20, 50, 32)
+        patch_bnds = Bounds(
+            rowmin=50,
+            rowmax=50+32-1,
+            colmin=20,
+            colmax=20+32-1,
+        )
+        se_im1.set_slice(patch_bnds)
 
         assert se_im1.x_start == 20
         assert se_im1.y_start == 50

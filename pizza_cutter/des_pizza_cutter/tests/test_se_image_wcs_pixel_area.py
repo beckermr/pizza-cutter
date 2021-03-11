@@ -154,12 +154,14 @@ def test_se_image_get_wcs_pixel_area_pixmappy(se_image_data, coadd_image_data):
     _get_wcs_area_interp.cache_clear()
     wcs_inv = _get_wcs_area_interp(
         se_wcs,
-        (SE_DIMS_CUT, SE_DIMS_CUT)
+        (SE_DIMS_CUT, SE_DIMS_CUT),
+        8,
     )
     assert _get_wcs_area_interp.cache_info().hits == 0
     wcs_inv = _get_wcs_area_interp(
         se_wcs,
-        (SE_DIMS_CUT, SE_DIMS_CUT)
+        (SE_DIMS_CUT, SE_DIMS_CUT),
+        8,
     )
     assert _get_wcs_area_interp.cache_info().hits == 1
 
@@ -223,6 +225,7 @@ def test_se_image_get_wcs_pixel_area_scamp(se_image_data, coadd_image_data):
     wcs_inv = _get_wcs_area_interp(
         se_wcs,
         (SE_DIMS_CUT, SE_DIMS_CUT),
+        8,
         position_offset=1,
     )
 

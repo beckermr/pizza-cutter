@@ -91,7 +91,7 @@ def _get_noise_image_cached(weight_path, weight_ext, scale, noise_seed, tmpdir):
 
 
 @functools.lru_cache(maxsize=32)
-def _get_wcs_inverse(wcs, wcs_position_offset, se_wcs, se_im_shape, delta=8):
+def _get_wcs_inverse(wcs, wcs_position_offset, se_wcs, se_im_shape, delta):
     if hasattr(se_wcs, "source_info"):
         logger.debug(
             "wcs inverse cache miss for %s/%s",
@@ -139,7 +139,7 @@ def _compute_wcs_area(se_wcs, x_se, y_se, dxy=1):
 
 
 @functools.lru_cache(maxsize=32)
-def _get_wcs_area_interp(se_wcs, se_im_shape, delta=8, position_offset=0):
+def _get_wcs_area_interp(se_wcs, se_im_shape, delta, position_offset=0):
     if hasattr(se_wcs, "source_info"):
         logger.debug(
             "wcs area interp cache miss for %s/%s",
@@ -208,7 +208,7 @@ class SEImageSlice(object):
 
     Methods
     -------
-    set_slice(x_start, y_start, box_size)
+    set_slice(patch_bnds)
         Set the slice location and read a square slice of the
         image, weight map, bit mask, and the noise field. Sets the `image`
         and related attributes. See the attribute list below.
@@ -227,13 +227,16 @@ class SEImageSlice(object):
         with another bounds object.
     get_psf_image(x, y)
         Get an image of the PSF as a numpy array at the given location.
-    compute_slice_bounds(ra, dec, box_size)
+    compute_slice_bounds(ra, dec, box_size, frac_buffer)
         Compute the patch bounds for a given ra,dec image and box size.
     set_psf(ra, dec)
         Set the PSF of the slice using the input (ra, dec). Sets the `psf`,
         `psf_x_start`, `psf_y_start` and `psf_box_size` attributes.
-    resample(wcs, wcs_position_offset, x_start, y_start, box_size,
-             psf_x_start, psf_y_start, psf_box_size)
+    resample(
+        wcs, wcs_position_offset, x_start, y_start, box_size,
+        psf_x_start, psf_y_start, psf_box_size,
+        se_wcs_interp_delta, coadd_wcs_interp_delta
+    )
         Resample a SEImageSlice to a new WCS.
     set_pmask(mask)
         Set the processing mask to the input mask.
@@ -362,19 +365,20 @@ class SEImageSlice(object):
         else:
             return True
 
-    def set_slice(self, x_start, y_start, box_size):
+    def set_slice(self, patch_bnds):
         """Set the slice location and read a square slice of the
         image, weight map, bit mask, and the noise field.
 
         Parameters
         ----------
-        x_start : int
-            The zero-indexed x/column location for the start of the slice.
-        y_start : int
-            The zero-indexed y/row location for the start of the slice.
-        box_size : int
-            The size of the square slice.
+        patch_bnds : meds.bounds.Bounds
+            A Bounds object encoding the square slice bounds.
         """
+        x_start = patch_bnds.colmin
+        y_start = patch_bnds.rowmin
+        box_size = patch_bnds.colmax - patch_bnds.colmin + 1
+        assert box_size == patch_bnds.rowmax - patch_bnds.rowmin + 1
+
         self.x_start = x_start
         self.y_start = y_start
         self.box_size = box_size
@@ -753,6 +757,15 @@ class SEImageSlice(object):
                 offset=galsim.PositionD(x=dx, y=dy))
             psf_im = im.array.copy()
 
+            if logging.DEBUG_PLOT >= logger.getEffectiveLevel():
+                import matplotlib.pyplot as plt
+                plt.figure()
+                plt.title("SE PSF dx,dy = %s|%s" % (dx, dy))
+                plt.imshow(psf_im)
+                ax = plt.gca()
+                ax.grid(False)
+                plt.show()
+
         elif isinstance(self._psf_model, galsim.des.DES_PSFEx):
             # get the gs object
             psf = self._psf_model.getPSF(galsim.PositionD(
@@ -825,8 +838,9 @@ class SEImageSlice(object):
 
         return ccd_bnds.contains_bounds(bounds)
 
-    def compute_slice_bounds(self, ra, dec, box_size):
-        """Compute the patch bounds for a given ra,dec image and box size.
+    def compute_slice_bounds(self, ra, dec, box_size, frac_buffer):
+        """Compute the patch bounds for a given ra,dec image, coadd box size,
+        and frac buffer.
 
         Parameters
         ----------
@@ -836,21 +850,31 @@ class SEImageSlice(object):
             The declination of the sky position.
         box_size : int
             The size of the square slice.
+        frac_buffer : float
+            The fractional amount by which to increase the coadd box size when computing
+            the bounding box of the coadd grid in the SE image coords. This
+            parameter can be used to account for position angle rotations by
+            setting it up to sqrt(2) to account for full position angle rotations.
+            In DES this number should be very close to 1.
 
         Returns
         -------
         patch_bounds : meds.bounds.Bounds
             The boundaries of the patch.
         """
-        box_cen = (box_size - 1) / 2
+        buff_box_size = int(frac_buffer * box_size)
+        if buff_box_size % 2 != box_size % 2:
+            buff_box_size += 1
+
+        buff_box_cen = (buff_box_size - 1) / 2
         col, row = self.sky2image(ra, dec)
-        se_start_row = int(row - box_cen + 0.5)
-        se_start_col = int(col - box_cen + 0.5)
+        se_start_row = int(row - buff_box_cen + 0.5)
+        se_start_col = int(col - buff_box_cen + 0.5)
         patch_bnds = Bounds(
             rowmin=se_start_row,
-            rowmax=se_start_row+box_size-1,
+            rowmax=se_start_row+buff_box_size-1,
             colmin=se_start_col,
-            colmax=se_start_col+box_size-1)
+            colmax=se_start_col+buff_box_size-1)
 
         return patch_bnds
 
@@ -891,9 +915,11 @@ class SEImageSlice(object):
         self.pmask = mask
 
     def resample(
-            self, *, wcs, wcs_position_offset, wcs_interp_shape,
-            x_start, y_start, box_size,
-            psf_x_start, psf_y_start, psf_box_size):
+        self, *, wcs, wcs_position_offset, wcs_interp_shape,
+        x_start, y_start, box_size,
+        psf_x_start, psf_y_start, psf_box_size,
+        se_wcs_interp_delta, coadd_wcs_interp_delta
+    ):
         """Resample a SEImageSlice to a new WCS.
 
         The resampling is done as follows. For each pixel in the destination
@@ -936,6 +962,11 @@ class SEImageSlice(object):
         psf_box_size : int
             The size of the square region to resample to in the destination
             PSF grid.
+        se_wcs_interp_delta : int
+            The spacing in pixels used to interpolate coadd pixel to SE pixel WCS
+            function.
+        coadd_wcs_interp_delta : int
+            The spacing in pixels used for interpolating the coadd WCS pixel area.
 
         Returns
         -------
@@ -969,19 +1000,31 @@ class SEImageSlice(object):
         wcs_interp = _get_wcs_inverse(
             wcs, wcs_position_offset,
             self,
-            self._im_shape)
-        logger.debug('wcs interp cache info: %s', _get_wcs_inverse.cache_info())
+            self._im_shape,
+            se_wcs_interp_delta)
+        if hasattr(_get_wcs_inverse, "cache_info"):
+            logger.debug('wcs interp cache info: %s', _get_wcs_inverse.cache_info())
         logger.debug('wcs interp took %f seconds', time.time() - t0)
 
         t0 = time.time()
-        se_wcs_area_interp = _get_wcs_area_interp(self, self._im_shape)
-        logger.debug('SE wcs area cache info: %s', _get_wcs_area_interp.cache_info())
+        se_wcs_area_interp = _get_wcs_area_interp(
+            self, self._im_shape, se_wcs_interp_delta
+        )
+        if hasattr(_get_wcs_area_interp, "cache_info"):
+            logger.debug(
+                'SE wcs area cache info: %s', _get_wcs_area_interp.cache_info()
+            )
         logger.debug('SE wcs area interp took %f seconds', time.time() - t0)
 
         t0 = time.time()
         coadd_wcs_area_interp = _get_wcs_area_interp(
-            wcs, wcs_interp_shape, delta=100, position_offset=wcs_position_offset)
-        logger.debug('coadd wcs area cache info: %s', _get_wcs_area_interp.cache_info())
+            wcs, wcs_interp_shape, coadd_wcs_interp_delta,
+            position_offset=wcs_position_offset,
+        )
+        if hasattr(_get_wcs_area_interp, "cache_info"):
+            logger.debug(
+                'coadd wcs area cache info: %s', _get_wcs_area_interp.cache_info()
+            )
         logger.debug('coadd wcs area interp took %f seconds', time.time() - t0)
 
         # 2. using the lookup tables, we resample each image to the
@@ -1025,6 +1068,15 @@ class SEImageSlice(object):
             'edge': edge,
         }
 
+        if logging.DEBUG_PLOT >= logger.getEffectiveLevel():
+            import matplotlib.pyplot as plt
+            plt.figure()
+            plt.title("RESAMP SE image")
+            plt.imshow(resampled_data["image"])
+            ax = plt.gca()
+            ax.grid(False)
+            plt.show()
+
         # 3. do the nearest pixel for the bit mask
         y_rs_se = (y_rs_se + 0.5).astype(np.int64)
         x_rs_se = (x_rs_se + 0.5).astype(np.int64)
@@ -1049,13 +1101,33 @@ class SEImageSlice(object):
         y_rs = y_rs.ravel() + psf_y_start
         x_rs = x_rs.ravel() + psf_x_start
         x_rs_se, y_rs_se = wcs_interp(x_rs, y_rs)
+        area_coadd = coadd_wcs_area_interp(x_rs, y_rs)
+
+        y_self, x_self = np.mgrid[0:self.psf_box_size, 0:self.psf_box_size]
+        x_self = x_self.ravel() + self.psf_x_start
+        y_self = y_self.ravel() + self.psf_y_start
+        area_se = se_wcs_area_interp(x_self, y_self)
 
         # remove the offset to local coords for resampling
         x_rs_se -= self.psf_x_start
         y_rs_se -= self.psf_y_start
-
-        rs_psf, edge = lanczos_resample(self.psf, y_rs_se, x_rs_se)
+        rs_psf, edge = lanczos_resample(
+            self.psf / area_se.reshape(self.psf_box_size, self.psf_box_size),
+            y_rs_se,
+            x_rs_se,
+        )
         rs_psf[edge] = 0
+        rs_psf *= area_coadd
         resampled_data['psf'] = rs_psf.reshape(psf_box_size, psf_box_size)
+        resampled_data['psf'] /= np.sum(resampled_data['psf'])
+
+        if logging.DEBUG_PLOT >= logger.getEffectiveLevel():
+            import matplotlib.pyplot as plt
+            plt.figure()
+            plt.title("RESAMP PSF")
+            plt.imshow(resampled_data['psf'])
+            ax = plt.gca()
+            ax.grid(False)
+            plt.show()
 
         return resampled_data

@@ -1,8 +1,11 @@
 import numpy as np
 from scipy.interpolate import CloughTocher2DInterpolator
+import logging
 
 import numba
 from numba import njit
+
+logger = logging.getLogger(__name__)
 
 
 def _draw_noise_image(*, weight, rng):
@@ -178,6 +181,7 @@ def interpolate_image_and_noise(
     bad_msk = (weight <= 0) | ((bmask & bad_flags) != 0)
 
     if np.any(bad_msk):
+        logger.debug('doing image interpolation')
         interp_image = _grid_interp(image=image, bad_msk=bad_msk)
         if interp_image is None:
             return None, None

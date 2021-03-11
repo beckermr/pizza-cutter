@@ -43,6 +43,7 @@ def _build_coadd_weight(*, coadding_weight, weight, psf):
 
 def _build_slice_inputs(
         *, ra, dec, ra_psf, dec_psf, box_size,
+        frac_buffer,
         coadd_info, start_row, start_col,
         se_src_info,
         rng,
@@ -75,6 +76,10 @@ def _build_slice_inputs(
         center of a coadd pixel near the center of a coadd patch.
     box_size : int
         The size of the coadd in pixels.
+    frac_buffer : float
+        The fractional amount by which to increse the coadd box size. Set
+        up to sqrt(2) to account for full position angle rotations. In DES
+        this number should be very tiny or zero.
     se_src_info : list of dicts
         The 'src_info' entry from the info file.
     rng : np.random.RandomState
@@ -176,7 +181,7 @@ def _build_slice_inputs(
                 # if the rough cut worked, then we do a more exact
                 # intersection test
                 patch_bnds = se_slice.compute_slice_bounds(
-                    ra, dec, box_size)
+                    ra, dec, box_size, frac_buffer)
                 if se_slice.ccd_contains_bounds(
                     patch_bnds, buffer=edge_buffer
                 ):
@@ -188,10 +193,7 @@ def _build_slice_inputs(
 
                     # we found one - set the slice (also does i/o of image
                     # data products)
-                    se_slice.set_slice(
-                        patch_bnds.colmin,
-                        patch_bnds.rowmin,
-                        box_size)
+                    se_slice.set_slice(patch_bnds)
 
                     # we will want this for storing in the meds file,
                     # even if this slice doesn't ultimately get used
@@ -291,9 +293,9 @@ def _build_slice_inputs(
             flags_not_used.append(flags)
         else:
             # first we do the noise interp
-            logger.debug('doing noise interpolation')
             msk = (se_slice.bmask & noise_interp_flags) != 0
             if np.any(msk):
+                logger.debug('doing noise interpolation')
                 zmsk = se_slice.weight <= 0.0
                 se_wgt = (
                     se_slice.weight * (~zmsk) +
@@ -307,7 +309,6 @@ def _build_slice_inputs(
             # inteprolated values
             # the same thing is done for the noise field since the noise
             # interpolation above is equivalent to drawing noise
-            logger.debug('doing image interpolation')
             interp_image, interp_noise = interpolate_image_and_noise(
                 image=se_slice.image,
                 noise=se_slice.noise,
@@ -352,14 +353,16 @@ def _build_slice_inputs(
     if weights:
         weights = np.array(weights)
         weights /= np.sum(weights)
+        logger.debug("coadding weights: %s", list(weights))
 
     return slices, weights, slices_not_used, flags_not_used
 
 
 def _coadd_slice_inputs(
-        *, wcs, wcs_position_offset, start_row, start_col,
-        box_size, psf_start_row, psf_start_col, psf_box_size,
-        se_image_slices, weights):
+    *, wcs, wcs_position_offset, wcs_image_shape, start_row, start_col,
+    box_size, psf_start_row, psf_start_col, psf_box_size,
+    se_image_slices, weights, se_wcs_interp_delta, coadd_wcs_interp_delta,
+):
     """Coadd the slice inputs to form the coadded image, noise realization,
     psf, and weight map.
 
@@ -370,6 +373,8 @@ def _coadd_slice_inputs(
     wcs_position_offset : int
         The position offset to get from zero-indexed, pixel-centered
         coordinates to the coordinates expected by the coadd WCS object.
+    wcs_image_shape : tuple of ints
+        The shape of the full coadd WCS image.
     start_row : int
         The starting row/y value of the coadd patch in zero-indexed,
         pixel-centered coordinates.
@@ -393,6 +398,11 @@ def _coadd_slice_inputs(
         The list of the SE image slices to be coadded.
     weights : np.ndarray
         An array of weights to apply to each coadd image slice.
+    se_wcs_interp_delta : int
+        The spacing in pixels used to interpolate coadd pixel to SE pixel WCS
+        function.
+    coadd_wcs_interp_delta : int
+        The spacing in pixels used for interpolating the coadd WCS pixel area.
 
     Returns
     -------
@@ -429,6 +439,8 @@ def _coadd_slice_inputs(
     psf = np.zeros(
         (psf_box_size, psf_box_size), dtype=se_image_slices[0].image.dtype)
 
+    resampled_datas = []
+
     for se_slice, weight in zip(se_image_slices, weights):
         logger.info(
             'resampling image %s/%s',
@@ -438,14 +450,17 @@ def _coadd_slice_inputs(
         resampled_data = se_slice.resample(
             wcs=wcs,
             wcs_position_offset=wcs_position_offset,
-            wcs_interp_shape=(10000, 10000),
+            wcs_interp_shape=wcs_image_shape,
             x_start=start_col,
             y_start=start_row,
             box_size=box_size,
             psf_x_start=psf_start_col,
             psf_y_start=psf_start_row,
-            psf_box_size=psf_box_size
+            psf_box_size=psf_box_size,
+            se_wcs_interp_delta=se_wcs_interp_delta,
+            coadd_wcs_interp_delta=coadd_wcs_interp_delta,
         )
+        resampled_datas.append(resampled_data)
 
         if np.all(resampled_data['image'] == 0):
             logger.warning(
@@ -475,4 +490,5 @@ def _coadd_slice_inputs(
         ormask,
         noise,
         psf,
-        weight)
+        weight,
+        resampled_datas)

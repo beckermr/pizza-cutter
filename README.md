@@ -1,6 +1,6 @@
 # pizza-cutter
 
-[![CircleCI](https://circleci.com/gh/beckermr/pizza-cutter.svg?style=svg)](https://circleci.com/gh/beckermr/pizza-cutter)
+[![tests](https://github.com/beckermr/pizza-cutter/actions/workflows/tests.yml/badge.svg)](https://github.com/beckermr/pizza-cutter/actions/workflows/tests.yml)
 
 yummy survey slices!
 

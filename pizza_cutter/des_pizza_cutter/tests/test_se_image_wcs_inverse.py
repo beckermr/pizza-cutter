@@ -27,13 +27,17 @@ def test_se_image_get_wcs_inverse_caches(se_image_data, coadd_image_data):
         coadd_image_data['eu_wcs'],
         coadd_image_data['position_offset'],
         se_im,
-        se_im._im_shape)
+        se_im._im_shape,
+        8,
+    )
     assert _get_wcs_inverse.cache_info().hits == 0
     _get_wcs_inverse(
         coadd_image_data['eu_wcs'],
         coadd_image_data['position_offset'],
         se_im,
-        se_im._im_shape)
+        se_im._im_shape,
+        8,
+    )
     assert _get_wcs_inverse.cache_info().hits == 1
 
     se_im = SEImageSlice(
@@ -49,7 +53,9 @@ def test_se_image_get_wcs_inverse_caches(se_image_data, coadd_image_data):
         coadd_image_data['eu_wcs'],
         coadd_image_data['position_offset'],
         se_im,
-        se_im._im_shape)
+        se_im._im_shape,
+        8,
+    )
     assert _get_wcs_inverse.cache_info().hits == 2
 
 
@@ -96,14 +102,16 @@ def test_se_image_get_wcs_inverse_pixmappy(se_image_data, coadd_image_data):
         coadd_wcs,
         coadd_image_data['position_offset'],
         se_wcs,
-        (SE_DIMS_CUT, SE_DIMS_CUT)
+        (SE_DIMS_CUT, SE_DIMS_CUT),
+        8,
     )
     assert _get_wcs_inverse.cache_info().hits == 0
     wcs_inv = _get_wcs_inverse(
         coadd_wcs,
         coadd_image_data['position_offset'],
         se_wcs,
-        (SE_DIMS_CUT, SE_DIMS_CUT)
+        (SE_DIMS_CUT, SE_DIMS_CUT),
+        8,
     )
     assert _get_wcs_inverse.cache_info().hits == 1
 
@@ -171,7 +179,8 @@ def test_se_image_get_wcs_inverse_scamp(se_image_data, coadd_image_data):
         coadd_wcs,
         coadd_image_data['position_offset'],
         se_wcs,
-        (SE_DIMS_CUT, SE_DIMS_CUT)
+        (SE_DIMS_CUT, SE_DIMS_CUT),
+        8,
     )
 
     rng = np.random.RandomState(seed=100)

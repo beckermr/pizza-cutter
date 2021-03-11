@@ -4,6 +4,7 @@ import pytest
 
 import galsim
 import piff
+from meds.bounds import Bounds
 
 from .._affine_wcs import AffineWCS
 from .._se_image import SEImageSlice, clear_image_and_wcs_caches
@@ -28,7 +29,13 @@ def test_se_image_resample_smoke(se_image_data, coadd_image_data):
     dim = 10
     half = 5
     ra, dec = se_im.image2sky(300, 150)
-    se_im.set_slice(300-half, 150-half, dim)
+    patch_bnds = Bounds(
+        rowmin=150-half,
+        rowmax=150-half+dim-1,
+        colmin=300-half,
+        colmax=300-half+dim-1,
+    )
+    se_im.set_slice(patch_bnds)
     se_im.set_psf(ra, dec)
     se_im.set_pmask(np.zeros_like(se_im.bmask))
     x, y = coadd_image_data['eu_wcs'].sky2image(ra, dec)
@@ -43,7 +50,9 @@ def test_se_image_resample_smoke(se_image_data, coadd_image_data):
         box_size=dim,
         psf_x_start=x-11,
         psf_y_start=y-11,
-        psf_box_size=23
+        psf_box_size=23,
+        se_wcs_interp_delta=8,
+        coadd_wcs_interp_delta=100,
     )
 
     # we are simply looking for weird outputs here to make sure it actually
@@ -175,7 +184,10 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
         box_size=100,
         psf_x_start=coadd_x_start + half_box_size - 11 + eps_x,
         psf_y_start=coadd_y_start + half_box_size - 11 + eps_y,
-        psf_box_size=23)
+        psf_box_size=23,
+        se_wcs_interp_delta=8,
+        coadd_wcs_interp_delta=10,
+    )
 
     # first check they are finite
     for k in resampled_data:
@@ -212,7 +224,13 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
     final_y_start -= 1
     final_x_start -= (x_start + half_box_size - 27)
     final_y_start -= (y_start + half_box_size - 27)
+
+    true_psf = se_im.psf[
+        final_y_start:final_y_start+23,
+        final_x_start:final_x_start+23
+    ].copy()
+    true_psf /= np.sum(true_psf)
     assert np.allclose(
         resampled_data['psf'],
-        se_im.psf[final_y_start:final_y_start+23,
-                  final_x_start:final_x_start+23]), k
+        true_psf,
+    )

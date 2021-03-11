@@ -36,6 +36,11 @@ coadd:
   coadding_weight: 'noise'
 
 single_epoch:
+  # pixel spacing for building various WCS interpolants
+  se_wcs_interp_delta: 8
+  coadd_wcs_interp_delta: 8
+
+  frac_buffer: 1
   psf_type: galsim
   wcs_type: affine
 
@@ -279,7 +284,7 @@ def test_coadding_end2end_psf(coadd_end2end):
     )
     assert np.abs(
         galsim.ImageD(psf_im, scale=0.25).calculateFWHM() -
-        galsim.ImageD(psf_m, scale=0.25).calculateFWHM()) < 3e-3
+        galsim.ImageD(psf_m, scale=0.25).calculateFWHM()) < 4e-3
 
 
 def test_coadding_end2end_gal(coadd_end2end):
