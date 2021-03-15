@@ -46,6 +46,7 @@ single_epoch:
 
   reject_outliers: False
   symmetrize_masking: True
+  copy_masked_edges: False
   max_masked_fraction: 0.1
   max_unmasked_trail_fraction: 0.02
   edge_buffer: 8

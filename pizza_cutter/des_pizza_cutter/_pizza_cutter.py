@@ -236,6 +236,7 @@ def _coadd_and_write_images(
             reject_outliers=single_epoch_config['reject_outliers'],
             symmetrize_masking=single_epoch_config['symmetrize_masking'],
             coadding_weight=coadding_weight,
+            copy_masked_edges=single_epoch_config['copy_masked_edges'],
             noise_interp_flags=sum(single_epoch_config['noise_interp_flags']),
             spline_interp_flags=sum(
                 single_epoch_config['spline_interp_flags']),
