@@ -302,17 +302,6 @@ def _build_slice_inputs(
             slices_not_used.append(se_slice)
             flags_not_used.append(flags)
         else:
-            if copy_masked_edges:
-                interp_image, interp_noise = copy_masked_edges_image_and_noise(
-                    image=se_slice.image,
-                    noise=se_slice.noise,
-                    weight=se_slice.weight,
-                    bmask=se_slice.bmask,
-                    bad_flags=spline_interp_flags,
-                )
-                se_slice.image = interp_image
-                se_slice.noise = interp_noise
-
             # first we do the noise interp
             msk = (se_slice.bmask & noise_interp_flags) != 0
             if np.any(msk):
@@ -326,6 +315,39 @@ def _build_slice_inputs(
                     np.sqrt(1.0/se_wgt))
                 se_slice.image[msk] = noise[msk]
 
+            # then deal with fully masked edges as a special case
+            if copy_masked_edges:
+                interp_image, interp_noise, interp_bmask, interp_weight \
+                    = copy_masked_edges_image_and_noise(
+                        image=se_slice.image,
+                        noise=se_slice.noise,
+                        weight=se_slice.weight,
+                        bmask=se_slice.bmask,
+                        bad_flags=spline_interp_flags,
+                    )
+                se_slice.image = interp_image
+                se_slice.noise = interp_noise
+
+                # recheck edge masking here just in case
+                skip_edge_masked = slice_full_edge_masked(
+                        weight=interp_weight, bmask=interp_bmask,
+                        bad_flags=spline_interp_flags)
+
+                if skip_edge_masked:
+                    flags |= procflags.FULL_EDGE_MASKED
+                    slices_not_used.append(se_slice)
+                    flags_not_used.append(flags)
+
+                    logger.info(
+                        'rejecting image %s: could not correct '
+                        'fully masked edges with copy of adjcent pixels',
+                        se_slice.source_info['filename']
+                    )
+                    continue
+            else:
+                interp_weight = se_slice.weight.copy()
+                interp_bmask = se_slice.bmask.copy()
+
             # now do the cubic interp - note that this will use the noise
             # inteprolated values
             # the same thing is done for the noise field since the noise
@@ -333,8 +355,8 @@ def _build_slice_inputs(
             interp_image, interp_noise = interpolate_image_and_noise(
                 image=se_slice.image,
                 noise=se_slice.noise,
-                weight=se_slice.weight,
-                bmask=se_slice.bmask,
+                weight=interp_weight,
+                bmask=interp_bmask,
                 bad_flags=spline_interp_flags,
             )
 

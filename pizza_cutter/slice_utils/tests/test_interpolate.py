@@ -189,7 +189,7 @@ def test_copy_masked_edges_image_and_noise_weight(i, ii, kind):
 
     rng = np.random.RandomState(seed=42)
     noise = rng.normal(size=image.shape)
-    iimage, inoise = copy_masked_edges_image_and_noise(
+    iimage, inoise, ibmask, iweight = copy_masked_edges_image_and_noise(
         image=image,
         weight=weight,
         bmask=bmask,
@@ -199,9 +199,13 @@ def test_copy_masked_edges_image_and_noise_weight(i, ii, kind):
     if kind == "x":
         assert np.allclose(iimage[:, i], image[:, ii])
         assert np.allclose(inoise[:, i], noise[:, ii])
+        assert np.allclose(ibmask[:, i], bmask[:, ii])
+        assert np.allclose(iweight[:, i], weight[:, ii])
     else:
         assert np.allclose(iimage[i, :], image[ii, :])
         assert np.allclose(inoise[i, :], noise[ii, :])
+        assert np.allclose(ibmask[i, :], bmask[ii, :])
+        assert np.allclose(iweight[i, :], weight[ii, :])
 
 
 @pytest.mark.parametrize("kind", ["x", "y"])
@@ -224,7 +228,7 @@ def test_copy_masked_edges_image_and_noise_bmask(i, ii, kind):
 
     rng = np.random.RandomState(seed=42)
     noise = rng.normal(size=image.shape)
-    iimage, inoise = copy_masked_edges_image_and_noise(
+    iimage, inoise, ibmask, iweight = copy_masked_edges_image_and_noise(
         image=image,
         weight=weight,
         bmask=bmask,
@@ -234,6 +238,10 @@ def test_copy_masked_edges_image_and_noise_bmask(i, ii, kind):
     if kind == "x":
         assert np.allclose(iimage[:, i], image[:, ii])
         assert np.allclose(inoise[:, i], noise[:, ii])
+        assert np.allclose(ibmask[:, i], bmask[:, ii])
+        assert np.allclose(iweight[:, i], weight[:, ii])
     else:
         assert np.allclose(iimage[i, :], image[ii, :])
         assert np.allclose(inoise[i, :], noise[ii, :])
+        assert np.allclose(ibmask[i, :], bmask[ii, :])
+        assert np.allclose(iweight[i, :], weight[ii, :])

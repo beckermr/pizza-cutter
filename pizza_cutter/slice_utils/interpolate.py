@@ -221,20 +221,31 @@ def copy_masked_edges_image_and_noise(
         The interpolated image.
     interp_noise : array-like
         The interpolated noise field.
+    interp_bmask : array-like
+        The new bmask.
+    interp_weight : array-like
+        The new weight map.
     """
     interp_image, interp_noise = image.copy(), noise.copy()
+    interp_bmask, interp_weight = bmask.copy(), weight.copy()
     for i, ii in [(0, 1), (-1, -2)]:
-        bad_msk = (weight[i, :] <= 0) | ((bmask[i, :] & bad_flags) != 0)
-        if np.all(bad_msk):
+        bad_msk_i = (weight[i, :] <= 0) | ((bmask[i, :] & bad_flags) != 0)
+        bad_msk_ii = (weight[ii, :] <= 0) | ((bmask[ii, :] & bad_flags) != 0)
+        if np.all(bad_msk_i) and not np.all(bad_msk_ii):
             logger.debug('doing msk edge interpolation row %d', i)
 
-            interp_image[i, :] = interp_image[ii, :]
-            interp_noise[i, :] = interp_noise[ii, :]
+            interp_image[i, ~bad_msk_ii] = interp_image[ii, ~bad_msk_ii]
+            interp_noise[i, ~bad_msk_ii] = interp_noise[ii, ~bad_msk_ii]
+            interp_bmask[i, ~bad_msk_ii] = interp_bmask[ii, ~bad_msk_ii]
+            interp_weight[i, ~bad_msk_ii] = interp_weight[ii, ~bad_msk_ii]
 
-        bad_msk = (weight[:, i] <= 0) | ((bmask[:, i] & bad_flags) != 0)
-        if np.all(bad_msk):
+        bad_msk_i = (weight[:, i] <= 0) | ((bmask[:, i] & bad_flags) != 0)
+        bad_msk_ii = (weight[:, ii] <= 0) | ((bmask[:, ii] & bad_flags) != 0)
+        if np.all(bad_msk_i) and not np.all(bad_msk_ii):
             logger.debug('doing msk edge interpolation col %d', i)
-            interp_image[:, i] = interp_image[:, ii]
-            interp_noise[:, i] = interp_noise[:, ii]
+            interp_image[~bad_msk_ii, i] = interp_image[~bad_msk_ii, ii]
+            interp_noise[~bad_msk_ii, i] = interp_noise[~bad_msk_ii, ii]
+            interp_bmask[~bad_msk_ii, i] = interp_bmask[~bad_msk_ii, ii]
+            interp_weight[~bad_msk_ii, i] = interp_weight[~bad_msk_ii, ii]
 
-    return interp_image, interp_noise
+    return interp_image, interp_noise, interp_bmask, interp_weight
