@@ -1,6 +1,11 @@
 import numpy as np
 
-from ..interpolate import interpolate_image_and_noise
+import pytest
+
+from ..interpolate import (
+    interpolate_image_and_noise,
+    copy_masked_edges_image_and_noise,
+)
 
 
 def test_interpolate_image_and_noise_weight():
@@ -163,3 +168,80 @@ def test_interpolate_gauss_image(show=False):
         print('max diff:', maxdiff)
 
     assert maxdiff < 0.0015
+
+
+@pytest.mark.parametrize("kind", ["x", "y"])
+@pytest.mark.parametrize("i,ii", [(0, 1), (-1, -2)])
+def test_copy_masked_edges_image_and_noise_weight(i, ii, kind):
+    rng = np.random.RandomState(seed=56)
+    image = rng.uniform(size=(100, 100))
+    weight = np.ones_like(image)
+    bmask = np.zeros_like(image, dtype=np.int32)
+    bad_flags = 0
+    if kind == "x":
+        weight[:, i] = 0
+    else:
+        weight[i, :] = 0
+
+    # put nans here to make sure interp is done ok
+    msk = weight <= 0
+    image[msk] = np.nan
+
+    rng = np.random.RandomState(seed=42)
+    noise = rng.normal(size=image.shape)
+    iimage, inoise, ibmask, iweight = copy_masked_edges_image_and_noise(
+        image=image,
+        weight=weight,
+        bmask=bmask,
+        bad_flags=bad_flags,
+        noise=noise)
+
+    if kind == "x":
+        assert np.allclose(iimage[:, i], image[:, ii])
+        assert np.allclose(inoise[:, i], noise[:, ii])
+        assert np.allclose(ibmask[:, i], bmask[:, ii])
+        assert np.allclose(iweight[:, i], weight[:, ii])
+    else:
+        assert np.allclose(iimage[i, :], image[ii, :])
+        assert np.allclose(inoise[i, :], noise[ii, :])
+        assert np.allclose(ibmask[i, :], bmask[ii, :])
+        assert np.allclose(iweight[i, :], weight[ii, :])
+
+
+@pytest.mark.parametrize("kind", ["x", "y"])
+@pytest.mark.parametrize("i,ii", [(0, 1), (-1, -2)])
+def test_copy_masked_edges_image_and_noise_bmask(i, ii, kind):
+    rng = np.random.RandomState(seed=56)
+    image = rng.uniform(size=(100, 100))
+    weight = np.ones_like(image)
+    bmask = np.zeros_like(image, dtype=np.int32)
+    bad_flags = 1
+    bmask[30:35, 40:45] = 4
+    if kind == "x":
+        bmask[:, i] = bad_flags
+    else:
+        bmask[i, :] = bad_flags
+
+    # put nans here to make sure interp is done ok
+    msk = (bmask & bad_flags) != 0
+    image[msk] = np.nan
+
+    rng = np.random.RandomState(seed=42)
+    noise = rng.normal(size=image.shape)
+    iimage, inoise, ibmask, iweight = copy_masked_edges_image_and_noise(
+        image=image,
+        weight=weight,
+        bmask=bmask,
+        bad_flags=bad_flags,
+        noise=noise)
+
+    if kind == "x":
+        assert np.allclose(iimage[:, i], image[:, ii])
+        assert np.allclose(inoise[:, i], noise[:, ii])
+        assert np.allclose(ibmask[:, i], bmask[:, ii])
+        assert np.allclose(iweight[:, i], weight[:, ii])
+    else:
+        assert np.allclose(iimage[i, :], image[ii, :])
+        assert np.allclose(inoise[i, :], noise[ii, :])
+        assert np.allclose(ibmask[i, :], bmask[ii, :])
+        assert np.allclose(iweight[i, :], weight[ii, :])

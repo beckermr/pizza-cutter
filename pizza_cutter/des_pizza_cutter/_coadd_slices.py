@@ -12,7 +12,10 @@ from ..slice_utils.flag import (
     slice_full_edge_masked,
     slice_has_flags,
     compute_masked_fraction)
-from ..slice_utils.interpolate import interpolate_image_and_noise
+from ..slice_utils.interpolate import (
+    interpolate_image_and_noise,
+    copy_masked_edges_image_and_noise,
+)
 from ..slice_utils.symmetrize import (
     symmetrize_bmask,
     symmetrize_weight)
@@ -50,6 +53,7 @@ def _build_slice_inputs(
         coadding_weight,
         reject_outliers,
         symmetrize_masking,
+        copy_masked_edges,
         noise_interp_flags,
         spline_interp_flags,
         bad_image_flags,
@@ -105,6 +109,9 @@ def _build_slice_inputs(
         If True, the bit masks and any zero weight pixels will be rotated
         by 90 degrees and applied again to the weight and bit masks. If False,
         this step is skipped.
+    copy_masked_edges : bool
+        If True, copy pixels from adjacent column or row into masked edge pixels
+        if the slice edge is fully masked.
     noise_interp_flags : int
         An "or" of bit flags. Any pixel in the image with one or more of these
         flags will be replaced by noise (computed from the weight map) before
@@ -245,9 +252,12 @@ def _build_slice_inputs(
             symmetrize_bmask(bmask=se_slice.bmask)
             symmetrize_weight(weight=se_slice.weight)
 
-        skip_edge_masked = slice_full_edge_masked(
-                weight=se_slice.weight, bmask=se_slice.bmask,
-                bad_flags=spline_interp_flags)
+        if not copy_masked_edges:
+            skip_edge_masked = slice_full_edge_masked(
+                    weight=se_slice.weight, bmask=se_slice.bmask,
+                    bad_flags=spline_interp_flags)
+        else:
+            skip_edge_masked = False
         skip_has_flags = slice_has_flags(
             bmask=se_slice.bmask, flags=bad_image_flags)
         skip_masked_fraction = (
@@ -305,6 +315,39 @@ def _build_slice_inputs(
                     np.sqrt(1.0/se_wgt))
                 se_slice.image[msk] = noise[msk]
 
+            # then deal with fully masked edges as a special case
+            if copy_masked_edges:
+                interp_image, interp_noise, interp_bmask, interp_weight \
+                    = copy_masked_edges_image_and_noise(
+                        image=se_slice.image,
+                        noise=se_slice.noise,
+                        weight=se_slice.weight,
+                        bmask=se_slice.bmask,
+                        bad_flags=spline_interp_flags,
+                    )
+                se_slice.image = interp_image
+                se_slice.noise = interp_noise
+
+                # recheck edge masking here just in case
+                skip_edge_masked = slice_full_edge_masked(
+                        weight=interp_weight, bmask=interp_bmask,
+                        bad_flags=spline_interp_flags)
+
+                if skip_edge_masked:
+                    flags |= procflags.FULL_EDGE_MASKED
+                    slices_not_used.append(se_slice)
+                    flags_not_used.append(flags)
+
+                    logger.info(
+                        'rejecting image %s: could not correct '
+                        'fully masked edges with copy of adjcent pixels',
+                        se_slice.source_info['filename']
+                    )
+                    continue
+            else:
+                interp_weight = se_slice.weight.copy()
+                interp_bmask = se_slice.bmask.copy()
+
             # now do the cubic interp - note that this will use the noise
             # inteprolated values
             # the same thing is done for the noise field since the noise
@@ -312,8 +355,8 @@ def _build_slice_inputs(
             interp_image, interp_noise = interpolate_image_and_noise(
                 image=se_slice.image,
                 noise=se_slice.noise,
-                weight=se_slice.weight,
-                bmask=se_slice.bmask,
+                weight=interp_weight,
+                bmask=interp_bmask,
                 bad_flags=spline_interp_flags,
             )
 
