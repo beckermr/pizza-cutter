@@ -37,6 +37,8 @@ def _process(*,
     with open(config, 'r') as fp:
         _config = yaml.load(fp.read(), Loader=yaml.Loader)
 
+    _preconfig = _config.pop("pizza-cutter-preprocessing", None)
+
     logging.basicConfig(
         stream=sys.stdout, level=getattr(logging, log_level.upper()))
 
@@ -72,14 +74,18 @@ def _process(*,
             seed=seed,
             start=start,
             num=num,
+            preconfig=_preconfig,
         )
 
-    filename = make_output_filename(
-        output_path,
-        meds_files[0],
-        part,
-        meds_range,
-    )
+    if output_path.endswith(".fits"):
+        filename = output_path
+    else:
+        filename = make_output_filename(
+            output_path,
+            meds_files[0],
+            part,
+            meds_range,
+        )
 
     makedir_fromfile(filename)
     print('output file:', filename, flush=True)
@@ -99,7 +105,11 @@ def _process(*,
     required=True)
 @click.option(
     '--output-path', default='.', type=str,
-    help='path to write the outputs')
+    help=(
+        'path to write the outputs; if the path ends in .fits '
+        'then it is treated as a file'
+    )
+)
 @click.option(
     '--seed', default=-1, type=int,
     help='seed for the RNG',
@@ -146,7 +156,7 @@ def main(
             log_level=log_level,
             meds_range=meds_range,
             tmpdir=tmpdir,
-           )
+        )
 
     if use_tmpdir and tmpdir is None:
         tmpdir = tempfile.TemporaryDirectory().name

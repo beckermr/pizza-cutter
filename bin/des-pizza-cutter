@@ -74,7 +74,10 @@ def go(config, info, tag, output_path, log_level, seed, tmpdir):
     help='an extra tag to attach to the filename if desired')
 @click.option(
     '--output-path', default='.', type=str,
-    help='path to write the MEDS file',
+    help=(
+        'path to write the MEDS file; if the path ends in .fits or .fits.fz '
+        'then it is treated as a file'
+    ),
     required=True)
 @click.option(
     '--log-level', default='warning', type=str,
