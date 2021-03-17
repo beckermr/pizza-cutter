@@ -183,9 +183,7 @@ def _get_radec(*,
 
 def _post_process_results(*, outputs, obj_data, image_info):
     # post process results
-    wcs = eu.wcsutil.WCS(
-        json.loads(image_info['wcs'][obj_data['file_id'][0, 0]]))
-    position_offset = image_info['position_offset'][obj_data['file_id'][0, 0]]
+    wcs_cache = {}
 
     output = []
     dt = 0
@@ -196,10 +194,13 @@ def _post_process_results(*, outputs, obj_data, image_info):
         dt += _dt
         for mcal_step, data in res.items():
             if data.size > 0:
-                wcs = eu.wcsutil.WCS(
-                    json.loads(image_info['wcs'][obj_data['file_id'][i, 0]]))
-                position_offset \
-                    = image_info['position_offset'][obj_data['file_id'][i, 0]]
+                file_id = obj_data['file_id'][i, 0]
+                if file_id in wcs_cache:
+                    wcs, position_offset = wcs_cache[file_id]
+                else:
+                    wcs = eu.wcsutil.WCS(json.loads(image_info['wcs'][file_id]))
+                    position_offset = image_info['position_offset'][file_id]
+                    wcs_cache[file_id] = (wcs, position_offset)
 
                 output.append(_make_output_array(
                     data=data,
@@ -216,16 +217,23 @@ def _post_process_results(*, outputs, obj_data, image_info):
     return output, dt
 
 
-def _do_metadetect(config, mbobs, seed, i, preprocessing_function):
+def _preprocess_for_metadetect(preconfig, mbobs, i, rng):
+    logger.debug("preprocessing multiband obslist %d", i)
+    if preconfig is None:
+        return mbobs
+    else:
+        # TODO do something here?
+        return mbobs
+
+
+def _do_metadetect(config, mbobs, seed, i, preconfig):
     _t0 = time.time()
     res = None
     if mbobs is not None:
         minnum = min([len(olist) for olist in mbobs])
         if minnum > 0:
             rng = np.random.RandomState(seed=seed)
-            if preprocessing_function is not None:
-                logger.debug("preprocessing multiband obslist %d", i)
-                mbobs = preprocessing_function(mbobs=mbobs, rng=rng)
+            mbobs = _preprocess_for_metadetect(preconfig, mbobs, i, rng)
             res = do_metadetect(config, mbobs, rng)
     return res, i, time.time() - _t0
 
@@ -268,7 +276,7 @@ def run_metadetect(
         seed,
         start=0,
         num=None,
-        preprocessing_function=None):
+        preconfig=None):
     """Run metadetect on a "pizza slice" MEDS file and write the outputs to
     disk.
 
@@ -285,16 +293,9 @@ def run_metadetect(
     num : int, optional
         The number of entries of the file to process, starting at `start`.
         The default of `None` will process all entries in the file.
-    preprocessing_function : function, optional
-        An optional function to preprocess the multiband observation
-        lists before running metadetect. The function signature should
-        be:
-            ```
-            def func(*, mbobs, rng):
-                ...
-                return new_mbobs
-            ```
-        The default of `None` does no preprocessing.
+    preconfig : dict or None, optional
+        The default of `None` does no preprocessing. Otherwise preprocessing is
+        done according to the config.
     """
     t0 = time.time()
 
@@ -313,19 +314,18 @@ def run_metadetect(
     if n_jobs == 1:
         outputs = [
             _do_metadetect(
-                config, mbobs, seed+i*256, i, preprocessing_function)
+                config, mbobs, seed+i*256, i, preconfig)
             for i, mbobs in PBar(meds_iter(), total=num)]
     else:
-        assert False, ("Check that we can actually use the "
-                       "potential closure in joblib here")
         outputs = joblib.Parallel(
-                verbose=10,
-                n_jobs=int(os.environ.get('OMP_NUM_THREADS', 1)),
-                pre_dispatch='2*n_jobs',
-                max_nbytes=None)(
-                    joblib.delayed(_do_metadetect)(
-                        config, mbobs, seed+i*256, i, preprocessing_function)
-                    for i, mbobs in meds_iter())
+            verbose=100,
+            n_jobs=int(os.environ.get('OMP_NUM_THREADS', 1)),
+            pre_dispatch='2*n_jobs',
+            max_nbytes=None
+        )(
+            joblib.delayed(_do_metadetect)(config, mbobs, seed+i*256, i, preconfig)
+            for i, mbobs in meds_iter()
+        )
 
     # join all the outputs
     output, cpu_time = _post_process_results(
