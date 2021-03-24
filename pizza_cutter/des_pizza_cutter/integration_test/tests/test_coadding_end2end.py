@@ -416,10 +416,9 @@ def test_coadding_end2end_masks(coadd_end2end):
     assert np.mean((ormask[33:35, :] & SIM_BMASK_NOISE_INTERP) != 0) > 0.0
 
 
-def test_coadding_end2end_interp(coadd_end2end):
+def test_coadding_end2end_mfrac(coadd_end2end):
     m = meds.MEDS(coadd_end2end['meds_path'])
-    iflux = m.get_cutout(0, 0, type='interp')
-    imask = m.get_cutout(0, 0, type='imask')
+    mfrac = m.get_cutout(0, 0, type='mfrac')
 
     def _plot_it(iimg, **kwargs):
         import matplotlib.pyplot as plt
@@ -430,19 +429,12 @@ def test_coadding_end2end_interp(coadd_end2end):
 
     # somwhere in the middle interpolation was done
     if False:
-        _plot_it(iflux)
-        _plot_it(imask)
+        _plot_it(mfrac)
 
-    assert np.any(iflux[:, 24:26] > 0.0)
-    assert np.any(imask[24:26, :] > 0.0)
-
-    assert np.any(iflux[:, 18:20] > 0.0)
-    assert np.any(imask[18:20, :] > 0.0)
-
-    assert np.any(iflux[:, 33:35] > 0.0)
-    assert np.any(imask[33:35, :] > 0.0)
-
-    assert np.all(imask[0:10, 0:10] == 0.0)
+    assert np.any(mfrac[:, 24:26] > 0.0)
+    assert np.any(mfrac[:, 18:20] > 0.0)
+    assert np.any(mfrac[:, 33:35] > 0.0)
+    assert np.all(mfrac[0:10, 0:10] == 0.0)
 
 
 def test_coadding_end2end_noise(coadd_end2end):

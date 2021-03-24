@@ -33,8 +33,7 @@ from ._constants import (
     NOISE_CUTOUT_EXTNAME,
     PSF_CUTOUT_EXTNAME,
     EPOCHS_INFO_EXTNAME,
-    INTERP_CUTOUT_EXTNAME,
-    IMASK_CUTOUT_EXTNAME,
+    MFRAC_CUTOUT_EXTNAME,
     CUTOUT_DTYPES,
     CUTOUT_DEFAULT_VALUES)
 from ..slice_utils.locate import build_slice_locations
@@ -275,7 +274,7 @@ def _coadd_and_write_images(
             object_data['nepoch_eff'][i] = weights.sum()/weights.max()
 
             (
-                image, bmask, ormask, noise, psf, weight, interp, imask, _
+                image, bmask, ormask, noise, psf, weight, mfrac, _
             ) = _coadd_slice_inputs(
                 wcs=wcs,
                 wcs_position_offset=position_offset,
@@ -317,12 +316,8 @@ def _coadd_and_write_images(
                 ext=WEIGHT_CUTOUT_EXTNAME, start_row=start_row)
 
             _write_single_image(
-                fits=fits, data=interp,
-                ext=INTERP_CUTOUT_EXTNAME, start_row=start_row)
-
-            _write_single_image(
-                fits=fits, data=imask,
-                ext=IMASK_CUTOUT_EXTNAME, start_row=start_row)
+                fits=fits, data=mfrac,
+                ext=MFRAC_CUTOUT_EXTNAME, start_row=start_row)
 
             # we need to keep the PSFs for writing later
             _psf_size = object_data['psf_box_size'][i]**2
@@ -366,8 +361,7 @@ def _reserve_images(fits, n_pixels, fpack_pars):
         BMASK_CUTOUT_EXTNAME,
         ORMASK_CUTOUT_EXTNAME,
         NOISE_CUTOUT_EXTNAME,
-        INTERP_CUTOUT_EXTNAME,
-        IMASK_CUTOUT_EXTNAME,
+        MFRAC_CUTOUT_EXTNAME,
     ]:
         fits.create_image_hdu(
             img=None,

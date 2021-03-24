@@ -21,8 +21,7 @@ SEG_CUTOUT_EXTNAME = 'seg_cutouts'
 BMASK_CUTOUT_EXTNAME = 'bmask_cutouts'
 ORMASK_CUTOUT_EXTNAME = 'ormask_cutouts'
 NOISE_CUTOUT_EXTNAME = 'noise_cutouts'
-INTERP_CUTOUT_EXTNAME = 'interp_cutouts'
-IMASK_CUTOUT_EXTNAME = 'imask_cutouts'
+MFRAC_CUTOUT_EXTNAME = 'mfrac_cutouts'
 PSF_CUTOUT_EXTNAME = 'psf'
 CUTOUT_DTYPES = {
     'image_cutouts': 'f4',
@@ -32,8 +31,7 @@ CUTOUT_DTYPES = {
     'ormask_cutouts': 'i4',
     'noise_cutouts': 'f4',
     'psf': 'f4',
-    'interp_cutouts': 'f4',
-    'imask_cutouts': 'f4',
+    'mfrac_cutouts': 'f4',
 }
 CUTOUT_DEFAULT_VALUES = {
     'image_cutouts': 0.0,
@@ -43,8 +41,7 @@ CUTOUT_DEFAULT_VALUES = {
     'ormask_cutouts': BMASK_EDGE,
     'noise_cutouts': 0.0,
     'psf': 0.0,
-    'interp_cutouts': 0.0,
-    'imask_cutouts': 0.0,
+    'mfrac_cutouts': 0.0,
 }
 
 # this is always true for the DES

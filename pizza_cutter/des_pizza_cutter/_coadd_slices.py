@@ -474,8 +474,6 @@ def _coadd_slice_inputs(
         The coadded PSF model.
     weight : np.ndarray
         The coadded weight map from the SE images.
-    interp_only_image : np.ndarray
-        The part of each pixel that is inteprolated.
     interp_se_frac : np.ndarray
         The fraction of interpolated SE images for each pixel. This quantity is
         not flux-weighted (i.e. it is either 0 or 1 for each SE image).
@@ -491,8 +489,6 @@ def _coadd_slice_inputs(
         "The input set of weights and images are different sizes.")
 
     image = np.zeros(
-        (box_size, box_size), dtype=se_image_slices[0].image.dtype)
-    interp_only_image = np.zeros(
         (box_size, box_size), dtype=se_image_slices[0].image.dtype)
     interp_se_frac = np.zeros(
         (box_size, box_size), dtype=se_image_slices[0].image.dtype)
@@ -535,7 +531,6 @@ def _coadd_slice_inputs(
 
         image += (resampled_data['image'] * weight)
         noise += (resampled_data['noise'] * weight)
-        interp_only_image += (resampled_data['interp_only_image'] * weight)
         interp_se_frac += (resampled_data['interp_frac'] * weight)
 
         # for the PSF, we make sure any NaNs are zero
@@ -557,7 +552,6 @@ def _coadd_slice_inputs(
         noise,
         psf,
         weight,
-        interp_only_image,
         interp_se_frac,
         resampled_datas,
     )
