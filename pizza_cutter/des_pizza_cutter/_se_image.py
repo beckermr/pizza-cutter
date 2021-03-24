@@ -238,8 +238,8 @@ class SEImageSlice(object):
         se_wcs_interp_delta, coadd_wcs_interp_delta
     )
         Resample a SEImageSlice to a new WCS.
-    set_pmask(mask)
-        Set the processing mask to the input mask.
+    set_interp_image_noise_pmask(interp_image, interp_noise, mask)
+        Set the inteprolated image, noise and processing mask.
 
     Attributes
     ----------
@@ -270,8 +270,18 @@ class SEImageSlice(object):
         The starting y/row location of the PSF image. Set by calling `set_psf`.
     psf_box_size : int
         The size of the PSF image. Set by calling `set_psf`.
+
+    If `set_interp_image_noise_pmask` is called then the following attributes
+    are set:
+
     pmask : np.ndarray
-        The image of processing flags. Set by the call `set_pmask`.
+        The image of processing flags.
+    interp_frac : np.ndarray
+        The fraction of each pixel that is interpolated.
+    orig_image : np.ndarray
+        The original image without interpolation.
+    interp_only_image : np.ndarray
+        An image of only the interpolated flux.
     """
     def __init__(self,
                  *,
@@ -904,14 +914,31 @@ class SEImageSlice(object):
         self.psf_y_start = int(y_cen - half)
         self.psf_box_size = psf.shape[0]
 
-    def set_pmask(self, mask):
-        """Set the processing mask to the input mask.
+    def set_interp_image_noise_pmask(self, *, interp_image, interp_noise, mask):
+        """Set the inteprolated image, noise and processing mask.
 
         Parameters
         ----------
+        interp_image : np.ndarray
+            The interpolated image.
+        interp_noise : np.ndarray
+            The interpolated noise field.
         mask : np.ndarray
             An array of ints w/ the same shape as the image.
         """
+        msk = interp_image != self.image
+        assert np.array_equal(msk, interp_noise != self.noise)
+        assert np.all(mask[msk] != 0)
+        assert np.all(mask[~msk] == 0)
+
+        self.interp_frac = np.zeros_like(self.image)
+        self.interp_frac[msk] = 1.0
+
+        self.orig_image = self.image
+        self.interp_only_image = interp_image.copy()
+        self.interp_only_image[~msk] = 0
+        self.image = interp_image
+        self.noise = interp_noise
         self.pmask = mask
 
     def resample(
@@ -988,7 +1015,9 @@ class SEImageSlice(object):
             raise RuntimeError("You must call set_psf before resmpling!")
 
         if not hasattr(self, 'pmask'):
-            raise RuntimeError("You must call set_pmask before resmpling!")
+            raise RuntimeError(
+                "You must call set_interp_image_noise_pmask before resmpling!"
+            )
 
         # 1. build the lookup table of SE position as a function of coadd
         # position and also table for area interpolation
@@ -1058,6 +1087,15 @@ class SEImageSlice(object):
         rim *= area_coadd
         rn *= area_coadd
 
+        riom, rif, _ = lanczos_resample_two(
+            self.interp_only_image / area_se.reshape(self.box_size, self.box_size),
+            self.interp_frac / area_se.reshape(self.box_size, self.box_size),
+            y_rs_se,
+            x_rs_se,
+        )
+        riom *= area_coadd
+        rif *= area_coadd
+
         if np.all(rim == 0):
             logger.warning("resampled SE image is all zero!")
 
@@ -1065,6 +1103,8 @@ class SEImageSlice(object):
         resampled_data = {
             'image': rim.reshape(box_size, box_size),
             'noise': rn.reshape(box_size, box_size),
+            'interp_only_image': riom.reshape(box_size, box_size),
+            'interp_frac': rif.reshape(box_size, box_size),
             'edge': edge,
         }
 
@@ -1087,7 +1127,6 @@ class SEImageSlice(object):
         bmask[y_rs[msk], x_rs[msk]] = self.bmask[y_rs_se[msk], x_rs_se[msk]]
         bmask[y_rs[~msk], x_rs[~msk]] = BMASK_EDGE
         resampled_data['bmask'] = bmask
-        resampled_data['bmask'][edge] |= BMASK_RESAMPLE_BOUNDS
 
         # 4. do the nearest pixel for the pmask
         pmask = np.zeros((box_size, box_size), dtype=self.pmask.dtype)
@@ -1095,6 +1134,7 @@ class SEImageSlice(object):
             y_rs_se[msk], x_rs_se[msk]]
         pmask[y_rs[~msk], x_rs[~msk]] = BMASK_EDGE
         resampled_data['pmask'] = pmask
+        resampled_data['pmask'][edge] |= BMASK_RESAMPLE_BOUNDS
 
         # 5. do the PSF image
         y_rs, x_rs = np.mgrid[0:psf_box_size, 0:psf_box_size]
