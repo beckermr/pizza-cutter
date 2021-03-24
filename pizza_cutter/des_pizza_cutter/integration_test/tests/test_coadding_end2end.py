@@ -24,6 +24,13 @@ def coadd_end2end(tmp_path_factory):
               images=images, weights=weights, bmasks=bmasks, bkgs=bkgs)
 
     config = """\
+fpack_pars:
+  FZQVALUE: 4
+  FZTILE: "(10240,1)"
+  FZALGOR: "RICE_1"
+  # preserve zeros, don't dither them
+  FZQMETHD: "SUBTRACTIVE_DITHER_2"
+
 coadd:
   # these are in pixels
   # the total "pizza slice" will be central_size + 2 * buffer_size
@@ -407,6 +414,27 @@ def test_coadding_end2end_masks(coadd_end2end):
     assert np.mean((bmask[33:35, :] & BMASK_NOISE_INTERP) != 0) > 0.0
     assert np.mean((ormask[:, 33:35] & SIM_BMASK_NOISE_INTERP) != 0) > 0.0
     assert np.mean((ormask[33:35, :] & SIM_BMASK_NOISE_INTERP) != 0) > 0.0
+
+
+def test_coadding_end2end_mfrac(coadd_end2end):
+    m = meds.MEDS(coadd_end2end['meds_path'])
+    mfrac = m.get_cutout(0, 0, type='mfrac')
+
+    def _plot_it(iimg, **kwargs):
+        import matplotlib.pyplot as plt
+        fig, axs = plt.subplots(nrows=1, ncols=1)
+        axs.imshow(iimg, **kwargs)
+        import pdb
+        pdb.set_trace()
+
+    # somwhere in the middle interpolation was done
+    if False:
+        _plot_it(mfrac)
+
+    assert np.any(mfrac[:, 24:26] > 0.0)
+    assert np.any(mfrac[:, 18:20] > 0.0)
+    assert np.any(mfrac[:, 33:35] > 0.0)
+    assert np.all(mfrac[0:10, 0:10] == 0.0)
 
 
 def test_coadding_end2end_noise(coadd_end2end):

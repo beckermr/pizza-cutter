@@ -12,6 +12,8 @@ import esutil as eu
 import piff
 import pixmappy
 import desmeds
+import ngmix
+import scipy
 
 from meds.maker import MEDS_FMT_VERSION
 from meds.util import (
@@ -31,6 +33,7 @@ from ._constants import (
     NOISE_CUTOUT_EXTNAME,
     PSF_CUTOUT_EXTNAME,
     EPOCHS_INFO_EXTNAME,
+    MFRAC_CUTOUT_EXTNAME,
     CUTOUT_DTYPES,
     CUTOUT_DEFAULT_VALUES)
 from ..slice_utils.locate import build_slice_locations
@@ -273,7 +276,9 @@ def _coadd_and_write_images(
             object_data['nepoch'][i] = weights.size
             object_data['nepoch_eff'][i] = weights.sum()/weights.max()
 
-            image, bmask, ormask, noise, psf, weight, _ = _coadd_slice_inputs(
+            (
+                image, bmask, ormask, noise, psf, weight, mfrac, _
+            ) = _coadd_slice_inputs(
                 wcs=wcs,
                 wcs_position_offset=position_offset,
                 wcs_image_shape=info["image_shape"],
@@ -314,6 +319,10 @@ def _coadd_and_write_images(
                 fits=fits, data=weight,
                 ext=WEIGHT_CUTOUT_EXTNAME, start_row=start_row)
 
+            _write_single_image(
+                fits=fits, data=mfrac,
+                ext=MFRAC_CUTOUT_EXTNAME, start_row=start_row)
+
             # we need to keep the PSFs for writing later
             _psf_size = object_data['psf_box_size'][i]**2
             psf_data[psf_start_row:psf_start_row + _psf_size] = psf.ravel()
@@ -350,12 +359,14 @@ def _reserve_images(fits, n_pixels, fpack_pars):
     """Does everything but the PSF image."""
     dims = [n_pixels]
     for ext in [
-            IMAGE_CUTOUT_EXTNAME,
-            WEIGHT_CUTOUT_EXTNAME,
-            SEG_CUTOUT_EXTNAME,
-            BMASK_CUTOUT_EXTNAME,
-            ORMASK_CUTOUT_EXTNAME,
-            NOISE_CUTOUT_EXTNAME]:
+        IMAGE_CUTOUT_EXTNAME,
+        WEIGHT_CUTOUT_EXTNAME,
+        SEG_CUTOUT_EXTNAME,
+        BMASK_CUTOUT_EXTNAME,
+        ORMASK_CUTOUT_EXTNAME,
+        NOISE_CUTOUT_EXTNAME,
+        MFRAC_CUTOUT_EXTNAME,
+    ]:
         fits.create_image_hdu(
             img=None,
             dtype=CUTOUT_DTYPES[ext],
@@ -588,18 +599,22 @@ def _build_image_info(*, info):
 
 def _build_metadata(*, config):
     numpy_version = np.__version__
+    scipy_version = scipy.__version__
     esutil_version = eu.__version__
     fitsio_version = fitsio.__version__
     meds_version = meds.__version__
     piff_version = piff.__version__
     pixmappy_version = pixmappy.__version__
     desmeds_version = desmeds.__version__
+    ngmix_version = ngmix.__version__
     dt = [
         ('magzp_ref', 'f8'),
         ('config', 'S%d' % len(config)),
         ('pizza_cutter_version', 'S%d' % len(__version__)),
         ('numpy_version', 'S%d' % len(numpy_version)),
+        ('scipy_version', 'S%d' % len(scipy_version)),
         ('esutil_version', 'S%d' % len(esutil_version)),
+        ('ngmix_version', 'S%d' % len(ngmix_version)),
         ('fitsio_version', 'S%d' % len(fitsio_version)),
         ('piff_version', 'S%d' % len(piff_version)),
         ('pixmappy_version', 'S%d' % len(pixmappy_version)),
@@ -613,7 +628,9 @@ def _build_metadata(*, config):
     metadata['magzp_ref'] = MAGZP_REF
     metadata['config'] = config
     metadata['numpy_version'] = numpy_version
+    metadata['scipy_version'] = scipy_version
     metadata['esutil_version'] = esutil_version
+    metadata['ngmix_version'] = ngmix_version
     metadata['fitsio_version'] = fitsio_version
     metadata['piff_version'] = piff_version
     metadata['pixmappy_version'] = pixmappy_version

@@ -7,6 +7,8 @@ import meds
 import piff
 import pixmappy
 import desmeds
+import ngmix
+import scipy
 
 from .._pizza_cutter import _build_metadata
 from .._constants import MAGZP_REF
@@ -23,7 +25,9 @@ def test_pizza_cutter_build_metadata(monkeypatch):
     metadata = _build_metadata(config=config)
 
     assert np.all(metadata['numpy_version'] == np.__version__.encode('ascii'))
+    assert np.all(metadata['scipy_version'] == scipy.__version__.encode('ascii'))
     assert np.all(metadata['esutil_version'] == eu.__version__.encode('ascii'))
+    assert np.all(metadata['ngmix_version'] == ngmix.__version__.encode('ascii'))
     assert np.all(
         metadata['fitsio_version'] == fitsio.__version__.encode('ascii'))
     assert np.all(metadata['meds_version'] == meds.__version__.encode('ascii'))
