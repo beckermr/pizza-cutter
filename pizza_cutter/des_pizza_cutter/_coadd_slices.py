@@ -586,6 +586,7 @@ def _get_gaia_stars(*, fname):
 
     ply = np.poly1d([0.00443223, -0.22569131, 2.99642999])
 
+    # these do not have a radius factor in them
     log10_radius_arcsec = ply(data['phot_g_mean_mag'])
     data['radius_arcsec'] = 10.0**log10_radius_arcsec
     return data
@@ -661,7 +662,7 @@ def _do_mask_gaia_stars(rows, cols, radius_pixels, bmask, flag):
                     bmask[irow, icol] |= flag
 
 
-def _mask_gaia_stars(gaia_stars, wcs, bmask, radius_factor=1.5, maxmag=16):
+def _mask_gaia_stars(gaia_stars, wcs, bmask, radius_factor=1, maxmag=18):
     """
     mask gaia stars, setting a bit in the bmask
 
@@ -674,19 +675,19 @@ def _mask_gaia_stars(gaia_stars, wcs, bmask, radius_factor=1.5, maxmag=16):
     bmask: array
         The bmask to modify
     radius_factor: float, optional
-        Factor by which to multiply the radius.  Default 1.5
+        Factor by which to multiply the radius.  Default 1.0
     maxmag: float, optional
-        Maximum mag to mask.  Default 16
+        Maximum mag to mask.  Default 18
     """
     from ._se_image import _compute_wcs_area
 
     pixel_scale = np.sqrt(_compute_wcs_area(wcs, 100, 100))
 
-    radius_pixels = gaia_stars['radius_arcsec'] * pixel_scale * radius_factor
+    radius_pixels = gaia_stars['radius_arcsec'] / pixel_scale * radius_factor
 
     x, y = wcs.sky2image(gaia_stars['ra'], gaia_stars['dec'])
 
-    w, = np.where(gaia_stars['phot_g_mean_mag'] < maxmag)
+    w, = np.where(gaia_stars['phot_g_mean_mag'] <= maxmag)
 
     if w.size > 0:
         _do_mask_gaia_stars(
