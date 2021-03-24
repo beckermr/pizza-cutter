@@ -37,7 +37,11 @@ def test_se_image_resample_smoke(se_image_data, coadd_image_data):
     )
     se_im.set_slice(patch_bnds)
     se_im.set_psf(ra, dec)
-    se_im.set_pmask(np.zeros_like(se_im.bmask))
+    se_im.set_interp_image_noise_pmask(
+        interp_image=se_im.image,
+        interp_noise=se_im.noise,
+        mask=np.zeros_like(se_im.bmask),
+    )
     x, y = coadd_image_data['eu_wcs'].sky2image(ra, dec)
     x = int(x+0.5)
     y = int(y+0.5)
@@ -158,6 +162,8 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
     half_box_size = 75
     rng = np.random.RandomState(seed=42)
     se_im.image = rng.normal(size=(box_size, box_size)) + 100
+    se_im.interp_only_image = rng.normal(size=(box_size, box_size)) + 100
+    se_im.interp_frac = rng.normal(size=(box_size, box_size)) + 100
     se_im.noise = rng.normal(size=(box_size, box_size)) + 100
     se_im.bmask = (rng.normal(size=(box_size, box_size)) * 100).astype(np.int32)
     se_im.x_start = x_start
@@ -208,7 +214,7 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
     final_y_start -= 1
     final_x_start -= x_start
     final_y_start -= y_start
-    for k in ['image', 'noise', 'bmask', 'pmask']:
+    for k in ['image', 'noise', 'bmask', 'pmask', 'interp_only_image', 'interp_frac']:
         assert np.allclose(
             resampled_data[k],
             getattr(se_im, k)[final_y_start:final_y_start+100,

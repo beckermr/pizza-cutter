@@ -302,6 +302,11 @@ def _build_slice_inputs(
             slices_not_used.append(se_slice)
             flags_not_used.append(flags)
         else:
+            interp_image = se_slice.image.copy()
+            interp_noise = se_slice.noise.copy()
+            interp_weight = se_slice.weight.copy()
+            interp_bmask = se_slice.bmask.copy()
+
             # first we do the noise interp
             msk = (se_slice.bmask & noise_interp_flags) != 0
             if np.any(msk):
@@ -313,20 +318,23 @@ def _build_slice_inputs(
                 noise = (
                     rng.normal(size=se_slice.weight.shape) *
                     np.sqrt(1.0/se_wgt))
-                se_slice.image[msk] = noise[msk]
+                interp_image[msk] = noise[msk]
+
+                noise = (
+                    rng.normal(size=se_slice.weight.shape) *
+                    np.sqrt(1.0/se_wgt))
+                interp_noise[msk] = noise[msk]
 
             # then deal with fully masked edges as a special case
             if copy_masked_edges:
                 interp_image, interp_noise, interp_bmask, interp_weight \
                     = copy_masked_edges_image_and_noise(
-                        image=se_slice.image,
-                        noise=se_slice.noise,
-                        weight=se_slice.weight,
-                        bmask=se_slice.bmask,
+                        image=interp_image,
+                        noise=interp_noise,
+                        weight=interp_weight,
+                        bmask=interp_bmask,
                         bad_flags=spline_interp_flags,
                     )
-                se_slice.image = interp_image
-                se_slice.noise = interp_noise
 
                 # recheck edge masking here just in case
                 skip_edge_masked = slice_full_edge_masked(
@@ -344,17 +352,14 @@ def _build_slice_inputs(
                         se_slice.source_info['filename']
                     )
                     continue
-            else:
-                interp_weight = se_slice.weight.copy()
-                interp_bmask = se_slice.bmask.copy()
 
             # now do the cubic interp - note that this will use the noise
             # inteprolated values
             # the same thing is done for the noise field since the noise
             # interpolation above is equivalent to drawing noise
             interp_image, interp_noise = interpolate_image_and_noise(
-                image=se_slice.image,
-                noise=se_slice.noise,
+                image=interp_image,
+                noise=interp_noise,
                 weight=interp_weight,
                 bmask=interp_bmask,
                 bad_flags=spline_interp_flags,
@@ -370,9 +375,6 @@ def _build_slice_inputs(
                     se_slice.source_info['filename'])
                 continue
 
-            se_slice.image = interp_image
-            se_slice.noise = interp_noise
-
             # make an image processing mask and set it
             # note we have to make sure this is int32 to get all of the flags
             pmask = np.zeros(se_slice.bmask.shape, dtype=np.int32)
@@ -384,7 +386,15 @@ def _build_slice_inputs(
                 (se_slice.weight <= 0) |
                 ((se_slice.bmask & spline_interp_flags) != 0))
             pmask[msk] |= BMASK_SPLINE_INTERP
-            se_slice.set_pmask(pmask)
+
+            # set interpolated images
+            # we keep original weight and bmask since those were edited only
+            # to deal with masked edges
+            se_slice.set_interp_image_noise_pmask(
+                mask=pmask,
+                interp_image=interp_image,
+                interp_noise=interp_noise,
+            )
 
             slices.append(se_slice)
 
@@ -464,6 +474,11 @@ def _coadd_slice_inputs(
         The coadded PSF model.
     weight : np.ndarray
         The coadded weight map from the SE images.
+    interp_se_frac : np.ndarray
+        The fraction of interpolated SE images for each pixel. This quantity is
+        not flux-weighted (i.e. it is either 0 or 1 for each SE image).
+    resampled_data : list of dict
+        A list containing a dictionary of the raw resampled data for each SE slice.
     """
 
     # normalize just in case
@@ -474,6 +489,8 @@ def _coadd_slice_inputs(
         "The input set of weights and images are different sizes.")
 
     image = np.zeros(
+        (box_size, box_size), dtype=se_image_slices[0].image.dtype)
+    interp_se_frac = np.zeros(
         (box_size, box_size), dtype=se_image_slices[0].image.dtype)
     bmask = np.zeros((box_size, box_size), dtype=np.int32)
     ormask = np.zeros((box_size, box_size), dtype=np.int32)
@@ -514,6 +531,7 @@ def _coadd_slice_inputs(
 
         image += (resampled_data['image'] * weight)
         noise += (resampled_data['noise'] * weight)
+        interp_se_frac += (resampled_data['interp_frac'] * weight)
 
         # for the PSF, we make sure any NaNs are zero
         msk = ~np.isfinite(resampled_data['psf'])
@@ -534,4 +552,6 @@ def _coadd_slice_inputs(
         noise,
         psf,
         weight,
-        resampled_datas)
+        interp_se_frac,
+        resampled_datas,
+    )
