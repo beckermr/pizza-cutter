@@ -200,6 +200,9 @@ def _coadd_and_write_images(
     psf_start_row = 0
     epochs_info = []
 
+    gaia_stars_file = info.get('gaia_stars_file', None)
+    assert gaia_stars_file is not None
+
     for i in prange(len(object_data)):
         logger.info('processing object %d', i)
 
@@ -284,6 +287,7 @@ def _coadd_and_write_images(
                 weights=weights,
                 se_wcs_interp_delta=single_epoch_config["se_wcs_interp_delta"],
                 coadd_wcs_interp_delta=single_epoch_config["coadd_wcs_interp_delta"],
+                gaia_stars_file=gaia_stars_file,
             )
 
             if np.all(image == 0):

@@ -4,6 +4,7 @@ PIFF_PSF_IN_BLACKLIST = 2**0
 BMASK_EDGE = 2**29
 BMASK_NOISE_INTERP = 2**28
 BMASK_SPLINE_INTERP = 2**27
+BMASK_GAIA_STAR = 2**26
 
 # kernel extends outside bounds in resampling
 BMASK_RESAMPLE_BOUNDS = 2**26
