@@ -204,7 +204,6 @@ def _coadd_and_write_images(
     epochs_info = []
 
     gaia_stars_file = info.get('gaia_stars_file', None)
-    assert gaia_stars_file is not None
 
     for i in prange(len(object_data)):
         logger.info('processing object %d', i)
