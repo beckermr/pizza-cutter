@@ -40,7 +40,9 @@ SIM_BMASK_SPLINE_INTERP = 2**1  # pixels get spline interpolated
 SIM_BMASK_NOISE_INTERP = 2**2  # pixels get noise interpolated
 
 
-def write_sim(*, path, info, images, weights, bmasks, bkgs):
+def write_sim(
+    *, path, info, images, weights, bmasks, bkgs, gaia_stars=None,
+):
     """Write an end-to-end sim to a path."""
     info_fname = expandpath(os.path.join(path, 'info.yaml'))
     makedir_fromfile(info_fname)
@@ -52,6 +54,10 @@ def write_sim(*, path, info, images, weights, bmasks, bkgs):
     info['scale'] = 1.0
     info['path'] = None
     info['filename'] = None
+
+    if gaia_stars is not None:
+        info['gaia_stars_file'] = os.path.join(path, 'gaia-stars.fits')
+        fitsio.write(info['gaia_stars_file'], gaia_stars, clobber=True)
 
     for ind, (image, weight, bmask, bkg) in enumerate(
             zip(images, weights, bmasks, bkgs)):
@@ -278,10 +284,48 @@ def generate_sim():
         'dvdy': wcs_scale,
         'x0': 24,
         'y0': 24}
+
+    # the first number must match the "central_size" and the second must match
+    # "buffer_size" in the config in in test_coadding_end2end.py those are
+    # currently hard coded into the test, so you cannot change these
+
     info['image_shape'] = [33 + 2*8, 33 + 2*8]
     info['position_offset'] = 0
 
-    return info, images, weights, bmasks, bkgs
+    # use image 3 to get reference wcs
+    gaia_stars = generate_gaia_stars(
+        rng=rng, image_shape=info['image_shape'], num=1,
+        wcs=AffineWCS(**info['affine_wcs_config']),
+    )
+    return info, images, weights, bmasks, bkgs, gaia_stars
+
+
+def generate_gaia_stars(rng, image_shape, num, wcs):
+    """
+    generate randomly placed gaia stars
+
+    Parameters
+    ----------
+    rng: np.random.RandomState
+        the rng for generating data
+    image_shape: nrows, ncols
+        Shape of image
+    num: int
+        Number of stars to generate
+    wcs: galsim wcs
+        Must have toSky method
+    """
+    dt = [('ra', 'f8'), ('dec', 'f8'), ('phot_g_mean_mag', 'f4')]
+    data = np.zeros(num, dtype=dt)
+
+    # fairly small radii
+    data['phot_g_mean_mag'] = 18
+
+    rows = rng.uniform(low=10, high=image_shape[0]-10-1, size=num)
+    cols = rng.uniform(low=10, high=image_shape[1]-10-1, size=num)
+
+    data['ra'], data['dec'] = wcs.image2sky(cols, rows)
+    return data
 
 
 def generate_input_se_image(
