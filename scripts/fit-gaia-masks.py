@@ -4,7 +4,7 @@ actual saturated stars used in DES.  The mag is gaia g
 """
 import numpy as np
 import fitsio
-import hickory
+from matplotlib import pyplot as mplt
 import esutil as eu
 from esutil.numpy_util import between
 
@@ -30,7 +30,7 @@ def main():
 
     ylim = [np.log10(1/radius_factor), np.log10(400/radius_factor)]
 
-    tab = hickory.Table(
+    fig, axes = mplt.subplots(
         figsize=(12, 10),
         nrows=2,
         ncols=2,
@@ -44,7 +44,7 @@ def main():
     for iband, band in enumerate(['r', 'i', 'z']):
         print(band)
 
-        plt = tab.axes[iband]
+        plt = axes.ravel()[iband]
         plt.set(
             xlabel=xlabel,
             ylabel='log10 Mask radius %s-band [arcsec]' % band,
@@ -72,25 +72,26 @@ def main():
         print(repr(coeffs))
         plt.errorbar(
             bs['xmean'], bs['ymean'], yerr=bs['yerr'], color='black', zorder=1,
+            marker='o', markersize=4,
         )
 
         xvals = np.linspace(magmin, plot_magmax)
-        plt.curve(xvals, ply(xvals), color='grey', zorder=2)
+        plt.plot(xvals, ply(xvals), color='grey', zorder=2)
 
         plys[band] = ply
 
-    tab[1, 1].set(xlabel=xlabel, ylabel='poly ratio')
+    axes[1, 1].set(xlabel=xlabel, ylabel='poly ratio')
 
     rp = 10.0**(plys['r'](xvals))
     ip = 10.0**(plys['i'](xvals))
     zp = 10.0**(plys['z'](xvals))
 
-    tab[1, 1].curve(xvals, ip/rp, label='i poly/r poly')
-    tab[1, 1].curve(xvals, zp/rp, label='z poly/r poly')
-    tab[1, 1].legend()
+    axes[1, 1].plot(xvals, ip/rp, label='i poly/r poly')
+    axes[1, 1].plot(xvals, zp/rp, label='z poly/r poly')
+    axes[1, 1].legend()
 
     print('writing:', args.pdf)
-    tab.savefig(args.pdf)
+    fig.savefig(args.pdf)
 
 
 if __name__ == '__main__':
