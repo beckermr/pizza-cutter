@@ -57,7 +57,9 @@ def make_des_pizza_slices(
         tmpdir=None,
         fpack_pars=None,
         coadd_config,
-        single_epoch_config):
+        single_epoch_config,
+        gaia_mask_config=None,
+):
     """Build a MEDS pizza slices file.
 
     Parameters
@@ -103,6 +105,12 @@ def make_des_pizza_slices(
         the single epoch images. See the documentaion of
         `pizza_cutter.des_pizza_cutter._coadd_slices._build_slice_inputs`
         for details on the required entries.
+
+    gaia_mask_config: dict, optional
+        The configuration for the gaia masking.  This is required if
+        gaia_stars_file is set in the info file.  Must have fields
+        'poly_coeff', 'radius_factor', and 'max_g_mag'.  In the config
+        file this has the name "gaia_star_masks"
     """
 
     metadata = _build_metadata(config=config)
@@ -142,6 +150,7 @@ def make_des_pizza_slices(
                 seed=seed,
                 fpack_pars=fpack_pars,
                 tmpdir=tmpdir,
+                gaia_mask_config=gaia_mask_config,
             )
 
             fits.write(metadata, extname=METADATA_EXTNAME)
@@ -171,6 +180,7 @@ def make_des_pizza_slices(
 def _coadd_and_write_images(
         *, fits, fpack_pars, object_data, info, single_epoch_config,
         wcs, position_offset, coadding_weight, seed,
+        gaia_mask_config=None,
         tmpdir=None):
 
     logger.info('reserving mosaic images...')
@@ -292,6 +302,7 @@ def _coadd_and_write_images(
                 se_wcs_interp_delta=single_epoch_config["se_wcs_interp_delta"],
                 coadd_wcs_interp_delta=single_epoch_config["coadd_wcs_interp_delta"],
                 gaia_stars_file=gaia_stars_file,
+                gaia_mask_config=gaia_mask_config,
             )
 
             if np.all(image == 0):
