@@ -105,7 +105,6 @@ def make_des_pizza_slices(
         the single epoch images. See the documentaion of
         `pizza_cutter.des_pizza_cutter._coadd_slices._build_slice_inputs`
         for details on the required entries.
-
     gaia_mask_config: dict, optional
         The configuration for the gaia masking.  This is required if
         gaia_stars_file is set in the info file.  Must have fields
