@@ -48,6 +48,13 @@ def go(config, info, tag, output_path, log_level, seed, tmpdir):
                 sname))
     print('output meds file:', meds_path, flush=True)
 
+    gaia_mask_config=cfg.get('gaia_star_masks', None)
+    if gaia_mask_config is not None:
+        # We cache the data based on this.  tuples are hashable not lists
+        gaia_mask_config['poly_coeffs'] = tuple(
+            gaia_mask_config['poly_coeffs'],
+        )
+
     print('making pizza slices!', flush=True)
     make_des_pizza_slices(
         tmpdir=tmpdir,
@@ -57,7 +64,9 @@ def go(config, info, tag, output_path, log_level, seed, tmpdir):
         fpack_pars=cfg.get('fpack_pars', None),
         seed=seed,
         coadd_config=cfg['coadd'],
-        single_epoch_config=cfg['single_epoch'])
+        single_epoch_config=cfg['single_epoch'],
+        gaia_mask_config=gaia_mask_config,
+    )
 
 
 @click.command()
