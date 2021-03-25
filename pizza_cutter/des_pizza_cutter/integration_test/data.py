@@ -313,7 +313,7 @@ def generate_gaia_stars(rng, image_shape, num, wcs):
     num: int
         Number of stars to generate
     wcs: galsim wcs
-        Must have toSky method
+        Must have image2sky method
     """
     dt = [('ra', 'f8'), ('dec', 'f8'), ('phot_g_mean_mag', 'f4')]
     data = np.zeros(num, dtype=dt)
