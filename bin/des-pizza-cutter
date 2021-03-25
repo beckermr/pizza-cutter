@@ -48,7 +48,7 @@ def go(config, info, tag, output_path, log_level, seed, tmpdir):
                 sname))
     print('output meds file:', meds_path, flush=True)
 
-    gaia_mask_config=cfg.get('gaia_star_masks', None)
+    gaia_mask_config = cfg.get('gaia_star_masks', None)
     if gaia_mask_config is not None:
         # We cache the data based on this.  tuples are hashable not lists
         gaia_mask_config['poly_coeffs'] = tuple(
