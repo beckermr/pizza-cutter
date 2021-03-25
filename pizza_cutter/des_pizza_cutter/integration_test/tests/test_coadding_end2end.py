@@ -1,6 +1,7 @@
 import os
 import subprocess
 import galsim
+import yaml
 
 import pytest
 import numpy as np
@@ -10,18 +11,27 @@ from ..data import (
     generate_sim, write_sim,
     SIM_BMASK_SPLINE_INTERP,
     SIM_BMASK_NOISE_INTERP)
-from ..._constants import MAGZP_REF, BMASK_SPLINE_INTERP, BMASK_NOISE_INTERP
+from ..._constants import (
+    MAGZP_REF, BMASK_SPLINE_INTERP, BMASK_NOISE_INTERP, BMASK_GAIA_STAR,
+)
 from ....slice_utils.procflags import (
     SLICE_HAS_FLAGS,
     HIGH_MASKED_FRAC)
+
+from ..._affine_wcs import AffineWCS
+from ..._coadd_slices import _get_gaia_stars
+from ..._se_image import _compute_wcs_area
 
 
 @pytest.fixture(scope="session")
 def coadd_end2end(tmp_path_factory):
     tmp_path = tmp_path_factory.getbasetemp()
-    info, images, weights, bmasks, bkgs = generate_sim()
-    write_sim(path=tmp_path, info=info,
-              images=images, weights=weights, bmasks=bmasks, bkgs=bkgs)
+    info, images, weights, bmasks, bkgs, gaia_stars = generate_sim()
+    write_sim(
+        path=tmp_path, info=info,
+        images=images, weights=weights, bmasks=bmasks, bkgs=bkgs,
+        gaia_stars=gaia_stars,
+    )
 
     config = """\
 fpack_pars:
@@ -68,6 +78,17 @@ single_epoch:
 
   bad_image_flags:
     - 1
+
+gaia_star_masks:
+  # multiply the radii by this factor
+  radius_factor: 1.0
+
+  # don't mask stars with gaia g mag less than this
+  max_g_mag: 18.0
+
+  # coefficients for log10(radius) vs mag.  Don't change this unless
+  # you know what you are doing
+  poly_coeffs: [0.00443223, -0.22569131, 2.99642999]
 """
 
     with open(os.path.join(tmp_path, 'config.yaml'), 'w') as fp:
@@ -88,7 +109,17 @@ single_epoch:
     mdir = os.environ.get('MEDS_DIR')
     try:
         os.environ['MEDS_DIR'] = 'meds_dir_xyz'
-        subprocess.run(cmd, check=True, shell=True)
+        cp = subprocess.run(cmd, check=True, shell=True, capture_output=True)
+        stdout = str(cp.stdout, 'utf-8').replace('\\n', '\n')
+        stderr = str(cp.stderr, 'utf-8').replace('\\n', '\n')
+        print('stdout:\n', stdout)
+        print('stderr:\n', stdout)
+    except subprocess.CalledProcessError as err:
+        stdout = str(err.stdout, 'utf-8').replace('\\n', '\n')
+        stderr = str(err.stderr, 'utf-8').replace('\\n', '\n')
+        print('stdout:\n', stdout)
+        print('stderr:\n', stderr)
+        raise
     finally:
         if mdir is not None:
             os.environ['MEDS_DIR'] = mdir
@@ -469,3 +500,66 @@ def test_coadding_end2end_weight(coadd_end2end):
     wgt = m.get_cutout(0, 0, type='weight')
     nse = m.get_cutout(0, 0, type='noise')
     np.allclose(wgt, 1.0 / np.var(nse))
+
+
+def test_coadding_end2end_gaia_stars(coadd_end2end):
+    """
+    make sure pixels are getting masked
+    """
+    m = meds.MEDS(coadd_end2end['meds_path'])
+    bmask = m.get_cutout(0, 0, type='bmask')
+
+    if False:
+        import pdb
+        import matplotlib.pyplot as plt
+        fig, axs = plt.subplots(nrows=1, ncols=1)
+        axs.imshow((bmask & BMASK_GAIA_STAR) != 0)
+        pdb.set_trace()
+
+    # make sure some are masked
+    assert np.any((bmask & BMASK_GAIA_STAR) != 0)
+
+    info = coadd_end2end['info']
+    wcs = AffineWCS(**info['affine_wcs_config'])
+
+    config = yaml.load(
+        coadd_end2end['config'], Loader=yaml.SafeLoader,
+    )
+    gaia_mask_config = config['gaia_star_masks']
+    gaia_stars = _get_gaia_stars(
+        fname=info['gaia_stars_file'], wcs=wcs,
+        poly_coeffs=tuple(gaia_mask_config['poly_coeffs']),
+        radius_factor=gaia_mask_config['radius_factor'],
+        max_g_mag=gaia_mask_config['max_g_mag'],
+    )
+
+    scale = np.sqrt(_compute_wcs_area(wcs, 10, 10))
+
+    # check star center is masked
+    # gaia_stars = coadd_end2end['gaia_stars']
+    for star in gaia_stars:
+        x, y = wcs.sky2image(star['ra'], star['dec'])
+        ix = int(x)
+        iy = int(y)
+
+        assert bmask[iy, ix] & BMASK_GAIA_STAR != 0
+
+        ixlow = int(x - star['radius_arcsec']/scale + 2)
+        if ixlow < 0:
+            ixlow = 0
+        assert bmask[iy, ixlow] & BMASK_GAIA_STAR != 0
+
+        ixhigh = int(x + star['radius_arcsec']/scale - 3)
+        if ixhigh > bmask.shape[1] - 1:
+            ixhigh = bmask.shape[1] - 1
+        assert bmask[iy, ixhigh] & BMASK_GAIA_STAR != 0
+
+        iylow = int(y - star['radius_arcsec']/scale + 2)
+        if iylow < 0:
+            iylow = 0
+        assert bmask[iylow, ix] & BMASK_GAIA_STAR != 0
+
+        iyhigh = int(y + star['radius_arcsec']/scale - 3)
+        if iyhigh > bmask.shape[1] - 1:
+            iyhigh = bmask.shape[1] - 1
+        assert bmask[iyhigh, ix] & BMASK_GAIA_STAR != 0
