@@ -103,7 +103,7 @@ single_epoch:
     except subprocess.CalledProcessError as err:
         print(err.stdout)
         print(err.stderr)
-        raise(err)
+        raise
     finally:
         if mdir is not None:
             os.environ['MEDS_DIR'] = mdir
@@ -494,10 +494,11 @@ def test_coadding_end2end_gaia_stars(coadd_end2end):
     bmask = m.get_cutout(0, 0, type='bmask')
 
     if False:
+        import pdb
         import matplotlib.pyplot as plt
         fig, axs = plt.subplots(nrows=1, ncols=1)
         axs.imshow((bmask & BMASK_GAIA_STAR) != 0)
-        fig.savefig('/astro/u/esheldon/www/tmp/plots/tmp.png', dpi=150)
+        pdb.set_trace()
 
     # make sure some are masked
     assert np.any((bmask & BMASK_GAIA_STAR) != 0)
@@ -505,7 +506,7 @@ def test_coadding_end2end_gaia_stars(coadd_end2end):
     info = coadd_end2end['info']
     wcs = AffineWCS(**info['affine_wcs_config'])
 
-    gaia_stars = _get_gaia_stars(fname=info['gaia_stars_file'])
+    gaia_stars = _get_gaia_stars(fname=info['gaia_stars_file'], wcs=wcs)
 
     scale = np.sqrt(_compute_wcs_area(wcs, 10, 10))
 
