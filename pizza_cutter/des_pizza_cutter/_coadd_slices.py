@@ -26,7 +26,7 @@ from ..slice_utils.symmetrize import (
     symmetrize_weight)
 from ..slice_utils.measure import measure_fwhm
 
-from ._se_image import SEImageSlice
+from ._se_image import SEImageSlice, _compute_wcs_area
 from ._constants import BMASK_SPLINE_INTERP, BMASK_NOISE_INTERP, BMASK_GAIA_STAR
 
 logger = logging.getLogger(__name__)
@@ -462,8 +462,10 @@ def _coadd_slice_inputs(
         function.
     coadd_wcs_interp_delta : int
         The spacing in pixels used for interpolating the coadd WCS pixel area.
-    gaia_stars_file: str
-        File from which to read gaia star locations
+    gaia_stars_file: str, optional
+        File from which to read gaia star locations.  If present, a bit will be
+        set in the output `bmask` images to mark regions around the stars in
+        this file.
 
     Returns
     -------
@@ -554,8 +556,13 @@ def _coadd_slice_inputs(
     weight[:, :] = 1.0 / np.var(noise)
 
     if gaia_stars_file is not None:
-        gaia_stars = _get_gaia_stars(fname=gaia_stars_file)
-        _mask_gaia_stars(gaia_stars=gaia_stars, wcs=wcs, bmask=bmask)
+        _mask_gaia_stars(
+            gaia_stars_file=gaia_stars_file,
+            wcs=wcs,
+            row_cen=(start_row + box_size/2),
+            col_cen=(start_col + box_size/2),
+            bmask=bmask,
+        )
 
     return (
         image,
@@ -570,7 +577,7 @@ def _coadd_slice_inputs(
 
 
 @functools.lru_cache(maxsize=1)
-def _get_gaia_stars(*, fname):
+def _get_gaia_stars(*, fname, wcs):
     """
     load the gaia stars
 
@@ -578,17 +585,23 @@ def _get_gaia_stars(*, fname):
     -----------
     fname: str
         path to the gaia star catalog
+    wcs: WCS object
+        The WCS object for the image. Used to calculate x, y
     """
     full_path = os.path.expandvars(fname)
     logger.info('reading: %s' % full_path)
     data = fitsio.read(full_path, lower=True)
-    data = eu.numpy_util.add_fields(data, [('radius_arcsec', 'f4')])
+
+    add_dt = [('radius_arcsec', 'f4'), ('x', 'f8'), ('y', 'f8')]
+    data = eu.numpy_util.add_fields(data, add_dt)
 
     ply = np.poly1d([0.00443223, -0.22569131, 2.99642999])
 
     # these do not have a radius factor in them
     log10_radius_arcsec = ply(data['phot_g_mean_mag'])
     data['radius_arcsec'] = 10.0**log10_radius_arcsec
+
+    data['x'], data['y'] = wcs.sky2image(data['ra'], data['dec'])
     return data
 
 
@@ -662,37 +675,44 @@ def _do_mask_gaia_stars(rows, cols, radius_pixels, bmask, flag):
                     bmask[irow, icol] |= flag
 
 
-def _mask_gaia_stars(gaia_stars, wcs, bmask, radius_factor=1, maxmag=18):
+def _mask_gaia_stars(
+    gaia_stars_file, bmask, wcs, row_cen, col_cen, radius_factor=1, maxmag=18,
+):
     """
     mask gaia stars, setting a bit in the bmask
 
     Parameters
     ----------
-    gaia_stars: array
-        Array with fields ra, dec, radius_arcsec
-    wcs: WCS object
-        The WCS object for the image
+    gaia_stars_file: str
+        Path to the gaia star catalog.  Note the data get cached
     bmask: array
         The bmask to modify
+    wcs: WCS object
+        The WCS object for the coadd. Used to calculate x, y
+    row_cen: float
+        Center row of the slice in pixels.  Used for calculating the pixel
+        scale
+    col_cen: float
+        Center col of the slice in pixels.  Used for calculating the pixel
+        scale
     radius_factor: float, optional
         Factor by which to multiply the radius.  Default 1.0
     maxmag: float, optional
         Maximum mag to mask.  Default 18
     """
-    from ._se_image import _compute_wcs_area
 
-    pixel_scale = np.sqrt(_compute_wcs_area(wcs, 100, 100))
+    pixel_scale = np.sqrt(_compute_wcs_area(wcs, col_cen, row_cen))
 
+    # this is cached
+    gaia_stars = _get_gaia_stars(fname=gaia_stars_file, wcs=wcs)
     radius_pixels = gaia_stars['radius_arcsec'] / pixel_scale * radius_factor
-
-    x, y = wcs.sky2image(gaia_stars['ra'], gaia_stars['dec'])
 
     w, = np.where(gaia_stars['phot_g_mean_mag'] <= maxmag)
 
     if w.size > 0:
         _do_mask_gaia_stars(
-            rows=y[w],
-            cols=x[w],
+            rows=gaia_stars['y'][w],
+            cols=gaia_stars['x'][w],
             radius_pixels=radius_pixels[w],
             bmask=bmask, flag=BMASK_GAIA_STAR,
         )
