@@ -1,6 +1,7 @@
 import os
 import subprocess
 import galsim
+import yaml
 
 import pytest
 import numpy as np
@@ -77,6 +78,17 @@ single_epoch:
 
   bad_image_flags:
     - 1
+
+gaia_star_masks:
+  # multiply the radii by this factor
+  radius_factor: 1.0
+
+  # don't mask stars with gaia g mag less than this
+  max_g_mag: 18.0
+
+  # coefficients for log10(radius) vs mag.  Don't change this unless
+  # you know what you are doing
+  poly_coeffs: [0.00443223, -0.22569131, 2.99642999]
 """
 
     with open(os.path.join(tmp_path, 'config.yaml'), 'w') as fp:
@@ -98,11 +110,15 @@ single_epoch:
     try:
         os.environ['MEDS_DIR'] = 'meds_dir_xyz'
         cp = subprocess.run(cmd, check=True, shell=True, capture_output=True)
-        print('stdout:', cp.stdout)
-        print('stderr:', cp.stderr)
+        stdout = str(cp.stdout, 'utf-8').replace('\\n', '\n')
+        stderr = str(cp.stderr, 'utf-8').replace('\\n', '\n')
+        print('stdout:\n', stdout)
+        print('stderr:\n', stdout)
     except subprocess.CalledProcessError as err:
-        print(err.stdout)
-        print(err.stderr)
+        stdout = str(err.stdout, 'utf-8').replace('\\n', '\n')
+        stderr = str(err.stderr, 'utf-8').replace('\\n', '\n')
+        print('stdout:\n', stdout)
+        print('stderr:\n', stderr)
         raise
     finally:
         if mdir is not None:
@@ -506,7 +522,16 @@ def test_coadding_end2end_gaia_stars(coadd_end2end):
     info = coadd_end2end['info']
     wcs = AffineWCS(**info['affine_wcs_config'])
 
-    gaia_stars = _get_gaia_stars(fname=info['gaia_stars_file'], wcs=wcs)
+    config = yaml.load(
+        coadd_end2end['config'], Loader=yaml.SafeLoader,
+    )
+    gaia_mask_config = config['gaia_star_masks']
+    gaia_stars = _get_gaia_stars(
+        fname=info['gaia_stars_file'], wcs=wcs,
+        poly_coeffs=tuple(gaia_mask_config['poly_coeffs']),
+        radius_factor=gaia_mask_config['radius_factor'],
+        max_g_mag=gaia_mask_config['max_g_mag'],
+    )
 
     scale = np.sqrt(_compute_wcs_area(wcs, 10, 10))
 
