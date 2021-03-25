@@ -420,7 +420,7 @@ def _coadd_slice_inputs(
     *, wcs, wcs_position_offset, wcs_image_shape, start_row, start_col,
     box_size, psf_start_row, psf_start_col, psf_box_size,
     se_image_slices, weights, se_wcs_interp_delta, coadd_wcs_interp_delta,
-    gaia_stars_file=None,
+    gaia_stars_file=None, gaia_mask_config=None,
 ):
     """Coadd the slice inputs to form the coadded image, noise realization,
     psf, and weight map.
@@ -466,6 +466,10 @@ def _coadd_slice_inputs(
         File from which to read gaia star locations.  If present, a bit will be
         set in the output `bmask` images to mark regions around the stars in
         this file.
+    gaia_mask_config: dict, optional
+        The configuration for the gaia masking.  This is required if
+        gaia_stars_file is sent.  Must have fields 'poly_coeff', 'radius_factor',
+        and 'max_g_mag'
 
     Returns
     -------
@@ -562,6 +566,7 @@ def _coadd_slice_inputs(
             row_cen=(start_row + box_size/2),
             col_cen=(start_col + box_size/2),
             bmask=bmask,
+            gaia_mask_config=gaia_mask_config,
         )
 
     return (
@@ -576,8 +581,8 @@ def _coadd_slice_inputs(
     )
 
 
-@functools.lru_cache(maxsize=1)
-def _get_gaia_stars(*, fname, wcs):
+@functools.lru_cache(maxsize=10)
+def _get_gaia_stars(*, fname, wcs, poly_coeffs, radius_factor, max_g_mag):
     """
     load the gaia stars
 
@@ -587,19 +592,34 @@ def _get_gaia_stars(*, fname, wcs):
         path to the gaia star catalog
     wcs: WCS object
         The WCS object for the image. Used to calculate x, y
+    poly_coeffs: tuple
+        Tuple describing a np.poly1d for log10(radius) vs mag.
+        E.g. (0.00443223, -0.22569131, 2.99642999)
+
+        Note it must be a tuple in order for the cacheing to work
+    radius_factor: float, optional
+        Factor by which to multiply the radius.  Default 1.0
+    max_g_mag: float, optional
+        Maximum g mag to mask.  Default 18
     """
+
     full_path = os.path.expandvars(fname)
     logger.info('reading: %s' % full_path)
     data = fitsio.read(full_path, lower=True)
 
+    w, = np.where(data['phot_g_mean_mag'] <= max_g_mag)
+    data = data[w]
+
     add_dt = [('radius_arcsec', 'f4'), ('x', 'f8'), ('y', 'f8')]
     data = eu.numpy_util.add_fields(data, add_dt)
 
-    ply = np.poly1d([0.00443223, -0.22569131, 2.99642999])
+    ply = np.poly1d(poly_coeffs)
 
     # these do not have a radius factor in them
     log10_radius_arcsec = ply(data['phot_g_mean_mag'])
-    data['radius_arcsec'] = 10.0**log10_radius_arcsec
+
+    # convert to  linear and multiply by radius factor
+    data['radius_arcsec'] = radius_factor * 10.0**log10_radius_arcsec
 
     data['x'], data['y'] = wcs.sky2image(data['ra'], data['dec'])
     return data
@@ -676,7 +696,7 @@ def _do_mask_gaia_stars(rows, cols, radius_pixels, bmask, flag):
 
 
 def _mask_gaia_stars(
-    gaia_stars_file, bmask, wcs, row_cen, col_cen, radius_factor=1, maxmag=18,
+    gaia_stars_file, bmask, wcs, row_cen, col_cen, gaia_mask_config,
 ):
     """
     mask gaia stars, setting a bit in the bmask
@@ -695,24 +715,33 @@ def _mask_gaia_stars(
     col_cen: float
         Center col of the slice in pixels.  Used for calculating the pixel
         scale
-    radius_factor: float, optional
-        Factor by which to multiply the radius.  Default 1.0
-    maxmag: float, optional
-        Maximum mag to mask.  Default 18
+    gaia_mask_config: dict
+        Required fields
+            poly_coeffs: sequence
+                Sequence describing a np.poly1d for log10(radius) vs mag
+            radius_factor: float, optional
+                Factor by which to multiply the radius.
+            max_g_mag: float, optional
+                Maximum g mag to mask.
     """
 
-    pixel_scale = np.sqrt(_compute_wcs_area(wcs, col_cen, row_cen))
+    if gaia_mask_config is None:
+        raise ValueError('gaia_mask_config must be set')
 
     # this is cached
-    gaia_stars = _get_gaia_stars(fname=gaia_stars_file, wcs=wcs)
-    radius_pixels = gaia_stars['radius_arcsec'] / pixel_scale * radius_factor
+    gaia_stars = _get_gaia_stars(
+        fname=gaia_stars_file, wcs=wcs,
+        poly_coeffs=gaia_mask_config['poly_coeffs'],
+        radius_factor=gaia_mask_config['radius_factor'],
+        max_g_mag=gaia_mask_config['max_g_mag'],
+    )
 
-    w, = np.where(gaia_stars['phot_g_mean_mag'] <= maxmag)
+    pixel_scale = np.sqrt(_compute_wcs_area(wcs, col_cen, row_cen))
+    radius_pixels = gaia_stars['radius_arcsec'] / pixel_scale
 
-    if w.size > 0:
-        _do_mask_gaia_stars(
-            rows=gaia_stars['y'][w],
-            cols=gaia_stars['x'][w],
-            radius_pixels=radius_pixels[w],
-            bmask=bmask, flag=BMASK_GAIA_STAR,
-        )
+    _do_mask_gaia_stars(
+        rows=gaia_stars['y'],
+        cols=gaia_stars['x'],
+        radius_pixels=radius_pixels,
+        bmask=bmask, flag=BMASK_GAIA_STAR,
+    )
