@@ -2,7 +2,6 @@ import numpy as np
 from scipy.interpolate import CloughTocher2DInterpolator
 import logging
 
-import numba
 from numba import njit
 
 logger = logging.getLogger(__name__)
