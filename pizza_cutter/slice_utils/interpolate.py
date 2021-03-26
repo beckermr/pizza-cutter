@@ -51,9 +51,9 @@ def _get_nearby_good_pixels(image, bad_msk, nbad, buff=4):
     nrows, ncols = bad_msk.shape
 
     ngood = nbad*(2*buff+1)**2
-    good_pix = np.zeros((ngood, 2), dtype=numba.int64)
-    good_ind = np.zeros(ngood, dtype=numba.int64)
-    bad_pix = np.zeros((ngood, 2), dtype=numba.int64)
+    good_pix = np.zeros((ngood, 2), dtype=np.int64)
+    good_ind = np.zeros(ngood, dtype=np.int64)
+    bad_pix = np.zeros((ngood, 2), dtype=np.int64)
     good_im = np.zeros(ngood, dtype=image.dtype)
 
     ibad = 0
