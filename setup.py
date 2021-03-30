@@ -2,7 +2,6 @@ import os
 from setuptools import setup, find_packages
 
 scripts = [
-    'bin/run-metadetect-on-slices',
     'bin/des-pizza-cutter',
     'bin/des-pizza-cutter-prep-tile',
 ]
