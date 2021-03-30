@@ -42,7 +42,7 @@ from ..files import StagedOutFile
 from ._coadd_slices import (
     _build_slice_inputs, _coadd_slice_inputs)
 
-from ..slice_utils.pbar import prange
+from ..slice_utils.pbar import PBar
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +53,7 @@ def make_des_pizza_slices(
         meds_path,
         info,
         seed,
+        slice_range=None,
         remove_fits_file=True,
         tmpdir=None,
         fpack_pars=None,
@@ -74,6 +75,10 @@ def make_des_pizza_slices(
         similar function.
     seed : int
         The random seed used to make the noise field.
+    slice_range: iterable or str
+        Range of slices to process.  Either an iterable, e.g. range(10, 20) or
+        a string of the form 'start:end' representing a python slice.  Default
+        None which means process all slices.
     remove_fits_file : bool, optional
         If `True`, remove the FITS file after fpacking. Only works if not
         using a temporary directory.
@@ -147,6 +152,7 @@ def make_des_pizza_slices(
                 position_offset=info['position_offset'],
                 coadding_weight=coadd_config['coadding_weight'],
                 seed=seed,
+                slice_range=slice_range,
                 fpack_pars=fpack_pars,
                 tmpdir=tmpdir,
                 gaia_mask_config=gaia_mask_config,
@@ -179,6 +185,7 @@ def make_des_pizza_slices(
 def _coadd_and_write_images(
         *, fits, fpack_pars, object_data, info, single_epoch_config,
         wcs, position_offset, coadding_weight, seed,
+        slice_range=None,
         gaia_mask_config=None,
         tmpdir=None):
 
@@ -214,7 +221,14 @@ def _coadd_and_write_images(
 
     gaia_stars_file = info.get('gaia_stars_file', None)
 
-    for i in prange(len(object_data)):
+    slice_range = _extract_slice_range(
+        slice_range=slice_range,
+        num=len(object_data),
+    )
+
+    print('processing %d slices: %s' % (len(slice_range), slice_range))
+
+    for i in PBar(slice_range):
         logger.info('processing object %d', i)
 
         # we center the PSF at the nearest pixel center near the patch center
@@ -651,3 +665,20 @@ def _build_metadata(*, config):
     metadata['piff_data_dir'] = os.environ.get('PIFF_DATA_DIR', '')
     metadata['desdata'] = os.environ.get('DESDATA', '')
     return metadata
+
+
+def _extract_slice_range(slice_range, num):
+    try:
+        ss = slice_range.split(':')
+        assert len(ss) == 2
+        start = int(ss[0])
+        end = int(ss[1])
+        ret = range(start, end)
+    except AttributeError:
+        try:
+            len(ss)
+            ret = ss
+        except TypeError:
+            ret = range(num)
+
+    return ret
