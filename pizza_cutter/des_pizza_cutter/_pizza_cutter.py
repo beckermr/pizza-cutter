@@ -668,17 +668,29 @@ def _build_metadata(*, config):
 
 
 def _extract_slice_range(slice_range, num):
-    try:
-        ss = slice_range.split(':')
-        assert len(ss) == 2
-        start = int(ss[0])
-        end = int(ss[1])
-        ret = range(start, end)
-    except AttributeError:
+    if slice_range is None:
+        ret = range(num)
+    else:
+
         try:
-            len(ss)
-            ret = ss
-        except TypeError:
-            ret = range(num)
+            # try to split as a string
+            ss = slice_range.split(':')
+            assert len(ss) == 2
+            start = int(ss[0])
+            end = int(ss[1])
+            ret = range(start, end)
+        except AttributeError:
+            try:
+                # see if it is an iterable
+                len(slice_range)
+                ret = slice_range
+            except TypeError:
+                raise ValueError(
+                    'bad slice specification: "%s"' % str(slice_range)
+                )
+        if ret.start < 0 or ret.stop > num:
+            raise ValueError(
+                'slice_range %s out of bounds [0, %d)' % (ret, num)
+            )
 
     return ret
