@@ -22,7 +22,7 @@ def _draw_noise_image(*, weight, rng):
 
 
 @njit
-def _get_nearby_good_pixels(image, bad_msk, nbad, buff=4):
+def _get_nearby_good_pixels(image, bad_msk, nbad, buff=5):
     """
     get the set of good pixels surrounding bad pixels.
 

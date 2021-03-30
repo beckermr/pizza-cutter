@@ -189,12 +189,17 @@ def _coadd_and_write_images(
         gaia_mask_config=None,
         tmpdir=None):
 
+    slice_range_res = list(_extract_slice_range(
+        slice_range=slice_range,
+        num=len(object_data),
+    ))
+
     logger.info('reserving mosaic images...')
-    n_pixels = int(np.sum(object_data['box_size']**2))
+    n_pixels = int(np.sum(object_data['box_size'][slice_range_res]**2))
     _reserve_images(fits, n_pixels, fpack_pars)
 
     rng = np.random.RandomState(seed=seed)
-    n_psf_pixels = int(np.sum(object_data['psf_box_size']**2))
+    n_psf_pixels = int(np.sum(object_data['psf_box_size'][slice_range_res]**2))
 
     # set the noise image seeds for each SE image via the RNG once
     for i in range(len(info['src_info'])):

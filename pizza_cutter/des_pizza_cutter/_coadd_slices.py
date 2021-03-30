@@ -312,6 +312,10 @@ def _build_slice_inputs(
             interp_weight = se_slice.weight.copy()
             interp_bmask = se_slice.bmask.copy()
 
+            # make an image processing mask and set it
+            # note we have to make sure this is int32 to get all of the flags
+            pmask = np.zeros(se_slice.bmask.shape, dtype=np.int32)
+
             # first we do the noise interp
             msk = (se_slice.bmask & noise_interp_flags) != 0
             if np.any(msk):
@@ -330,9 +334,11 @@ def _build_slice_inputs(
                     np.sqrt(1.0/se_wgt))
                 interp_noise[msk] = noise[msk]
 
+                pmask[msk] |= BMASK_NOISE_INTERP
+
             # then deal with fully masked edges as a special case
             if copy_masked_edges:
-                interp_image, interp_noise, interp_bmask, interp_weight \
+                _interp_image, _interp_noise, interp_bmask, interp_weight \
                     = copy_masked_edges_image_and_noise(
                         image=interp_image,
                         noise=interp_noise,
@@ -340,6 +346,10 @@ def _build_slice_inputs(
                         bmask=interp_bmask,
                         bad_flags=spline_interp_flags,
                     )
+                msk = (interp_image != _interp_image) | (_interp_noise != interp_noise)
+                pmask[msk] |= BMASK_SPLINE_INTERP
+                interp_image = _interp_image
+                interp_noise = _interp_noise
 
                 # recheck edge masking here just in case
                 skip_edge_masked = slice_full_edge_masked(
@@ -362,7 +372,7 @@ def _build_slice_inputs(
             # inteprolated values
             # the same thing is done for the noise field since the noise
             # interpolation above is equivalent to drawing noise
-            interp_image, interp_noise = interpolate_image_and_noise(
+            _interp_image, _interp_noise = interpolate_image_and_noise(
                 image=interp_image,
                 noise=interp_noise,
                 weight=interp_weight,
@@ -380,17 +390,10 @@ def _build_slice_inputs(
                     se_slice.source_info['filename'])
                 continue
 
-            # make an image processing mask and set it
-            # note we have to make sure this is int32 to get all of the flags
-            pmask = np.zeros(se_slice.bmask.shape, dtype=np.int32)
-
-            msk = (se_slice.bmask & noise_interp_flags) != 0
-            pmask[msk] |= BMASK_NOISE_INTERP
-
-            msk = (
-                (se_slice.weight <= 0) |
-                ((se_slice.bmask & spline_interp_flags) != 0))
+            msk = (interp_image != _interp_image) | (_interp_noise != interp_noise)
             pmask[msk] |= BMASK_SPLINE_INTERP
+            interp_image = _interp_image
+            interp_noise = _interp_noise
 
             # set interpolated images
             # we keep original weight and bmask since those were edited only

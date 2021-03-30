@@ -926,10 +926,7 @@ class SEImageSlice(object):
         mask : np.ndarray
             An array of ints w/ the same shape as the image.
         """
-        msk = interp_image != self.image
-        assert np.array_equal(msk, interp_noise != self.noise)
-        assert np.all(mask[msk] != 0)
-        assert np.all(mask[~msk] == 0)
+        msk = mask != 0
 
         self.interp_frac = np.zeros_like(self.image)
         self.interp_frac[msk] = 1.0
