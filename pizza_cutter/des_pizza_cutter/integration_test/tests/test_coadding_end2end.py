@@ -2,6 +2,7 @@ import os
 import subprocess
 import galsim
 import yaml
+import copy
 
 import pytest
 import numpy as np
@@ -10,7 +11,9 @@ import meds
 from ..data import (
     generate_sim, write_sim,
     SIM_BMASK_SPLINE_INTERP,
-    SIM_BMASK_NOISE_INTERP)
+    SIM_BMASK_NOISE_INTERP,
+    SIM_CONFIG,
+)
 from ..._constants import (
     MAGZP_REF, BMASK_SPLINE_INTERP, BMASK_NOISE_INTERP, BMASK_GAIA_STAR,
 )
@@ -33,66 +36,8 @@ def coadd_end2end(tmp_path_factory):
         gaia_stars=gaia_stars,
     )
 
-    config = """\
-fpack_pars:
-  FZQVALUE: 4
-  FZTILE: "(10240,1)"
-  FZALGOR: "RICE_1"
-  # preserve zeros, don't dither them
-  FZQMETHD: "SUBTRACTIVE_DITHER_2"
-
-coadd:
-  # these are in pixels
-  # the total "pizza slice" will be central_size + 2 * buffer_size
-  central_size: 33  # size of the central region
-  buffer_size: 8  # size of the buffer on each size
-
-  psf_box_size: 51
-
-  wcs_type: affine
-  coadding_weight: 'noise'
-
-single_epoch:
-  # pixel spacing for building various WCS interpolants
-  se_wcs_interp_delta: 8
-  coadd_wcs_interp_delta: 8
-
-  frac_buffer: 1
-  psf_type: galsim
-  wcs_type: affine
-
-  reject_outliers: False
-  symmetrize_masking: True
-  copy_masked_edges: False
-  max_masked_fraction: 0.1
-  max_unmasked_trail_fraction: 0.02
-  edge_buffer: 8
-
-  mask_tape_bumps: False
-
-  spline_interp_flags:
-    - 2
-
-  noise_interp_flags:
-    - 4
-
-  bad_image_flags:
-    - 1
-
-gaia_star_masks:
-  # multiply the radii by this factor
-  radius_factor: 1.0
-
-  # don't mask stars with gaia g mag less than this
-  max_g_mag: 18.0
-
-  # coefficients for log10(radius) vs mag.  Don't change this unless
-  # you know what you are doing
-  poly_coeffs: [0.00443223, -0.22569131, 2.99642999]
-"""
-
     with open(os.path.join(tmp_path, 'config.yaml'), 'w') as fp:
-        fp.write(config)
+        fp.write(SIM_CONFIG)
 
     cmd = """\
     des-pizza-cutter \
@@ -135,7 +80,7 @@ gaia_star_masks:
         'bmasks': bmasks,
         'info': info,
         'bkgs': bkgs,
-        'config': config,
+        'config': copy.deepcopy(SIM_CONFIG),
     }
 
 
@@ -563,3 +508,58 @@ def test_coadding_end2end_gaia_stars(coadd_end2end):
         if iyhigh > bmask.shape[1] - 1:
             iyhigh = bmask.shape[1] - 1
         assert bmask[iyhigh, ix] & BMASK_GAIA_STAR != 0
+
+
+def test_coadding_end2end_range_kwarg(tmp_path_factory):
+    tmp_path = tmp_path_factory.getbasetemp()
+    info, images, weights, bmasks, bkgs, gaia_stars = generate_sim()
+    write_sim(
+        path=tmp_path, info=info,
+        images=images, weights=weights, bmasks=bmasks, bkgs=bkgs,
+        gaia_stars=gaia_stars,
+    )
+
+    with open(os.path.join(tmp_path, 'config.yaml'), 'w') as fp:
+        fp.write(SIM_CONFIG)
+
+    cmd = """\
+    des-pizza-cutter \
+      --config={config} \
+      --info={info} \
+      --output-path={tmp_path} \
+      --log-level=DEBUG \
+      --range 0:1 \
+      --seed=42
+    """.format(
+        config=os.path.join(tmp_path, 'config.yaml'),
+        info=os.path.join(tmp_path, 'info.yaml'),
+        tmp_path=tmp_path)
+
+    mdir = os.environ.get('MEDS_DIR')
+    try:
+        os.environ['MEDS_DIR'] = 'meds_dir_xyz'
+        cp = subprocess.run(cmd, check=True, shell=True, capture_output=True)
+        stdout = str(cp.stdout, 'utf-8').replace('\\n', '\n')
+        stderr = str(cp.stderr, 'utf-8').replace('\\n', '\n')
+        print('stdout:\n', stdout)
+        print('stderr:\n', stdout)
+    except subprocess.CalledProcessError as err:
+        stdout = str(err.stdout, 'utf-8').replace('\\n', '\n')
+        stderr = str(err.stderr, 'utf-8').replace('\\n', '\n')
+        print('stdout:\n', stdout)
+        print('stderr:\n', stderr)
+        raise
+    finally:
+        if mdir is not None:
+            os.environ['MEDS_DIR'] = mdir
+        else:
+            del os.environ['MEDS_DIR']
+
+    meds_path = os.path.join(
+        tmp_path,
+        'e2e_test_p_config_meds-pizza-slices.fits.fz',
+    )
+
+    m = meds.MEDS(meds_path)
+    object_data = m._fits['object_data'].read()
+    assert len(object_data) == 1
