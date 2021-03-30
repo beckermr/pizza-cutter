@@ -167,7 +167,7 @@ def test_interpolate_gauss_image(show=False):
         )
         print('max diff:', maxdiff)
 
-    assert maxdiff < 0.0015
+    assert maxdiff < 0.0025
 
 
 @pytest.mark.parametrize("kind", ["x", "y"])

@@ -390,7 +390,13 @@ def _build_slice_inputs(
                     se_slice.source_info['filename'])
                 continue
 
-            msk = (interp_image != _interp_image) | (_interp_noise != interp_noise)
+            msk = (
+                (_interp_image != interp_image)
+                | (_interp_noise != interp_noise)
+                | (interp_weight < 0)
+                | ((interp_bmask & spline_interp_flags) != 0)
+            )
+
             pmask[msk] |= BMASK_SPLINE_INTERP
             interp_image = _interp_image
             interp_noise = _interp_noise
