@@ -226,7 +226,10 @@ def _coadd_and_write_images(
         num=len(object_data),
     )
 
-    print('processing %d slices: %s' % (len(slice_range), slice_range))
+    print(
+        'processing %d slices: %s' % (len(slice_range), slice_range),
+        flush=True,
+    )
 
     for i in PBar(slice_range):
         logger.info('processing object %d', i)
