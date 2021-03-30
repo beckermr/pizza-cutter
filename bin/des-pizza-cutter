@@ -10,7 +10,7 @@ from pizza_cutter.des_pizza_cutter import (
     make_des_pizza_slices, load_objects_into_info)
 
 
-def go(config, info, tag, output_path, log_level, seed, tmpdir):
+def go(config, info, tag, output_path, log_level, seed, slice_range, tmpdir):
     """Create a metadetection MEDS file from a DES coadd tile."""
 
     logging.basicConfig(stream=sys.stdout)
@@ -63,6 +63,7 @@ def go(config, info, tag, output_path, log_level, seed, tmpdir):
         info=info,
         fpack_pars=cfg.get('fpack_pars', None),
         seed=seed,
+        slice_range=slice_range,
         coadd_config=cfg['coadd'],
         single_epoch_config=cfg['single_epoch'],
         gaia_mask_config=gaia_mask_config,
@@ -98,6 +99,11 @@ def go(config, info, tag, output_path, log_level, seed, tmpdir):
     help='seed for the RNG',
     required=True)
 @click.option(
+    '--range', 'slice_range', default=None, type=str,
+    help=('range of slices to process, as a python style slice start:end+1'
+          'so that `--range="0:10"` is the first 10 slices')
+)
+@click.option(
     '--use-tmpdir', is_flag=True,
     help=(
         'use a temporary directory to stage data. set --tmpdir to specify the '
@@ -109,11 +115,12 @@ def go(config, info, tag, output_path, log_level, seed, tmpdir):
         '--use-tmpdir, it will still be used.'))
 def main(
         config, info, tag, output_path, log_level, seed,
+        slice_range,
         use_tmpdir, tmpdir):
     """Create a metadetection MEDS file from a DES coadd tile."""
 
     def _call(_tmpdir):
-        go(config, info, tag, output_path, log_level, seed, _tmpdir)
+        go(config, info, tag, output_path, log_level, seed, slice_range, _tmpdir)
 
     if use_tmpdir and tmpdir is None:
         tmpdir = tempfile.TemporaryDirectory().name
