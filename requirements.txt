@@ -16,4 +16,3 @@ jinja2
 tqdm
 piff
 cfitsio
-metadetect
