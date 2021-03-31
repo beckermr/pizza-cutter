@@ -104,7 +104,7 @@ def _get_nearby_good_pixels(image, bad_msk, nbad, buff=4):
     return bad_pix, good_pix, good_im, good_ind
 
 
-def _grid_interp(*, image, bad_msk):
+def _grid_interp(*, image, bad_msk, maxfrac=0.90):
     """
     interpolate the bad pixels in an image
 
@@ -114,6 +114,9 @@ def _grid_interp(*, image, bad_msk):
         the pixel data
     bad_msk: array
         boolean array, True means it is a bad pixel
+    maxfrac: float
+        If the fraction of bad pixels is greater than this,
+        None is returned
     """
 
     nrows, ncols = image.shape
@@ -122,7 +125,7 @@ def _grid_interp(*, image, bad_msk):
     nbad = bad_msk.sum()
     bm_frac = nbad/npix
 
-    if bm_frac < 0.90:
+    if bm_frac <= 0.90:
 
         bad_pix, good_pix, good_im, good_ind = \
             _get_nearby_good_pixels(image, bad_msk, nbad)
