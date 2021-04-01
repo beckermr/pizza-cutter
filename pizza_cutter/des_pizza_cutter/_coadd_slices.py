@@ -578,6 +578,7 @@ def _coadd_slice_inputs(
             noise=noise,
             bmask=bmask,
             ormask=ormask,
+            mfrac=interp_se_frac,
             wcs=wcs,
             start_row=start_row,
             start_col=start_col,
@@ -727,7 +728,6 @@ def _do_mask_gaia_stars(rows, cols, radius_pixels, bmask, ormask, flag):
 
             # SATURATE | STAR | TRAIL | EDGEBLEED
             rad = rad * 1.5
-            # raise ValueError("got one")
 
         rad2 = rad * rad
 
@@ -755,6 +755,7 @@ def _mask_gaia_stars(
     noise,
     bmask,
     ormask,
+    mfrac,
     wcs,
     wcs_position_offset,
     start_row,
@@ -762,15 +763,30 @@ def _mask_gaia_stars(
     gaia_mask_config,
 ):
     """
-    mask gaia stars, setting a bit in the bmask
+    mask gaia stars, setting a bit in the bmask, interpolating image and noise,
+    setting weight to zero, and setting mfrac=1
 
     Parameters
     ----------
     gaia_stars_file: str
         Path to the gaia star catalog.  Note the data get cached
+    image: array
+        The coadd image
+    weight: array
+        The weight map for the image
+    noise: array
+        The noise image
+    bmask: array
+        The bitmask in which to set the bit
     ormask: array
-        The ormask for the data.  Used to determine if the
-        star in question was saturated
+        The ormask for the data.  Used to determine if the star in question was
+        saturated.  Only works if the center of the star is in the image.
+
+        We could fix this by having a reference ormask for the full area we are
+        slicing
+    mfrac: np.ndarray
+        The fraction of interpolated SE images for each pixel. We will set
+        this to 1.0 anywhere we have interpolated across a star.
     wcs: WCS object
         The WCS object for the coadd. Used to calculate x, y
     wcs_position_offset : int
@@ -822,11 +838,13 @@ def _mask_gaia_stars(
     symmetrize_bmask(bmask=gaia_bmask)
 
     bad_logic = gaia_bmask != 0
-    if np.any(bad_logic):
+    wbad = np.where(bad_logic)
+    if wbad[0].size > 0:
 
         bmask |= gaia_bmask
 
-        weight[bad_logic] = 0.0
+        mfrac[wbad] = 1.0
+        weight[wbad] = 0.0
 
         interp_image = _grid_interp(image=image, bad_msk=bad_logic, maxfrac=1.0)
         interp_noise = _grid_interp(image=noise, bad_msk=bad_logic, maxfrac=1.0)
