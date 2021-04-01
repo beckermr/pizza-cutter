@@ -92,7 +92,7 @@ single_epoch:
 
 gaia_star_masks:
   # multiply the radii by this factor
-  radius_factor: 1.5
+  radius_factor: 1.75
 
   # don't mask stars with gaia g mag less than this
   max_g_mag: 18.0
