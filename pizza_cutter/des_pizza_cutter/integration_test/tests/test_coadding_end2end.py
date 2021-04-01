@@ -476,6 +476,7 @@ def test_coadding_end2end_gaia_stars(coadd_end2end):
         poly_coeffs=tuple(gaia_mask_config['poly_coeffs']),
         radius_factor=gaia_mask_config['radius_factor'],
         max_g_mag=gaia_mask_config['max_g_mag'],
+        wcs_position_offset=1,
     )
 
     scale = np.sqrt(_compute_wcs_area(wcs, 10, 10))
