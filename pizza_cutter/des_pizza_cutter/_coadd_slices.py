@@ -20,6 +20,7 @@ from ..slice_utils.flag import (
 from ..slice_utils.interpolate import (
     interpolate_image_and_noise,
     copy_masked_edges_image_and_noise,
+    _grid_interp,
 )
 from ..slice_utils.symmetrize import (
     symmetrize_bmask,
@@ -569,13 +570,20 @@ def _coadd_slice_inputs(
     weight[:, :] = 1.0 / np.var(noise)
 
     if gaia_stars_file is not None:
-        _mask_gaia_stars(
+        # weight is modified in place
+        image, noise = _mask_gaia_stars(
             gaia_stars_file=gaia_stars_file,
-            wcs=wcs,
-            row_cen=(start_row + box_size/2),
-            col_cen=(start_col + box_size/2),
+            image=image,
+            weight=weight,
+            noise=noise,
             bmask=bmask,
+            ormask=ormask,
+            mfrac=interp_se_frac,
+            wcs=wcs,
+            start_row=start_row,
+            start_col=start_col,
             gaia_mask_config=gaia_mask_config,
+            wcs_position_offset=wcs_position_offset,
         )
 
     return (
@@ -591,7 +599,14 @@ def _coadd_slice_inputs(
 
 
 @functools.lru_cache(maxsize=10)
-def _get_gaia_stars(*, fname, wcs, poly_coeffs, radius_factor, max_g_mag):
+def _get_gaia_stars(
+    fname,
+    wcs,
+    wcs_position_offset,
+    poly_coeffs,
+    radius_factor,
+    max_g_mag,
+):
     """
     load the gaia stars
 
@@ -601,6 +616,9 @@ def _get_gaia_stars(*, fname, wcs, poly_coeffs, radius_factor, max_g_mag):
         path to the gaia star catalog
     wcs: WCS object
         The WCS object for the image. Used to calculate x, y
+    wcs_position_offset : int
+        The position offset to get from zero-indexed, pixel-centered
+        coordinates to the coordinates expected by the coadd WCS object.
     poly_coeffs: tuple
         Tuple describing a np.poly1d for log10(radius) vs mag.
         E.g. (0.00443223, -0.22569131, 2.99642999)
@@ -631,6 +649,10 @@ def _get_gaia_stars(*, fname, wcs, poly_coeffs, radius_factor, max_g_mag):
     data['radius_arcsec'] = radius_factor * 10.0**log10_radius_arcsec
 
     data['x'], data['y'] = wcs.sky2image(data['ra'], data['dec'])
+
+    data['x'] -= wcs_position_offset
+    data['y'] -= wcs_position_offset
+
     return data
 
 
@@ -669,14 +691,16 @@ def _intersects(row, col, radius_pixels, nrows, ncols):
 
 
 @njit
-def _do_mask_gaia_stars(rows, cols, radius_pixels, bmask, flag):
+def _do_mask_gaia_stars(rows, cols, radius_pixels, bmask, ormask, flag):
     """
     low level code to mask stars
 
     Parameters
     ----------
     rows, cols: arrays
-        Arrays of rows/cols of star locations; may be off the image
+        Arrays of rows/cols of star locations in the "local" pixel frame of the
+        slice, not the overall pixels of the big coadd. These positions may be
+        off the image
     radius_pixels: float
         The radius for each star mask
     bmask: array
@@ -685,16 +709,33 @@ def _do_mask_gaia_stars(rows, cols, radius_pixels, bmask, flag):
         The flag value to "or" into the bmask
     """
     nrows, ncols = bmask.shape
+    nmasked = 0
 
     for istar in range(rows.size):
         row = rows[istar]
         col = cols[istar]
+
         rad = radius_pixels[istar]
+
+        rowi = int(row)
+        coli = int(col)
+
+        # 226
+        # 2**27
+        if (0 <= rowi < nrows and
+                0 <= coli < ncols and
+                ((ormask[rowi, coli] & 226) != 0)):
+
+            # SATURATE | STAR | TRAIL | EDGEBLEED
+            rad = rad * 1.5
+
         rad2 = rad * rad
 
+        # put into local frame for check
         if not _intersects(row, col, rad, nrows, ncols):
             continue
 
+        # these dont in global frame
         for irow in range(nrows):
             rowdiff2 = (row - irow)**2
             for icol in range(ncols):
@@ -702,28 +743,59 @@ def _do_mask_gaia_stars(rows, cols, radius_pixels, bmask, flag):
                 r2 = rowdiff2 + (col - icol)**2
                 if r2 < rad2:
                     bmask[irow, icol] |= flag
+                    nmasked += 1
+
+    return nmasked
 
 
 def _mask_gaia_stars(
-    gaia_stars_file, bmask, wcs, row_cen, col_cen, gaia_mask_config,
+    gaia_stars_file,
+    image,
+    weight,
+    noise,
+    bmask,
+    ormask,
+    mfrac,
+    wcs,
+    wcs_position_offset,
+    start_row,
+    start_col,
+    gaia_mask_config,
 ):
     """
-    mask gaia stars, setting a bit in the bmask
+    mask gaia stars, setting a bit in the bmask, interpolating image and noise,
+    setting weight to zero, and setting mfrac=1
 
     Parameters
     ----------
     gaia_stars_file: str
         Path to the gaia star catalog.  Note the data get cached
+    image: array
+        The coadd image
+    weight: array
+        The weight map for the image
+    noise: array
+        The noise image
     bmask: array
-        The bmask to modify
+        The bitmask in which to set the bit
+    ormask: array
+        The ormask for the data.  Used to determine if the star in question was
+        saturated.  Only works if the center of the star is in the image.
+
+        We could fix this by having a reference ormask for the full area we are
+        slicing
+    mfrac: np.ndarray
+        The fraction of interpolated SE images for each pixel. We will set
+        this to 1.0 anywhere we have interpolated across a star.
     wcs: WCS object
         The WCS object for the coadd. Used to calculate x, y
-    row_cen: float
-        Center row of the slice in pixels.  Used for calculating the pixel
-        scale
-    col_cen: float
-        Center col of the slice in pixels.  Used for calculating the pixel
-        scale
+    wcs_position_offset : int
+        The position offset to get from zero-indexed, pixel-centered
+        coordinates to the coordinates expected by the coadd WCS object.
+    start_row: int
+        Row in original larger image frame corresponding to row=0
+    start_col: int
+        Column in original larger image frame corresponding to col=0
     gaia_mask_config: dict
         Required fields
             poly_coeffs: sequence
@@ -739,18 +811,43 @@ def _mask_gaia_stars(
 
     # this is cached
     gaia_stars = _get_gaia_stars(
-        fname=gaia_stars_file, wcs=wcs,
+        fname=gaia_stars_file,
+        wcs=wcs,
         poly_coeffs=gaia_mask_config['poly_coeffs'],
         radius_factor=gaia_mask_config['radius_factor'],
         max_g_mag=gaia_mask_config['max_g_mag'],
+        wcs_position_offset=wcs_position_offset,
     )
+
+    row_cen = (start_row + ormask.shape[0]/2)
+    col_cen = (start_col + ormask.shape[1]/2)
 
     pixel_scale = np.sqrt(_compute_wcs_area(wcs, col_cen, row_cen))
     radius_pixels = gaia_stars['radius_arcsec'] / pixel_scale
 
+    gaia_bmask = np.zeros(ormask.shape, dtype=np.int32)
     _do_mask_gaia_stars(
-        rows=gaia_stars['y'],
-        cols=gaia_stars['x'],
+        rows=gaia_stars['y'] - start_row,
+        cols=gaia_stars['x'] - start_col,
         radius_pixels=radius_pixels,
-        bmask=bmask, flag=BMASK_GAIA_STAR,
+        bmask=gaia_bmask,
+        ormask=ormask,
+        flag=BMASK_GAIA_STAR,
     )
+
+    symmetrize_bmask(bmask=gaia_bmask)
+
+    bad_logic = gaia_bmask != 0
+    wbad = np.where(bad_logic)
+    if wbad[0].size > 0:
+
+        bmask |= gaia_bmask
+
+        mfrac[wbad] = 1.0
+        weight[wbad] = 0.0
+
+        interp_image = _grid_interp(image=image, bad_msk=bad_logic, maxfrac=1.0)
+        interp_noise = _grid_interp(image=noise, bad_msk=bad_logic, maxfrac=1.0)
+        return interp_image, interp_noise
+    else:
+        return image, noise

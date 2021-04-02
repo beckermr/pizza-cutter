@@ -29,11 +29,11 @@ from ..._se_image import _compute_wcs_area
 @pytest.fixture(scope="session")
 def coadd_end2end(tmp_path_factory):
     tmp_path = tmp_path_factory.getbasetemp()
-    info, images, weights, bmasks, bkgs, gaia_stars = generate_sim()
+    info, images, weights, bmasks, bkgs, _ = generate_sim()
     write_sim(
         path=tmp_path, info=info,
         images=images, weights=weights, bmasks=bmasks, bkgs=bkgs,
-        gaia_stars=gaia_stars,
+        gaia_stars=None,
     )
 
     with open(os.path.join(tmp_path, 'config.yaml'), 'w') as fp:
@@ -447,67 +447,121 @@ def test_coadding_end2end_weight(coadd_end2end):
     np.allclose(wgt, 1.0 / np.var(nse))
 
 
-def test_coadding_end2end_gaia_stars(coadd_end2end):
+def test_coadding_end2end_gaia_stars(tmp_path_factory):
     """
     make sure pixels are getting masked
     """
-    m = meds.MEDS(coadd_end2end['meds_path'])
-    bmask = m.get_cutout(0, 0, type='bmask')
+    tmp_path = tmp_path_factory.getbasetemp()
+    info, images, weights, bmasks, bkgs, gaia_stars = generate_sim()
+    write_sim(
+        path=tmp_path, info=info,
+        images=images, weights=weights, bmasks=bmasks, bkgs=bkgs,
+        gaia_stars=gaia_stars,
+    )
 
-    if False:
-        import pdb
-        import matplotlib.pyplot as plt
-        fig, axs = plt.subplots(nrows=1, ncols=1)
-        axs.imshow((bmask & BMASK_GAIA_STAR) != 0)
-        pdb.set_trace()
+    with open(os.path.join(tmp_path, 'config.yaml'), 'w') as fp:
+        fp.write(SIM_CONFIG)
+
+    cmd = """\
+    des-pizza-cutter \
+      --config={config} \
+      --info={info} \
+      --output-path={tmp_path} \
+      --log-level=DEBUG \
+      --seed=42
+    """.format(
+        config=os.path.join(tmp_path, 'config.yaml'),
+        info=os.path.join(tmp_path, 'info.yaml'),
+        tmp_path=tmp_path)
+
+    mdir = os.environ.get('MEDS_DIR')
+    try:
+        os.environ['MEDS_DIR'] = 'meds_dir_xyz'
+        cp = subprocess.run(cmd, check=True, shell=True, capture_output=True)
+        stdout = str(cp.stdout, 'utf-8').replace('\\n', '\n')
+        stderr = str(cp.stderr, 'utf-8').replace('\\n', '\n')
+        print('stdout:\n', stdout)
+        print('stderr:\n', stdout)
+    except subprocess.CalledProcessError as err:
+        stdout = str(err.stdout, 'utf-8').replace('\\n', '\n')
+        stderr = str(err.stderr, 'utf-8').replace('\\n', '\n')
+        print('stdout:\n', stdout)
+        print('stderr:\n', stderr)
+        raise
+    finally:
+        if mdir is not None:
+            os.environ['MEDS_DIR'] = mdir
+        else:
+            del os.environ['MEDS_DIR']
+
+    meds_path = os.path.join(
+        tmp_path,
+        'e2e_test_p_config_meds-pizza-slices.fits.fz',
+    )
+
+    m = meds.MEDS(meds_path)
+    bmask = m.get_cutout(0, 0, type='bmask')
+    mfrac = m.get_cutout(0, 0, type='mfrac')
+    weight = m.get_cutout(0, 0, type='weight')
 
     # make sure some are masked
     assert np.any((bmask & BMASK_GAIA_STAR) != 0)
 
-    info = coadd_end2end['info']
     wcs = AffineWCS(**info['affine_wcs_config'])
 
-    config = yaml.load(
-        coadd_end2end['config'], Loader=yaml.SafeLoader,
-    )
+    config = yaml.load(SIM_CONFIG, Loader=yaml.SafeLoader)
+
     gaia_mask_config = config['gaia_star_masks']
     gaia_stars = _get_gaia_stars(
         fname=info['gaia_stars_file'], wcs=wcs,
         poly_coeffs=tuple(gaia_mask_config['poly_coeffs']),
         radius_factor=gaia_mask_config['radius_factor'],
         max_g_mag=gaia_mask_config['max_g_mag'],
+        wcs_position_offset=1,
     )
 
     scale = np.sqrt(_compute_wcs_area(wcs, 10, 10))
 
     # check star center is masked
-    # gaia_stars = coadd_end2end['gaia_stars']
+    # the 1.0 are not perfectly preserved in the compression. Only
+    # zeros are perfectly preserved
+    mfrac_tol = 0.001
     for star in gaia_stars:
         x, y = wcs.sky2image(star['ra'], star['dec'])
         ix = int(x)
         iy = int(y)
 
         assert bmask[iy, ix] & BMASK_GAIA_STAR != 0
+        assert weight[iy, ix] == 0.0
+        assert abs(mfrac[iy, ix] - 1.0) < mfrac_tol
 
         ixlow = int(x - star['radius_arcsec']/scale + 2)
         if ixlow < 0:
             ixlow = 0
         assert bmask[iy, ixlow] & BMASK_GAIA_STAR != 0
+        assert weight[iy, ixlow] == 0.0
+        assert abs(mfrac[iy, ixlow] - 1.0) < mfrac_tol
 
         ixhigh = int(x + star['radius_arcsec']/scale - 3)
         if ixhigh > bmask.shape[1] - 1:
             ixhigh = bmask.shape[1] - 1
         assert bmask[iy, ixhigh] & BMASK_GAIA_STAR != 0
+        assert weight[iy, ixhigh] == 0.0
+        assert abs(mfrac[iy, ixhigh] - 1.0) < mfrac_tol
 
         iylow = int(y - star['radius_arcsec']/scale + 2)
         if iylow < 0:
             iylow = 0
         assert bmask[iylow, ix] & BMASK_GAIA_STAR != 0
+        assert weight[iylow, ix] == 0.0
+        assert abs(mfrac[iylow, ix] - 1.0) < mfrac_tol
 
         iyhigh = int(y + star['radius_arcsec']/scale - 3)
         if iyhigh > bmask.shape[1] - 1:
             iyhigh = bmask.shape[1] - 1
         assert bmask[iyhigh, ix] & BMASK_GAIA_STAR != 0
+        assert weight[iyhigh, ix] == 0.0
+        assert abs(mfrac[iyhigh, ix] - 1.0) < mfrac_tol
 
 
 def test_coadding_end2end_range_kwarg(tmp_path_factory):
