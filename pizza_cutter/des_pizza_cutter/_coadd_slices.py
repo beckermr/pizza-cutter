@@ -555,7 +555,11 @@ def _coadd_slice_inputs(
 
         image += (resampled_data['image'] * weight)
         noise += (resampled_data['noise'] * weight)
-        interp_se_frac += (resampled_data['interp_frac'] * weight)
+        # we force the interp fraction to be in [0, 1]
+        # because the lanczos interp doesn't do this natively
+        _mfrac = np.abs(resampled_data['interp_frac'])
+        _mfrac = np.clip(_mfrac, 0.0, 1.0)
+        interp_se_frac += (_mfrac * weight)
 
         # for the PSF, we make sure any NaNs are zero
         msk = ~np.isfinite(resampled_data['psf'])
