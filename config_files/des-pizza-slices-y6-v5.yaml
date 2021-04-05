@@ -42,7 +42,7 @@ single_epoch:
 
   reject_outliers: False
   symmetrize_masking: True
-  copy_masked_edges: False
+  copy_masked_edges: True
   max_masked_fraction: 0.1
   edge_buffer: 64
 
