@@ -93,7 +93,7 @@ gaia_star_masks:
   # multiply the radii by this factor
   radius_factor: 1.75
 
-  # don't mask stars with gaia g mag less than this
+  # don't mask stars with gaia g fainter less than this
   max_g_mag: 18.0
 
   # coefficients for log10(radius) vs mag.  Don't change this unless
