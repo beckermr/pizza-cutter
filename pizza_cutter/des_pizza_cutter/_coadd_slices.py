@@ -555,7 +555,11 @@ def _coadd_slice_inputs(
 
         image += (resampled_data['image'] * weight)
         noise += (resampled_data['noise'] * weight)
-        interp_se_frac += (resampled_data['interp_frac'] * weight)
+        # we force the interp fraction to be in [0, 1]
+        # because the lanczos interp doesn't do this natively
+        _mfrac = np.abs(resampled_data['interp_frac'])
+        _mfrac = np.clip(_mfrac, 0.0, 1.0)
+        interp_se_frac += (_mfrac * weight)
 
         # for the PSF, we make sure any NaNs are zero
         msk = ~np.isfinite(resampled_data['psf'])
@@ -585,6 +589,12 @@ def _coadd_slice_inputs(
             gaia_mask_config=gaia_mask_config,
             wcs_position_offset=wcs_position_offset,
         )
+
+    # fpacking will produce negative outputs on the way out so we truncate the
+    # masked fraction to zero if it is less than 1e-3 to help eliminate this
+    msk = (np.isclose(interp_se_frac, 0, rtol=1e-3, atol=1e-3) & (interp_se_frac != 0))
+    if np.any(msk):
+        interp_se_frac[msk] = 0
 
     return (
         image,
