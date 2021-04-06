@@ -596,9 +596,6 @@ def _coadd_slice_inputs(
     msk = (np.isclose(interp_se_frac, 0, rtol=1e-3, atol=1e-3) & (interp_se_frac != 0))
     if np.any(msk):
         interp_se_frac[msk] = 0
-    msk = (np.isclose(interp_se_frac, 1, rtol=1e-3, atol=1e-3) & (interp_se_frac != 1))
-    if np.any(msk):
-        interp_se_frac[msk] = 1
 
     return (
         image,
