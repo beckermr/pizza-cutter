@@ -11,8 +11,6 @@ import meds.meds
 
 from ..slice_utils import procflags
 
-from ._slice_flagging import (
-    compute_unmasked_trail_fraction)
 from ..slice_utils.flag import (
     slice_full_edge_masked,
     slice_has_flags,
@@ -64,7 +62,6 @@ def _build_slice_inputs(
         spline_interp_flags,
         bad_image_flags,
         max_masked_fraction,
-        max_unmasked_trail_fraction,
         mask_tape_bumps,
         edge_buffer,
         wcs_type,
@@ -138,12 +135,6 @@ def _build_slice_inputs(
         any pixels with any of the noise_interp_flags. It is the fraction of
         the subset of the SE image that approximatly overlaps the final coadded
         region.
-    max_unmasked_trail_fraction : float
-        The maximum unmasked bleed trail fraction an SE image can have
-        before it is exlcuded from the coadd. This parameter is the
-        fraction of the subset of the SE image that overlaps the coadd. See
-        the function `compute_unmasked_trail_fraction` in
-        `pizza_cutter.des_pizz_cutter._slice_flagging.` for details.
     mask_tape_bumps: bool
         If True, turn on TAPEBUMP flag and turn off SUSPECT in bmask. This
         option is only applicable to DES Y3 processing.
@@ -269,16 +260,16 @@ def _build_slice_inputs(
         skip_masked_fraction = (
             compute_masked_fraction(
                 weight=se_slice.weight, bmask=se_slice.bmask,
-                bad_flags=bad_flags) >=
-            max_masked_fraction)
-        skip_unmasked_trail_too_big = compute_unmasked_trail_fraction(
-            bmask=se_slice.bmask) >= max_unmasked_trail_fraction
+                bad_flags=bad_flags
+            )
+            >= max_masked_fraction
+        )
 
         skip = (
             skip_edge_masked or
             skip_has_flags or
-            skip_masked_fraction or
-            skip_unmasked_trail_too_big)
+            skip_masked_fraction
+        )
 
         if skip:
             msg = []
@@ -293,10 +284,6 @@ def _build_slice_inputs(
             if skip_masked_fraction:
                 msg.append('masked fraction too high')
                 flags |= procflags.HIGH_MASKED_FRAC
-
-            if skip_unmasked_trail_too_big:
-                msg.append('unmasked bleed trail too big')
-                flags |= procflags.HIGH_UNMASKED_TRAIL_FRAC
 
             msg = '; '.join(msg)
             logger.info(
@@ -401,6 +388,20 @@ def _build_slice_inputs(
             pmask[msk] |= BMASK_SPLINE_INTERP
             interp_image = _interp_image
             interp_noise = _interp_noise
+
+            # retest masked fraction
+            masked_frac = np.mean(pmask != 0)
+            if masked_frac >= max_masked_fraction:
+                flags |= procflags.HIGH_MASKED_FRAC
+                slices_not_used.append(se_slice)
+                flags_not_used.append(flags)
+
+                logger.info(
+                    'rejecting image %s: masked fraction too big: %s',
+                    se_slice.source_info['filename'],
+                    masked_frac,
+                )
+                continue
 
             # set interpolated images
             # we keep original weight and bmask since those were edited only

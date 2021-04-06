@@ -278,8 +278,6 @@ def _coadd_and_write_images(
                 single_epoch_config['spline_interp_flags']),
             bad_image_flags=sum(single_epoch_config['bad_image_flags']),
             max_masked_fraction=single_epoch_config['max_masked_fraction'],
-            max_unmasked_trail_fraction=single_epoch_config[
-                'max_unmasked_trail_fraction'],
             mask_tape_bumps=single_epoch_config['mask_tape_bumps'],
             edge_buffer=single_epoch_config['edge_buffer'],
             wcs_type=single_epoch_config['wcs_type'],

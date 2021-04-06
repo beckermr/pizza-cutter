@@ -7,8 +7,5 @@ SLICE_HAS_FLAGS = 2**1
 # high masked frac
 HIGH_MASKED_FRAC = 2**2
 
-# too much trail not masked by bright star mask
-HIGH_UNMASKED_TRAIL_FRAC = 2**3
-
-# second check of masking in interp
+# the interpolant can fail if there is too much area masked
 HIGH_INTERP_MASKED_FRAC = 2**4
