@@ -411,8 +411,9 @@ def test_coadding_end2end_mfrac(coadd_end2end):
     assert np.any(mfrac[:, 18:20] > 0.0)
     assert np.any(mfrac[:, 33:35] > 0.0)
     assert np.all(mfrac[0:10, 0:10] == 0.0)
-    assert np.all(mfrac >= 0), np.min(mfrac)
-    assert np.all(mfrac <= 1)
+    # fpacking doesn't preserve the range [0, 1]
+    assert np.all(mfrac >= -1e-3)
+    assert np.all(mfrac <= 1.001)
 
 
 def test_coadding_end2end_noise(coadd_end2end):
