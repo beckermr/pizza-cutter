@@ -15,6 +15,28 @@ from ..slice_utils.pbar import PBar
 logger = logging.getLogger(__name__)
 
 
+class _WCS(eu.wcsutil.WCS):
+    """It turns out hashing this WCS class is really slow and done a lot.
+
+    This version has a stable hash/repr computed once.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._state = super().__repr__()
+
+    def __repr__(self):
+        return self._state
+
+    def __str__(self):
+        return self._state
+
+    def __hash__(self):
+        return hash(self.__repr__())
+
+    def __eq__(self, other):
+        return hash(self) == hash(other)
+
+
 def load_objects_into_info(*, info, verbose=True):
     """Load the data from objects in the info structure.
 
@@ -65,11 +87,19 @@ def load_objects_into_info(*, info, verbose=True):
         print('loading coadd image data', flush=True)
     logger.info("loading image data products for %s/%s", info["path"], info["filename"])
     try:
-        info['image_wcs'] = eu.wcsutil.WCS(
+        info['image_wcs'] = _WCS(
             _munge_fits_header(fitsio.read_header(
                 expandvars(info['image_path']), ext=info['image_ext'])))
-    except Exception:
-        info['image_wcs'] = None
+    except Exception as e:
+        if verbose:
+            print(
+                "failed to load coadd image WCS do to error: %s" % repr(e),
+                flush=True,
+            )
+        if "affine_wcs_config" not in info:
+            raise e
+        else:
+            info['image_wcs'] = None
 
     if 'affine_wcs_config' in info:
         info['affine_wcs'] = AffineWCS(**info['affine_wcs_config'])
@@ -93,12 +123,20 @@ def load_objects_into_info(*, info, verbose=True):
         logger.info("loading image data products for %s/%s", ii["path"], ii["filename"])
         # wcs info
         try:
-            ii['image_wcs'] = eu.wcsutil.WCS(
+            ii['image_wcs'] = _WCS(
                 _munge_fits_header(
                     fitsio.read_header(
                         expandvars(ii['image_path']), ext=ii['image_ext'])))
-        except Exception:
-            ii['image_wcs'] = None
+        except Exception as e:
+            if verbose:
+                print(
+                    "failed to load SE image WCS do to error: %s" % repr(e),
+                    flush=True,
+                )
+            if "affine_wcs_config" not in ii:
+                raise e
+            else:
+                ii['image_wcs'] = None
 
         if 'affine_wcs_config' in ii:
             ii['affine_wcs'] = AffineWCS(**ii['affine_wcs_config'])

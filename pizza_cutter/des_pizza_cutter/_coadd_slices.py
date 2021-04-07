@@ -591,12 +591,6 @@ def _coadd_slice_inputs(
             wcs_position_offset=wcs_position_offset,
         )
 
-    # fpacking will produce negative outputs on the way out so we truncate the
-    # masked fraction to zero if it is less than 1e-3 to help eliminate this
-    msk = (np.isclose(interp_se_frac, 0, rtol=1e-3, atol=1e-3) & (interp_se_frac != 0))
-    if np.any(msk):
-        interp_se_frac[msk] = 0
-
     return (
         image,
         bmask,
