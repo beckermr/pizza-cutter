@@ -98,6 +98,64 @@ gaia_star_masks:
 """
 
 
+SIM_CONFIG_ROTLIST = """\
+fpack_pars:
+  FZQVALUE: 4
+  FZTILE: "(10240,1)"
+  FZALGOR: "RICE_1"
+  # preserve zeros, don't dither them
+  FZQMETHD: "SUBTRACTIVE_DITHER_2"
+
+coadd:
+  # these are in pixels
+  # the total "pizza slice" will be central_size + 2 * buffer_size
+  central_size: 33  # size of the central region
+  buffer_size: 8  # size of the buffer on each size
+
+  psf_box_size: 51
+
+  wcs_type: affine
+  coadding_weight: 'noise'
+
+single_epoch:
+  # pixel spacing for building various WCS interpolants
+  se_wcs_interp_delta: 8
+  coadd_wcs_interp_delta: 8
+
+  frac_buffer: 1
+  psf_type: galsim
+  wcs_type: affine
+
+  reject_outliers: False
+  symmetrize_masking: [90, 180, 270]
+  copy_masked_edges: False
+  max_masked_fraction: 0.1
+  edge_buffer: 8
+
+  mask_tape_bumps: False
+
+  spline_interp_flags:
+    - 2
+
+  noise_interp_flags:
+    - 4
+
+  bad_image_flags:
+    - 1
+
+gaia_star_masks:
+  # multiply the radii by this factor
+  radius_factor: 1.0
+
+  # don't mask stars with gaia g mag less than this
+  max_g_mag: 18.0
+
+  # coefficients for log10(radius) vs mag.  Don't change this unless
+  # you know what you are doing
+  poly_coeffs: [0.00443223, -0.22569131, 2.99642999]
+"""
+
+
 def write_sim(
     *, path, info, images, weights, bmasks, bkgs, gaia_stars=None,
 ):
