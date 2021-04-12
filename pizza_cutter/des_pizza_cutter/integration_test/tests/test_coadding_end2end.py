@@ -13,6 +13,7 @@ from ..data import (
     SIM_BMASK_SPLINE_INTERP,
     SIM_BMASK_NOISE_INTERP,
     SIM_CONFIG,
+    SIM_CONFIG_ROTLIST,
 )
 from ..._constants import (
     MAGZP_REF, BMASK_SPLINE_INTERP, BMASK_NOISE_INTERP, BMASK_GAIA_STAR,
@@ -26,8 +27,7 @@ from ..._coadd_slices import _get_gaia_stars
 from ..._se_image import _compute_wcs_area
 
 
-@pytest.fixture(scope="session")
-def coadd_end2end(tmp_path_factory):
+def _coadd_end2end(tmp_path_factory, sim_config):
     tmp_path = tmp_path_factory.getbasetemp()
     info, images, weights, bmasks, bkgs, _ = generate_sim()
     write_sim(
@@ -37,7 +37,7 @@ def coadd_end2end(tmp_path_factory):
     )
 
     with open(os.path.join(tmp_path, 'config.yaml'), 'w') as fp:
-        fp.write(SIM_CONFIG)
+        fp.write(sim_config)
 
     cmd = """\
     des-pizza-cutter \
@@ -80,8 +80,18 @@ def coadd_end2end(tmp_path_factory):
         'bmasks': bmasks,
         'info': info,
         'bkgs': bkgs,
-        'config': copy.deepcopy(SIM_CONFIG),
+        'config': copy.deepcopy(sim_config),
     }
+
+
+@pytest.fixture(scope="session")
+def coadd_end2end(tmp_path_factory):
+    return _coadd_end2end(tmp_path_factory, SIM_CONFIG)
+
+
+@pytest.fixture(scope="session")
+def coadd_end2end_rotlist(tmp_path_factory):
+    return _coadd_end2end(tmp_path_factory, SIM_CONFIG_ROTLIST)
 
 
 def test_coadding_end2end_epochs_info(coadd_end2end):
@@ -360,21 +370,50 @@ def test_coadding_end2end_gal(coadd_end2end):
     assert np.abs(mom_im.observed_shape.e2 - mom_m.observed_shape.e2) < 0.005
 
 
+def _plot_it(bmask, flag=None):
+    import matplotlib.pyplot as plt
+    fig, axs = plt.subplots(nrows=1, ncols=1)
+    if flag is not None:
+        axs.imshow((bmask & flag) != 0)
+    else:
+        axs.imshow(bmask)
+    import pdb
+    pdb.set_trace()
+
+
 def test_coadding_end2end_masks(coadd_end2end):
     m = meds.MEDS(coadd_end2end['meds_path'])
     bmask = m.get_cutout(0, 0, type='bmask')
     ormask = m.get_cutout(0, 0, type='ormask')
 
-    def _plot_it(bmask, flag):
-        import matplotlib.pyplot as plt
-        fig, axs = plt.subplots(nrows=1, ncols=1)
-        axs.imshow((bmask & flag) != 0)
-        import pdb
-        pdb.set_trace()
+    # somwhere in the middle spline interpolation was done
+    if False:
+        _plot_it(bmask)
+    assert np.mean((bmask[:, 24:26] & BMASK_SPLINE_INTERP) != 0) > 0.0
+    assert np.mean((bmask[24:26, :] & BMASK_SPLINE_INTERP) != 0) > 0.0
+    assert np.mean((ormask[:, 24:26] & SIM_BMASK_SPLINE_INTERP) != 0) > 0.0
+    assert np.mean((ormask[24:26, :] & SIM_BMASK_SPLINE_INTERP) != 0) > 0.0
+
+    assert np.mean((bmask[:, 18:20] & BMASK_SPLINE_INTERP) != 0) > 0.0
+    assert np.mean((bmask[18:20, :] & BMASK_SPLINE_INTERP) != 0) > 0.0
+    assert np.mean((ormask[:, 18:20] & SIM_BMASK_SPLINE_INTERP) != 0) > 0.0
+    assert np.mean((ormask[18:20, :] & SIM_BMASK_SPLINE_INTERP) != 0) > 0.0
+
+    # we did some noise interp too
+    assert np.mean((bmask[:, 33:35] & BMASK_NOISE_INTERP) != 0) > 0.0
+    assert np.mean((bmask[33:35, :] & BMASK_NOISE_INTERP) != 0) > 0.0
+    assert np.mean((ormask[:, 33:35] & SIM_BMASK_NOISE_INTERP) != 0) > 0.0
+    assert np.mean((ormask[33:35, :] & SIM_BMASK_NOISE_INTERP) != 0) > 0.0
+
+
+def test_coadding_end2end_masks_rotlist(coadd_end2end_rotlist):
+    m = meds.MEDS(coadd_end2end_rotlist['meds_path'])
+    bmask = m.get_cutout(0, 0, type='bmask')
+    ormask = m.get_cutout(0, 0, type='ormask')
 
     # somwhere in the middle spline interpolation was done
     if False:
-        _plot_it(bmask, BMASK_SPLINE_INTERP)
+        _plot_it(bmask)  # , BMASK_SPLINE_INTERP)
     assert np.mean((bmask[:, 24:26] & BMASK_SPLINE_INTERP) != 0) > 0.0
     assert np.mean((bmask[24:26, :] & BMASK_SPLINE_INTERP) != 0) > 0.0
     assert np.mean((ormask[:, 24:26] & SIM_BMASK_SPLINE_INTERP) != 0) > 0.0
@@ -412,8 +451,8 @@ def test_coadding_end2end_mfrac(coadd_end2end):
     assert np.any(mfrac[:, 33:35] > 0.0)
     assert np.all(mfrac[0:10, 0:10] == 0.0)
     # fpacking doesn't preserve the range [0, 1]
-    assert np.all(mfrac >= -1e-3)
-    assert np.all(mfrac <= 1.001)
+    assert np.all(mfrac >= -1e-2)
+    assert np.all(mfrac <= 1.01)
 
 
 def test_coadding_end2end_noise(coadd_end2end):

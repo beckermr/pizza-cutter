@@ -108,10 +108,12 @@ def _build_slice_inputs(
         If True, assume the SE images are approximatly registered with
         respect to one another and apply the pixel outlier rejection
         code from the `meds` package. If False, this step is skipped.
-    symmetrize_masking : bool
+    symmetrize_masking : bool or list of floats
         If True, the bit masks and any zero weight pixels will be rotated
         by 90 degrees and applied again to the weight and bit masks. If False,
-        this step is skipped.
+        this step is skipped. If a list of floats is supplied, the mask symmetrization
+        will be done for this list of angles. Note that `True` is not the same as `[90]`
+        do to how the symmetrization is done.
     copy_masked_edges : bool
         If True, copy pixels from adjacent column or row into masked edge pixels
         if the slice edge is fully masked.
@@ -243,11 +245,24 @@ def _build_slice_inputs(
         # we also symmetrize both
         bad_flags = spline_interp_flags | noise_interp_flags
 
-        # this operates in place on references
         if symmetrize_masking:
-            logger.debug('symmetrizing the masks')
-            symmetrize_bmask(bmask=se_slice.bmask)
-            symmetrize_weight(weight=se_slice.weight)
+            logger.debug('symmetrizing the masks: var = %s', symmetrize_masking)
+            if isinstance(symmetrize_masking, list):
+                weight_orig = se_slice.weight.copy()
+                bmask_orig = se_slice.bmask.copy()
+                for angle in symmetrize_masking:
+                    weight_r = weight_orig.copy()
+                    symmetrize_weight(weight=weight_r, angle=angle)
+                    msk = weight_r == 0
+                    se_slice.weight[msk] = 0
+
+                    bmask_r = bmask_orig.copy()
+                    symmetrize_bmask(bmask=bmask_r, angle=angle)
+                    se_slice.bmask |= bmask_r
+            else:
+                # this operates in place on references
+                symmetrize_bmask(bmask=se_slice.bmask)
+                symmetrize_weight(weight=se_slice.weight)
 
         if not copy_masked_edges:
             skip_edge_masked = slice_full_edge_masked(
