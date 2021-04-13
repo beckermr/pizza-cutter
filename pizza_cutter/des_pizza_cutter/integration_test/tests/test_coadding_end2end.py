@@ -17,6 +17,7 @@ from ..data import (
 )
 from ..._constants import (
     MAGZP_REF, BMASK_SPLINE_INTERP, BMASK_NOISE_INTERP,
+    GAIA_STARS_EXTNAME,
 )
 from ....slice_utils.procflags import (
     SLICE_HAS_FLAGS,
@@ -95,7 +96,7 @@ def test_coadding_end2end_epochs_info(coadd_end2end):
     info = coadd_end2end['info']
     m = meds.MEDS(coadd_end2end['meds_path'])
 
-    assert 'stars' not in m._fits
+    assert GAIA_STARS_EXTNAME not in m._fits
 
     ei = m._fits['epochs_info'].read()
 
@@ -542,8 +543,8 @@ def test_coadding_end2end_gaia_stars(tmp_path_factory):
     m = meds.MEDS(meds_path)
 
     fits = m._fits
-    assert 'stars' in fits
-    stars = fits['stars'].read()
+    assert GAIA_STARS_EXTNAME in fits
+    stars = fits[GAIA_STARS_EXTNAME].read()
     assert eu.numpy_util.compare_arrays(stars, gaia_stars)
 
 

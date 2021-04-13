@@ -22,7 +22,7 @@ from meds.util import (
 from .._version import __version__
 from ._constants import (
     METADATA_EXTNAME,
-    STARS_EXTNAME,
+    GAIA_STARS_EXTNAME,
     MAGZP_REF,
     IMAGE_INFO_EXTNAME,
     OBJECT_DATA_EXTNAME,
@@ -166,7 +166,7 @@ def make_des_pizza_slices(
                     wcs=wcs,
                     wcs_position_offset=position_offset,
                 )
-                fits.write(gaia_stars, extname=STARS_EXTNAME)
+                fits.write(gaia_stars, extname=GAIA_STARS_EXTNAME)
 
         # fpack it
         try:
