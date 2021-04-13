@@ -1,8 +1,8 @@
 import os
 import subprocess
 import galsim
-import yaml
 import copy
+import esutil as eu
 
 import pytest
 import numpy as np
@@ -16,15 +16,12 @@ from ..data import (
     SIM_CONFIG_ROTLIST,
 )
 from ..._constants import (
-    MAGZP_REF, BMASK_SPLINE_INTERP, BMASK_NOISE_INTERP, BMASK_GAIA_STAR,
+    MAGZP_REF, BMASK_SPLINE_INTERP, BMASK_NOISE_INTERP,
+    GAIA_STARS_EXTNAME,
 )
 from ....slice_utils.procflags import (
     SLICE_HAS_FLAGS,
     HIGH_MASKED_FRAC)
-
-from ..._affine_wcs import AffineWCS
-from ..._coadd_slices import _get_gaia_stars
-from ..._se_image import _compute_wcs_area
 
 
 def _coadd_end2end(tmp_path_factory, sim_config):
@@ -98,6 +95,8 @@ def test_coadding_end2end_epochs_info(coadd_end2end):
     weights = coadd_end2end['weights']
     info = coadd_end2end['info']
     m = meds.MEDS(coadd_end2end['meds_path'])
+
+    assert GAIA_STARS_EXTNAME not in m._fits
 
     ei = m._fits['epochs_info'].read()
 
@@ -542,68 +541,11 @@ def test_coadding_end2end_gaia_stars(tmp_path_factory):
     )
 
     m = meds.MEDS(meds_path)
-    bmask = m.get_cutout(0, 0, type='bmask')
-    mfrac = m.get_cutout(0, 0, type='mfrac')
-    weight = m.get_cutout(0, 0, type='weight')
 
-    # make sure some are masked
-    assert np.any((bmask & BMASK_GAIA_STAR) != 0)
-
-    wcs = AffineWCS(**info['affine_wcs_config'])
-
-    config = yaml.load(SIM_CONFIG, Loader=yaml.SafeLoader)
-
-    gaia_mask_config = config['gaia_star_masks']
-    gaia_stars = _get_gaia_stars(
-        fname=info['gaia_stars_file'], wcs=wcs,
-        poly_coeffs=tuple(gaia_mask_config['poly_coeffs']),
-        radius_factor=gaia_mask_config['radius_factor'],
-        max_g_mag=gaia_mask_config['max_g_mag'],
-        wcs_position_offset=1,
-    )
-
-    scale = np.sqrt(_compute_wcs_area(wcs, 10, 10))
-
-    # check star center is masked
-    # the 1.0 are not perfectly preserved in the compression. Only
-    # zeros are perfectly preserved
-    mfrac_tol = 0.001
-    for star in gaia_stars:
-        x, y = wcs.sky2image(star['ra'], star['dec'])
-        ix = int(x)
-        iy = int(y)
-
-        assert bmask[iy, ix] & BMASK_GAIA_STAR != 0
-        assert weight[iy, ix] == 0.0
-        assert abs(mfrac[iy, ix] - 1.0) < mfrac_tol
-
-        ixlow = int(x - star['radius_arcsec']/scale + 2)
-        if ixlow < 0:
-            ixlow = 0
-        assert bmask[iy, ixlow] & BMASK_GAIA_STAR != 0
-        assert weight[iy, ixlow] == 0.0
-        assert abs(mfrac[iy, ixlow] - 1.0) < mfrac_tol
-
-        ixhigh = int(x + star['radius_arcsec']/scale - 3)
-        if ixhigh > bmask.shape[1] - 1:
-            ixhigh = bmask.shape[1] - 1
-        assert bmask[iy, ixhigh] & BMASK_GAIA_STAR != 0
-        assert weight[iy, ixhigh] == 0.0
-        assert abs(mfrac[iy, ixhigh] - 1.0) < mfrac_tol
-
-        iylow = int(y - star['radius_arcsec']/scale + 2)
-        if iylow < 0:
-            iylow = 0
-        assert bmask[iylow, ix] & BMASK_GAIA_STAR != 0
-        assert weight[iylow, ix] == 0.0
-        assert abs(mfrac[iylow, ix] - 1.0) < mfrac_tol
-
-        iyhigh = int(y + star['radius_arcsec']/scale - 3)
-        if iyhigh > bmask.shape[1] - 1:
-            iyhigh = bmask.shape[1] - 1
-        assert bmask[iyhigh, ix] & BMASK_GAIA_STAR != 0
-        assert weight[iyhigh, ix] == 0.0
-        assert abs(mfrac[iyhigh, ix] - 1.0) < mfrac_tol
+    fits = m._fits
+    assert GAIA_STARS_EXTNAME in fits
+    stars = fits[GAIA_STARS_EXTNAME].read()
+    assert eu.numpy_util.compare_arrays(stars, gaia_stars)
 
 
 def test_coadding_end2end_range_kwarg(tmp_path_factory):

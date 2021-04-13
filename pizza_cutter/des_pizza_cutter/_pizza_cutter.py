@@ -22,6 +22,7 @@ from meds.util import (
 from .._version import __version__
 from ._constants import (
     METADATA_EXTNAME,
+    GAIA_STARS_EXTNAME,
     MAGZP_REF,
     IMAGE_INFO_EXTNAME,
     OBJECT_DATA_EXTNAME,
@@ -58,8 +59,7 @@ def make_des_pizza_slices(
         tmpdir=None,
         fpack_pars=None,
         coadd_config,
-        single_epoch_config,
-        gaia_mask_config=None,
+        single_epoch_config
 ):
     """Build a MEDS pizza slices file.
 
@@ -110,11 +110,6 @@ def make_des_pizza_slices(
         the single epoch images. See the documentaion of
         `pizza_cutter.des_pizza_cutter._coadd_slices._build_slice_inputs`
         for details on the required entries.
-    gaia_mask_config: dict, optional
-        The configuration for the gaia masking.  This is required if
-        gaia_stars_file is set in the info file.  Must have fields
-        'poly_coeff', 'radius_factor', and 'max_g_mag'.  In the config
-        file this has the name "gaia_star_masks"
     """
 
     metadata = _build_metadata(config=config)
@@ -138,6 +133,11 @@ def make_des_pizza_slices(
 
     eu.ostools.makedirs_fromfile(meds_path)
 
+    wcs = info['%s_wcs' % coadd_config['wcs_type']]
+    position_offset = info['position_offset']
+
+    gaia_stars_file = info.get('gaia_stars_file', None)
+
     with StagedOutFile(meds_path + '.fz', tmpdir=tmpdir) as sf:
 
         staged_meds_path = sf.path[:-3]
@@ -148,18 +148,25 @@ def make_des_pizza_slices(
                 object_data=object_data,
                 info=info,
                 single_epoch_config=single_epoch_config,
-                wcs=info['%s_wcs' % coadd_config['wcs_type']],
-                position_offset=info['position_offset'],
+                wcs=wcs,
+                position_offset=position_offset,
                 coadding_weight=coadd_config['coadding_weight'],
                 seed=seed,
                 slice_range=slice_range,
                 fpack_pars=fpack_pars,
                 tmpdir=tmpdir,
-                gaia_mask_config=gaia_mask_config,
             )
 
             fits.write(metadata, extname=METADATA_EXTNAME)
             fits.write(image_info, extname=IMAGE_INFO_EXTNAME)
+
+            if gaia_stars_file is not None:
+                gaia_stars = _read_gaia_stars(
+                    fname=gaia_stars_file,
+                    wcs=wcs,
+                    wcs_position_offset=position_offset,
+                )
+                fits.write(gaia_stars, extname=GAIA_STARS_EXTNAME)
 
         # fpack it
         try:
@@ -186,7 +193,6 @@ def _coadd_and_write_images(
         *, fits, fpack_pars, object_data, info, single_epoch_config,
         wcs, position_offset, coadding_weight, seed,
         slice_range=None,
-        gaia_mask_config=None,
         tmpdir=None):
 
     slice_range_res = list(_extract_slice_range(
@@ -223,8 +229,6 @@ def _coadd_and_write_images(
     start_row = 0
     psf_start_row = 0
     epochs_info = []
-
-    gaia_stars_file = info.get('gaia_stars_file', None)
 
     slice_range = _extract_slice_range(
         slice_range=slice_range,
@@ -320,8 +324,6 @@ def _coadd_and_write_images(
                 weights=weights,
                 se_wcs_interp_delta=single_epoch_config["se_wcs_interp_delta"],
                 coadd_wcs_interp_delta=single_epoch_config["coadd_wcs_interp_delta"],
-                gaia_stars_file=gaia_stars_file,
-                gaia_mask_config=gaia_mask_config,
             )
 
             if np.all(image == 0):
@@ -382,6 +384,40 @@ def _coadd_and_write_images(
 
     epochs_info = eu.numpy_util.combine_arrlist(epochs_info)
     fits.write(epochs_info, extname=EPOCHS_INFO_EXTNAME)
+
+
+def _read_gaia_stars(
+    fname,
+    wcs,
+    wcs_position_offset,
+):
+    """
+    load the gaia stars
+
+    Parameters
+    -----------
+    fname: str
+        path to the gaia star catalog
+    wcs: WCS object
+        The WCS object for the image. Used to calculate x, y
+    wcs_position_offset : int
+        The position offset to get from zero-indexed, pixel-centered
+        coordinates to the coordinates expected by the coadd WCS object.
+    """
+
+    full_path = os.path.expandvars(fname)
+    logger.info('reading: %s' % full_path)
+    data = fitsio.read(full_path, lower=True)
+
+    add_dt = [('x', 'f8'), ('y', 'f8')]
+    data = eu.numpy_util.add_fields(data, add_dt)
+
+    data['x'], data['y'] = wcs.sky2image(data['ra'], data['dec'])
+
+    data['x'] -= wcs_position_offset
+    data['y'] -= wcs_position_offset
+
+    return data
 
 
 def _reserve_images(fits, n_pixels, fpack_pars):

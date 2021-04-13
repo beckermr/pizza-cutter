@@ -1,0 +1,90 @@
+des_data:
+  campaign: Y6A2_COADD
+  source_type: finalcut
+
+# optional but these are good defaults
+fpack_pars:
+  FZQVALUE: 4
+  FZTILE: "(10240,1)"
+  FZALGOR: "RICE_1"
+  # preserve zeros, don't dither them
+  FZQMETHD: "SUBTRACTIVE_DITHER_2"
+
+coadd:
+  # these are in pixels
+  # the total "pizza slice" will be central_size + 2 * buffer_size
+  central_size: 100  # size of the central region
+  buffer_size: 50  # size of the buffer on each size
+
+  # this should be odd and bigger than any stamp returned by the
+  # PSF reconstruction
+  psf_box_size: 51
+
+  wcs_type: image
+  coadding_weight: 'noise'
+
+single_epoch:
+  # pixel spacing for building various WCS interpolants
+  se_wcs_interp_delta: 8
+  coadd_wcs_interp_delta: 100
+
+  # fractional amount to increase coadd box size when getting SE region for
+  # coadding - set to sqrt(2) for full position angle rotations
+  frac_buffer: 1
+
+  # set this to either piff or psfex
+  # if using piff in DES and a release earlier than Y6,
+  # you need to set the piff_run above too
+  psf_type: piff
+
+  # which SE WCS to use - one of piff, pixmappy or image
+  wcs_type: pixmappy
+
+  reject_outliers: False
+  symmetrize_masking: True
+  copy_masked_edges: True
+  max_masked_fraction: 0.1
+  edge_buffer: 64
+
+  # Y6 already deals with tapebump in a sensible way
+  mask_tape_bumps: False
+
+  # DES Y6 bit mask flags
+  # "BPM":          1,  #/* set in bpm (hot/dead pixel/column)        */
+  # "SATURATE":     2,  #/* saturated pixel                           */
+  # "INTERP":       4,  #/* interpolated pixel                        */
+  # "BADAMP":       8,  #/* Data from non-functional amplifier        */
+  # "CRAY":        16,  #/* cosmic ray pixel                          */
+  # "STAR":        32,  #/* bright star pixel                         */
+  # "TRAIL":       64,  #/* bleed trail pixel                         */
+  # "EDGEBLEED":  128,  #/* edge bleed pixel                          */
+  # "SSXTALK":    256,  #/* pixel potentially effected by xtalk from  */
+  #                     #/*       a super-saturated source            */
+  # "EDGE":       512,  #/* pixel flag to exclude CCD glowing edges   */
+  # "STREAK":    1024,  #/* pixel associated with streak from a       */
+  #                     #/*       satellite, meteor, ufo...           */
+  # "SUSPECT":   2048,  #/* nominally useful pixel but not perfect    */
+  # "TAPEBUMP": 16384,  #/* tape bumps                                */
+
+  spline_interp_flags:
+    - 1     # BPM
+    - 2     # SATURATE
+    - 16    # CRAY
+    - 64    # TRAIL
+    - 1024  # STREAK
+    - 2048  # SUSPECT
+
+  noise_interp_flags:
+    - 4     # INTERP. Already interpolated; is this ever set?
+    - 8     # BADAMP
+    - 128   # EDGEBLEED
+    - 256   # SSXTALK
+    - 512   # EDGE
+
+  # make the judgment call that it is better to use the somewhat
+  # suspect TAPEBUMP areas than fill with noise, because they are
+  # fairly large
+  #  - 16384 # TAPEBUMP
+
+  bad_image_flags:
+    - 0
