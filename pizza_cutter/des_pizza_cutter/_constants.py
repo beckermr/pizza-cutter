@@ -8,17 +8,13 @@ BMASK_SPLINE_INTERP = 2**27
 # kernel extends outside bounds in resampling
 BMASK_RESAMPLE_BOUNDS = 2**26
 
-# this bit marks masked areas around gaia stars. Note this is different from
-# the STAR bit that is already set for masked areas around saturated stars
-
-BMASK_GAIA_STAR = 2**25
-
 # these are constants that are etched in stone for MEDS files
 MAGZP_REF = 30.0
 OBJECT_DATA_EXTNAME = 'object_data'
 IMAGE_INFO_EXTNAME = 'image_info'
 METADATA_EXTNAME = 'metadata'
 EPOCHS_INFO_EXTNAME = 'epochs_info'
+STARS_EXTNAME = 'stars'
 
 IMAGE_CUTOUT_EXTNAME = 'image_cutouts'
 WEIGHT_CUTOUT_EXTNAME = 'weight_cutouts'
