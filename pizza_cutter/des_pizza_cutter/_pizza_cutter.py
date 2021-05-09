@@ -19,7 +19,7 @@ from meds.maker import MEDS_FMT_VERSION
 from meds.util import (
     get_image_info_struct, get_meds_output_struct, validate_meds)
 
-from .._version import __version__
+from .. import __version__
 from ._constants import (
     METADATA_EXTNAME,
     GAIA_STARS_EXTNAME,
