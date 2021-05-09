@@ -1,6 +1,15 @@
 import logging
 
-from ._version import __version__  # noqa
+try:
+    from importlib.metadata import version, PackageNotFoundError
+except ImportError:
+    from importlib_metadata import version, PackageNotFoundError
+
+try:
+    __version__ = version("pizza_cutter")
+except PackageNotFoundError:
+    # package is not installed
+    pass
 
 
 def addLoggingLevel(levelName, levelNum, methodName=None):

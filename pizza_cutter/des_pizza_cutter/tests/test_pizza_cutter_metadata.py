@@ -13,7 +13,7 @@ import scipy
 from .._pizza_cutter import _build_metadata
 from .._constants import MAGZP_REF
 from meds.maker import MEDS_FMT_VERSION
-from ..._version import __version__
+from ... import __version__
 
 
 def test_pizza_cutter_build_metadata(monkeypatch):
