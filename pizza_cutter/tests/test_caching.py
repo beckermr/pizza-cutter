@@ -1,12 +1,43 @@
 import time
 from concurrent.futures import ProcessPoolExecutor
-from ..caching import shared_lru_cache
+import multiprocessing
+from functools import lru_cache
 
 
-@shared_lru_cache(maxsize=12)
+RESULT_QUEUE = None
+
+
+def _init(q):
+    global RESULT_QUEUE
+    RESULT_QUEUE = q
+
+
+@lru_cache(maxsize=12)
 def compute_value_delayed(val):
     time.sleep(5)
     return val**2
+
+
+def comp(val):
+    t0 = time.time()
+    res = compute_value_delayed(val)
+    RESULT_QUEUE.put(res)
+    t0 = time.time() - t0
+    return t0
+
+
+def test_lru_cache_process():
+    q = multiprocessing.Queue()
+    with ProcessPoolExecutor(max_workers=4, initializer=_init, initargs=(q,)) as exec:
+        futs = [
+            exec.submit(comp, 10)
+            for _ in range(100)
+        ]
+        res = [q.get() for _ in range(100)]
+        times = [fut.result() for fut in futs]
+        assert any(t < 5 for t in times)
+        assert all(r == 100 for r in res)
+        print(res, times)
 
 
 def test_shared_lru_cache_smoke():
