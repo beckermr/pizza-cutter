@@ -81,3 +81,25 @@ def test_shared_lru_cache_hammer():
         assert compute_value_delayed.cache_info().misses == curr_misses
 
         print(compute_value_delayed.cache_info(), flush=True)
+
+
+def test_shared_lru_cache_hammer_primed():
+    compute_value_delayed.cache_clear()
+    with ProcessPoolExecutor(max_workers=4) as exec:
+        exec.submit(compute_value_delayed, 10).result()
+
+        futs = [
+            exec.submit(compute_value_delayed, 10)
+            for _ in range(100)
+        ]
+
+        ttot = time.time()
+        for fut in futs:
+            assert fut.result() == 100
+        ttot = time.time() - ttot
+        assert ttot < 500
+
+        assert compute_value_delayed.cache_info().misses == 1
+        assert compute_value_delayed.cache_info().hits >= 100
+
+        print(compute_value_delayed.cache_info(), flush=True)

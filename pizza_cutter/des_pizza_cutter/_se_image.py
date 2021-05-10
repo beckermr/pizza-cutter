@@ -1,7 +1,7 @@
-import functools
 import logging
 import time
 import pprint
+from functools import lru_cache
 
 import fitsio
 import numpy as np
@@ -31,11 +31,28 @@ from ._tape_bumps import TAPE_BUMPS
 
 logger = logging.getLogger(__name__)
 
+IMAGE_CACHE_SIZE = 128
+
 # TODO: make a config option?
 PIFF_STAMP_SIZE = 25
 
 
-@functools.lru_cache(maxsize=2048)
+@lru_cache(maxsize=2048)
+def _cached_get_rough_sky_bounds(
+    *,
+    im_shape, wcs, position_offset, bounds_buffer_uv, n_grid, celestial
+):
+    return get_rough_sky_bounds(
+        im_shape=im_shape,
+        wcs=wcs,  # the magic of APIs and duck typing - quack!
+        position_offset=position_offset,
+        bounds_buffer_uv=bounds_buffer_uv,  # in arcsec
+        n_grid=n_grid,
+        celestial=celestial,
+    )
+
+
+@lru_cache(maxsize=2048)
 def _get_image_shape(*, image_path, image_ext):
     h = fitsio.read_header(image_path, ext=image_ext)
     if 'znaxis1' in h:
@@ -51,7 +68,7 @@ def _read_image(path, ext):
         return _read_image_cached(path, ext)
 
 
-@functools.lru_cache(maxsize=32)
+@lru_cache(maxsize=IMAGE_CACHE_SIZE)
 def _read_image_cached(path, ext):
     """Cached reads of images.
 
@@ -84,13 +101,13 @@ def _get_noise_image(weight_path, weight_ext, scale, noise_seed, tmpdir):
         )
 
 
-@functools.lru_cache(maxsize=32)
+@lru_cache(maxsize=IMAGE_CACHE_SIZE)
 def _get_noise_image_cached(weight_path, weight_ext, scale, noise_seed, tmpdir):
     """Cached generation of memory mapped noise images."""
     return _get_noise_image_impl(weight_path, weight_ext, scale, noise_seed, tmpdir)
 
 
-@functools.lru_cache(maxsize=32)
+@lru_cache(maxsize=IMAGE_CACHE_SIZE)
 def _get_wcs_inverse(wcs, wcs_position_offset, se_wcs, se_im_shape, delta):
     if hasattr(se_wcs, "source_info"):
         logger.debug(
@@ -138,7 +155,7 @@ def _compute_wcs_area(se_wcs, x_se, y_se, dxy=1):
     return np.abs(dudx * dvdy - dvdx * dudy)
 
 
-@functools.lru_cache(maxsize=32)
+@lru_cache(maxsize=IMAGE_CACHE_SIZE)
 def _get_wcs_area_interp(se_wcs, se_im_shape, delta, position_offset=0):
     if hasattr(se_wcs, "source_info"):
         logger.debug(
@@ -173,6 +190,7 @@ def clear_image_and_wcs_caches():
     _get_noise_image_cached.cache_clear()
     _get_wcs_inverse.cache_clear()
     _get_wcs_area_interp.cache_clear()
+    _cached_get_rough_sky_bounds.cache_clear()
 
 
 class SEImageSlice(object):
@@ -317,13 +335,14 @@ class SEImageSlice(object):
         else:
             self._wcs_is_celestial = True
 
-        sky_bnds, ra_ccd, dec_ccd = get_rough_sky_bounds(
+        sky_bnds, ra_ccd, dec_ccd = _cached_get_rough_sky_bounds(
             im_shape=self._im_shape,
             wcs=self,  # the magic of APIs and duck typing - quack!
             position_offset=0,  # the wcs on this class is zero-indexed
             bounds_buffer_uv=16.0,  # in arcsec
             n_grid=4,
-            celestial=self._wcs_is_celestial)
+            celestial=self._wcs_is_celestial,
+        )
         self._sky_bnds = sky_bnds
         self._ra_ccd = ra_ccd
         self._dec_ccd = dec_ccd
