@@ -240,6 +240,9 @@ def clear_image_and_wcs_caches():
     _get_wcs_inverse.cache_clear()
     _get_wcs_area_interp.cache_clear()
     _cached_get_rough_sky_bounds.cache_clear()
+    _load_psfex.cache_clear()
+    _load_image_wcs.cache_clear()
+    _load_piff_pixmappy.cache_clear()
 
 
 class SEImageSlice(object):
