@@ -427,7 +427,7 @@ def _coadd_and_write_images(
     )
 
     npix = object_data['box_size'][0]**2
-    npix_psf = object_data['psf_box_size'][i]**2
+    npix_psf = object_data['psf_box_size'][0]**2
     epochs_info = []
 
     if nworkers > 1:
