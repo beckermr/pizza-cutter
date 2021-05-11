@@ -167,8 +167,8 @@ def _build_slice_inputs(
             # no flags so init the object
             se_slice = SEImageSlice(
                 source_info=se_info,
-                psf_model=se_info['%s_psf' % psf_type],
-                wcs=se_info['%s_wcs' % wcs_type],
+                psf_model=psf_type,
+                wcs=wcs_type,
                 wcs_position_offset=se_info['position_offset'],
                 noise_seed=se_info['noise_seed'],
                 mask_tape_bumps=mask_tape_bumps,
@@ -225,7 +225,7 @@ def _build_slice_inputs(
     flags_not_used = []
     for se_slice in possible_slices:
         logger.info(
-            'pre-proccseeing image %s/%s',
+            'pre-processing image %s/%s',
             se_slice.source_info["path"],
             se_slice.source_info['filename'],
         )
