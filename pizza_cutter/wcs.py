@@ -19,20 +19,24 @@ def wrap_ra_diff(dra):
         Thje wrapped difference in degrees in the range [-180, 180].
     """
     if np.ndim(dra) == 0:
+        if not np.isfinite(dra):
+            return dra
+
         while dra < -180.0:
             dra += 360.0
         while dra > 180.0:
             dra -= 360.0
     else:
-        msk = dra < -180.0
+        msk_finite = np.isfinite(dra)
+        msk = (dra < -180.0) & msk_finite
         while np.any(msk):
             dra[msk] = dra[msk] + 360.0
-            msk = dra < -180.0
+            msk = (dra < -180.0) & msk_finite
 
-        msk = dra > 180.0
+        msk = (dra > 180.0) & msk_finite
         while np.any(msk):
             dra[msk] = dra[msk] - 360.0
-            msk = dra > 180.0
+            msk = (dra > 180.0) & msk_finite
 
     return dra
 
