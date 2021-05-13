@@ -2,8 +2,9 @@ import numpy as np
 import esutil
 
 from .._wcs_utils import WCSInversionInterpolator, WCSGridScalarInterpolator
+from ...wcs import FastHashingWCS
 
-COADD_WCS = esutil.wcsutil.WCS({
+COADD_WCS = FastHashingWCS({
     'xtension': 'BINTABLE',
     'bitpix': 8,
     'naxis': 2,
@@ -105,7 +106,7 @@ COADD_WCS = esutil.wcsutil.WCS({
     'checksum': 'ZJHKaGGKUGGKZGGK',
     'datasum': 1452922543})
 
-SE_WCS = esutil.wcsutil.WCS({
+SE_WCS = FastHashingWCS({
     'xtension': 'BINTABLE',
     'bitpix': 8,
     'naxis': 2,

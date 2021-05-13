@@ -26,8 +26,8 @@ from ._constants import (
     BMASK_RESAMPLE_BOUNDS,
 )
 from ._affine_wcs import AffineWCS
-
 from ._tape_bumps import TAPE_BUMPS
+from ..wcs import wrap_ra_diff
 
 logger = logging.getLogger(__name__)
 
@@ -125,8 +125,8 @@ def _compute_wcs_area(se_wcs, x_se, y_se, dxy=1):
     if isinstance(se_wcs, eu.wcsutil.WCS) or se_wcs.is_celestial():
         # code here follows the computation in galsim or esutil
         cosdec = np.cos(dec * (np.pi / 180.0))
-        dudx = -0.5 * (ra_xp - ra_xm) / dxy * cosdec * 3600
-        dudy = -0.5 * (ra_yp - ra_ym) / dxy * cosdec * 3600
+        dudx = -0.5 * wrap_ra_diff(ra_xp - ra_xm) / dxy * cosdec * 3600
+        dudy = -0.5 * wrap_ra_diff(ra_yp - ra_ym) / dxy * cosdec * 3600
         dvdx = 0.5 * (dec_xp - dec_xm) / dxy * 3600
         dvdy = 0.5 * (dec_yp - dec_ym) / dxy * 3600
     else:
