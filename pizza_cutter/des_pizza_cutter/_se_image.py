@@ -29,8 +29,9 @@ from ._constants import (
 )
 from ._affine_wcs import AffineWCS
 from ._tape_bumps import TAPE_BUMPS
-from ._load_info import _WCS, _munge_fits_header
+from ._load_info import _munge_fits_header
 from ._piff_tools import get_piff_psf
+from ..wcs import wrap_ra_diff, FastHashingWCS
 
 logger = logging.getLogger(__name__)
 
@@ -145,8 +146,8 @@ def _compute_wcs_area(se_wcs, x_se, y_se, dxy=1):
     if isinstance(se_wcs, eu.wcsutil.WCS) or se_wcs.is_celestial():
         # code here follows the computation in galsim or esutil
         cosdec = np.cos(dec * (np.pi / 180.0))
-        dudx = -0.5 * (ra_xp - ra_xm) / dxy * cosdec * 3600
-        dudy = -0.5 * (ra_yp - ra_ym) / dxy * cosdec * 3600
+        dudx = -0.5 * wrap_ra_diff(ra_xp - ra_xm) / dxy * cosdec * 3600
+        dudy = -0.5 * wrap_ra_diff(ra_yp - ra_ym) / dxy * cosdec * 3600
         dvdx = 0.5 * (dec_xp - dec_xm) / dxy * 3600
         dvdy = 0.5 * (dec_yp - dec_ym) / dxy * 3600
     else:
@@ -223,7 +224,7 @@ def _load_psfex(psfex_path):
 @lru_cache(maxsize=2048)
 def _load_image_wcs(image_path, image_ext):
     logger.debug("load wcs cache miss for %s[%s]", image_path, image_ext)
-    return _WCS(
+    return FastHashingWCS(
         _munge_fits_header(
             fitsio.read_header(
                 os.path.expandvars(image_path), ext=image_ext

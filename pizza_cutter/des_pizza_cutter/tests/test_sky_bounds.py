@@ -1,14 +1,14 @@
 import pytest
 
 import numpy as np
-import esutil as eu
 
 from .._sky_bounds import get_rough_sky_bounds, radec_to_uv
+from ...wcs import FastHashingWCS
 
 
 @pytest.fixture
 def bnds_data():
-    wcs = eu.wcsutil.WCS(dict(
+    wcs = FastHashingWCS(dict(
         naxis1=2048,
         naxis2=4096,
         equinox=2000.00000000,

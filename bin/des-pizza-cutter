@@ -37,15 +37,26 @@ def go(config, info, tag, output_path, log_level, seed, slice_range, tmpdir, n_j
         # the extension will get added back
         meds_path = output_path[:-3]
     else:
+        if slice_range is not None:
+            ss = slice_range.split(':')
+            assert len(ss) == 2
+            start = int(ss[0])
+            end = int(ss[1])
+            rend = '-range%04d-%04d' % (start, end)
+        else:
+            rend = ''
         sname = os.path.basename(config).replace('.yaml', '')
         if tag is not None:
             sname = '-'.join([sname, tag])
         meds_path = os.path.join(
             output_path,
-            "%s_%s_%s_meds-pizza-slices.fits" % (
+            "%s_%s_%s_meds-pizza-slices%s.fits" % (
                 info['tilename'],
                 info['band'],
-                sname))
+                sname,
+                rend,
+            )
+        )
     print('output meds file:', meds_path, flush=True)
 
     print('making pizza slices!', flush=True)
