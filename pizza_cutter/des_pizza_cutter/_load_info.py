@@ -1,6 +1,5 @@
 import copy
 from os.path import expandvars
-import esutil as eu
 import galsim.des
 import galsim.config
 import fitsio
@@ -11,30 +10,9 @@ import pixmappy
 from ._piff_tools import get_piff_psf
 from ._affine_wcs import AffineWCS
 from ..slice_utils.pbar import PBar
+from ..wcs import FastHashingWCS
 
 logger = logging.getLogger(__name__)
-
-
-class _WCS(eu.wcsutil.WCS):
-    """It turns out hashing this WCS class is really slow and done a lot.
-
-    This version has a stable hash/repr computed once.
-    """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._state = super().__repr__()
-
-    def __repr__(self):
-        return self._state
-
-    def __str__(self):
-        return self._state
-
-    def __hash__(self):
-        return hash(self.__repr__())
-
-    def __eq__(self, other):
-        return hash(self) == hash(other)
 
 
 def load_objects_into_info(*, info, verbose=True):
@@ -87,7 +65,7 @@ def load_objects_into_info(*, info, verbose=True):
         print('loading coadd image data', flush=True)
     logger.info("loading image data products for %s/%s", info["path"], info["filename"])
     try:
-        info['image_wcs'] = _WCS(
+        info['image_wcs'] = FastHashingWCS(
             _munge_fits_header(fitsio.read_header(
                 expandvars(info['image_path']), ext=info['image_ext'])))
     except Exception as e:
@@ -123,7 +101,7 @@ def load_objects_into_info(*, info, verbose=True):
         logger.info("loading image data products for %s/%s", ii["path"], ii["filename"])
         # wcs info
         try:
-            ii['image_wcs'] = _WCS(
+            ii['image_wcs'] = FastHashingWCS(
                 _munge_fits_header(
                     fitsio.read_header(
                         expandvars(ii['image_path']), ext=ii['image_ext'])))

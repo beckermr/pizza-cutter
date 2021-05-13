@@ -3,9 +3,8 @@ import pytest
 import yaml
 import fitsio
 
-import esutil as eu
-
 from ...gsutils import get_gs_fits_wcs_from_dict
+from ...wcs import FastHashingWCS
 
 
 @pytest.fixture
@@ -116,7 +115,7 @@ def se_image_data():
     return {
         'source_info': source_info,
         'wcs_header': se_wcs_data,
-        'eu_wcs': eu.wcsutil.WCS(se_wcs_data),
+        'eu_wcs': FastHashingWCS(se_wcs_data),
         'gs_wcs': get_gs_fits_wcs_from_dict(se_wcs_data),
     }
 
@@ -171,6 +170,6 @@ def coadd_image_data():
 
     return {
         'wcs_header': wcs,
-        'eu_wcs': eu.wcsutil.WCS(wcs),
+        'eu_wcs': FastHashingWCS(wcs),
         'position_offset': 1
     }
