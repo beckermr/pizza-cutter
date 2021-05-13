@@ -1,5 +1,4 @@
 import numpy as np
-import esutil
 
 from .._wcs_utils import WCSInversionInterpolator, WCSGridScalarInterpolator
 from ...wcs import FastHashingWCS
