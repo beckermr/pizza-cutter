@@ -20,6 +20,7 @@ def test_se_image_interp_set(se_image_data, coadd_image_data):
         psf_model=psf_mod,
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=1,
+        wcs_color=0,
         noise_seed=10,
         mask_tape_bumps=False,
     )

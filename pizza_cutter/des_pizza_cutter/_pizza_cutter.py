@@ -285,6 +285,7 @@ def _coadd_and_write_images(
             mask_tape_bumps=single_epoch_config['mask_tape_bumps'],
             edge_buffer=single_epoch_config['edge_buffer'],
             wcs_type=single_epoch_config['wcs_type'],
+            wcs_color=single_epoch_config['wcs_color'],
             psf_type=single_epoch_config['psf_type'],
             rng=rng,
             tmpdir=tmpdir,

@@ -17,6 +17,7 @@ def test_se_image_slice_bnds_odd(se_image_data, eps):
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=1,
+        wcs_color=0,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -46,6 +47,7 @@ def test_se_image_slice_bnds_even(se_image_data, eps):
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=1,
+        wcs_color=0,
         noise_seed=10,
         mask_tape_bumps=False,
     )

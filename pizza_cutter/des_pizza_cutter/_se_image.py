@@ -198,6 +198,9 @@ class SEImageSlice(object):
     wcs_position_offset : float
         The offset to get from pixel-centered, zero-indexed coordinates to
         the coordinates expected by the WCS.
+    wcs_color : float
+        A color to use for the WCS. Typically zero is fine, but for pixmappy
+        it is worth thinking about this. A good default might be 0.61.
     noise_seed : int
         A seed to use for the noise field.
     mask_tape_bumps: boold
@@ -289,6 +292,7 @@ class SEImageSlice(object):
                  psf_model,
                  wcs,
                  wcs_position_offset,
+                 wcs_color,
                  noise_seed,
                  mask_tape_bumps,
                  tmpdir=None):
@@ -297,6 +301,7 @@ class SEImageSlice(object):
         self._psf_model = psf_model
         self._wcs = wcs
         self._wcs_position_offset = wcs_position_offset
+        self._wcs_color = wcs_color
         self._noise_seed = noise_seed
         self._mask_tape_bumps = mask_tape_bumps
         self._tmpdir = tmpdir
@@ -340,6 +345,7 @@ class SEImageSlice(object):
                 "_psf_model",
                 "_wcs",
                 "_wcs_position_offset",
+                "_wcs_color",
                 "_noise_seed",
                 "_mask_tape_bumps",
             ]:
@@ -505,23 +511,12 @@ class SEImageSlice(object):
                 y + self._wcs_position_offset)
         elif isinstance(self._wcs, galsim.BaseWCS):
             assert self._wcs.isCelestial()
-
-            # pixmappy uses c=, but real galsim wcs use color=
-            try:
-                ra, dec = self._wcs._radec(
-                    x - self._wcs.x0 + self._wcs_position_offset,
-                    y - self._wcs.y0 + self._wcs_position_offset,
-                    c=0,  # explicitly turning off color
-                )
-            except TypeError:
-                ra, dec = self._wcs._radec(
-                    x - self._wcs.x0 + self._wcs_position_offset,
-                    y - self._wcs.y0 + self._wcs_position_offset,
-                    color=0,  # explicitly turning off color
-                )
-
-            np.degrees(ra, out=ra)
-            np.degrees(dec, out=dec)
+            ra, dec = self._wcs.xyToradec(
+                x + self._wcs_position_offset,
+                y + self._wcs_position_offset,
+                units=galsim.degrees,
+                color=self._wcs_color,
+            )
         else:
             raise ValueError('WCS %s not recognized!' % self._wcs)
 
@@ -570,19 +565,14 @@ class SEImageSlice(object):
         elif isinstance(self._wcs, galsim.BaseWCS):
             assert self._wcs.isCelestial()
 
-            x = []
-            y = []
-            for _ra, _dec in zip(ra, dec):
-                # for the DES we always have a one-indexed system
-                world_pos = galsim.CelestialCoord(
-                    ra=_ra*galsim.degrees,
-                    dec=_dec*galsim.degrees
-                )
-                image_pos = self._wcs.toImage(world_pos)
-                x.append(image_pos.x - self._wcs_position_offset)
-                y.append(image_pos.y - self._wcs_position_offset)
-            x = np.array(x)
-            y = np.array(y)
+            x, y = self._wcs.radecToxy(
+                ra,
+                dec,
+                galsim.degrees,
+                color=self._wcs_color,
+            )
+            x -= self._wcs_position_offset
+            y -= self._wcs_position_offset
         else:
             raise ValueError('WCS %s not recognized!' % self._wcs)
 
@@ -664,7 +654,7 @@ class SEImageSlice(object):
             pos = galsim.PositionD(
                 x=x + self._wcs_position_offset,
                 y=y + self._wcs_position_offset)
-            jac = self._wcs.local(image_pos=pos)
+            jac = self._wcs.local(image_pos=pos, color=self._wcs_color)
         else:
             raise ValueError('WCS %s not recognized!' % self._wcs)
 

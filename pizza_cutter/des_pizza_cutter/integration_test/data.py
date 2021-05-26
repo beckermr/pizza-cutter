@@ -67,6 +67,7 @@ single_epoch:
   frac_buffer: 1
   psf_type: galsim
   wcs_type: affine
+  wcs_color: 0
 
   reject_outliers: False
   symmetrize_masking: True
@@ -125,6 +126,7 @@ single_epoch:
   frac_buffer: 1
   psf_type: galsim
   wcs_type: affine
+  wcs_color: 0
 
   reject_outliers: False
   symmetrize_masking: [90, 180, 270]

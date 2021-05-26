@@ -34,6 +34,7 @@ single_epoch:
 
   # which SE WCS to use - one of piff, pixmappy or image
   wcs_type: image
+  wcs_color: 0
 
   # set this to either piff or psfex
   # if using piff w/ DES, you need to set the piff_run above too
