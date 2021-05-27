@@ -250,13 +250,6 @@ def test_se_image_psf_piff_color(se_image_data, eps_x, eps_y, wcs_pos_offset):
     xbar = np.mean((_x - cen) * psf_im) / np.mean(psf_im)
     ybar = np.mean((_y - cen) * psf_im) / np.mean(psf_im)
 
-    if np.abs(xbar - dx) > 1e-1 and False:
-        import matplotlib.pyplot as plt
-        plt.figure()
-        plt.imshow(psf_im)
-        import pdb
-        pdb.set_trace()
-
     # Piff is not exactly centered, so the tolerance here is bigger
     assert np.abs(xbar - dx) < 1e-1, 'x: %g xbar: %g dx: %g' % (x, xbar, dx)
     assert np.abs(ybar - dy) < 1e-1, ybar
