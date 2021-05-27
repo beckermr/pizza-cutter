@@ -44,8 +44,8 @@ def test_se_image_resample_smoke(se_image_data, coadd_image_data):
         mask=np.zeros_like(se_im.bmask),
     )
     x, y = coadd_image_data['eu_wcs'].sky2image(ra, dec)
-    x = int(x+0.5)
-    y = int(y+0.5)
+    x = np.floor(x+0.5)
+    y = np.floor(y+0.5)
     resampled_data = se_im.resample(
         wcs=coadd_image_data['eu_wcs'],
         wcs_position_offset=coadd_image_data['position_offset'],

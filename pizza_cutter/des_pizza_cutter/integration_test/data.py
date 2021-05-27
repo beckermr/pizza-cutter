@@ -366,13 +366,13 @@ def generate_sim():
     images[1][:, :] = np.nan
 
     # image 3 has a bad pixel that totally excludes it
-    x_loc = int(x0s[3] + 0.5 - position_offsets[3])
-    y_loc = int(y0s[3] + 0.5 - position_offsets[3])
+    x_loc = int(np.floor(x0s[3] + 0.5 - position_offsets[3]))
+    y_loc = int(np.floor(y0s[3] + 0.5 - position_offsets[3]))
     bmasks[3][y_loc, x_loc] |= SIM_BMASK_BAD
 
     # image 4 is interpolated in a strip
-    x_loc = int(x0s[4] + 0.5 - position_offsets[4])
-    y_loc = int(y0s[4] + 0.5 - position_offsets[4])
+    x_loc = int(np.floor(x0s[4] + 0.5 - position_offsets[4]))
+    y_loc = int(np.floor(y0s[4] + 0.5 - position_offsets[4]))
     bmasks[4][y_loc:y_loc+2, :] |= SIM_BMASK_SPLINE_INTERP
 
     # image 5 is too masked
@@ -385,13 +385,13 @@ def generate_sim():
     weights[7][:64, :] = 0
 
     # image 8 is noise interpolated
-    x_loc = int(x0s[8] + 0.5 - position_offsets[8])
-    y_loc = int(y0s[8] + 0.5 - position_offsets[8])
+    x_loc = int(np.floor(x0s[8] + 0.5 - position_offsets[8]))
+    y_loc = int(np.floor(y0s[8] + 0.5 - position_offsets[8]))
     bmasks[8][y_loc-10:y_loc-8, :] |= SIM_BMASK_NOISE_INTERP
 
     # image 10 is spline interpolated in the noise
-    x_loc = int(x0s[10] + 0.5 - position_offsets[10])
-    y_loc = int(y0s[10] + 0.5 - position_offsets[10])
+    x_loc = int(np.floor(x0s[10] + 0.5 - position_offsets[10]))
+    y_loc = int(np.floor(y0s[10] + 0.5 - position_offsets[10]))
     bmasks[10][y_loc-6:y_loc-4, :] |= SIM_BMASK_SPLINE_INTERP
 
     # set the coadd information too

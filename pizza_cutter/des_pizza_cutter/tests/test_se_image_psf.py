@@ -53,8 +53,8 @@ def test_se_image_psf_array(se_image_data, x, y):
 def test_se_image_psf_gsobject(se_image_data, eps_x, eps_y, wcs_pos_offset):
     x = 10 + eps_x
     y = 11 + eps_y
-    dx = x - int(x + 0.5)
-    dy = y - int(y + 0.5)
+    dx = x - np.floor(x + 0.5)
+    dy = y - np.floor(y + 0.5)
 
     se_im = SEImageSlice(
         source_info=se_image_data['source_info'],
@@ -110,8 +110,8 @@ def test_se_image_psf_psfex(
 
     x = 10 + eps_x
     y = 11 + eps_y
-    dx = x - int(x + 0.5)
-    dy = y - int(y + 0.5)
+    dx = x - np.floor(x + 0.5)
+    dy = y - np.floor(y + 0.5)
 
     se_im = SEImageSlice(
         source_info=se_image_data['source_info'],
@@ -153,7 +153,7 @@ def test_se_image_psf_psfex(
 
 
 def get_center_delta(x):
-    return x - np.ceil(x-0.5)
+    return x - np.floor(x+0.5)
 
 
 @pytest.mark.skipif(
@@ -194,12 +194,94 @@ def test_se_image_psf_piff(se_image_data, eps_x, eps_y, wcs_pos_offset):
     ybar = np.mean((_y - cen) * psf_im) / np.mean(psf_im)
 
     # Piff is not exactly centered, so the tolerance here is bigger
+    print("\ncenter offsets:", xbar, dx, ybar, dy)
     assert np.abs(xbar - dx) < 1e-1, 'x: %g xbar: %g dx: %g' % (x, xbar, dx)
     assert np.abs(ybar - dy) < 1e-1, ybar
 
     psf_mod = piff.PSF.read(se_image_data['source_info']['piff_path'])
+    image = galsim.ImageD(
+        PIFF_STAMP_SIZE,
+        PIFF_STAMP_SIZE,
+        wcs=se_im.get_wcs_jacobian(x, y),
+    )
     true_psf_im = psf_mod.draw(
-        x=x+wcs_pos_offset, y=y+wcs_pos_offset, stamp_size=PIFF_STAMP_SIZE,
+        x=x+wcs_pos_offset,
+        y=y+wcs_pos_offset,
+        image=image,
+        center=True,
+        offset=(x - np.floor(x+0.5), y - np.floor(y+0.5)),
     ).array
     true_psf_im /= np.sum(true_psf_im)
     assert np.array_equal(psf_im, true_psf_im)
+
+
+@pytest.mark.skipif(
+    os.environ.get('TEST_DESDATA', None) is None,
+    reason=(
+        'SEImageSlice can only be tested if '
+        'test data is at TEST_DESDATA'))
+@pytest.mark.parametrize('wcs_pos_offset', [1])
+@pytest.mark.parametrize('eps_x', [-0.50])
+@pytest.mark.parametrize('eps_y', [0.25])
+def test_se_image_psf_piff_color(se_image_data, eps_x, eps_y, wcs_pos_offset):
+    x = 10 + eps_x
+    y = 11 + eps_y
+
+    dx = get_center_delta(x)
+    dy = get_center_delta(y)
+
+    psf_mod = piff.PSF.read(se_image_data['piff_data']['g'])
+    se_im = SEImageSlice(
+        source_info=se_image_data['source_info'],
+        psf_model=psf_mod,
+        wcs=se_image_data['eu_wcs'],
+        wcs_position_offset=wcs_pos_offset,
+        wcs_color=0.7,
+        noise_seed=10,
+        mask_tape_bumps=False,
+    )
+
+    psf_im = se_im.get_psf_image(x, y)
+
+    cen = (psf_im.shape[0] - 1) / 2
+
+    # check mean (x, y) to make sure it is not the center
+    _y, _x = np.mgrid[:psf_im.shape[0], :psf_im.shape[1]]
+    xbar = np.mean((_x - cen) * psf_im) / np.mean(psf_im)
+    ybar = np.mean((_y - cen) * psf_im) / np.mean(psf_im)
+
+    if np.abs(xbar - dx) > 1e-1 and False:
+        import matplotlib.pyplot as plt
+        plt.figure()
+        plt.imshow(psf_im)
+        import pdb
+        pdb.set_trace()
+
+    # Piff is not exactly centered, so the tolerance here is bigger
+    assert np.abs(xbar - dx) < 1e-1, 'x: %g xbar: %g dx: %g' % (x, xbar, dx)
+    assert np.abs(ybar - dy) < 1e-1, ybar
+
+    psf_mod = piff.PSF.read(se_image_data['piff_data']['g'])
+    image = galsim.ImageD(
+        PIFF_STAMP_SIZE,
+        PIFF_STAMP_SIZE,
+        wcs=se_im.get_wcs_jacobian(x, y),
+    )
+    true_psf_im = psf_mod.draw(
+        x=x+wcs_pos_offset,
+        y=y+wcs_pos_offset,
+        image=image,
+        center=True,
+        offset=(x - np.floor(x+0.5), y - np.floor(y+0.5)),
+    ).array
+    true_psf_im /= np.sum(true_psf_im)
+    assert np.array_equal(psf_im, true_psf_im)
+
+    # piff defaults to no color used for this test data
+    not_true_psf_im = psf_mod.draw(
+        x=x+wcs_pos_offset,
+        y=y+wcs_pos_offset,
+        stamp_size=psf_im.shape[0],
+    ).array
+    not_true_psf_im /= np.sum(not_true_psf_im)
+    assert not np.array_equal(psf_im, not_true_psf_im)

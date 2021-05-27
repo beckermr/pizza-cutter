@@ -248,8 +248,8 @@ def _coadd_and_write_images(
         # this col, row includes the position offset
         # we don't need to remove it when putting them back into the WCS
         # but we will remove it later since we work in zero-indexed coords
-        col = int(col + 0.5)
-        row = int(row + 0.5)
+        col = int(np.floor(col + 0.5))
+        row = int(np.floor(row + 0.5))
         # ra, dec of the pixel center
         ra_psf, dec_psf = wcs.image2sky(col, row)
 
