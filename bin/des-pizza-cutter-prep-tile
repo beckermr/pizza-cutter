@@ -5,7 +5,12 @@ import logging
 import desmeds
 
 import yaml
-from pizza_cutter.des_pizza_cutter import add_extra_des_coadd_tile_info
+from pizza_cutter.des_pizza_cutter import (
+    add_extra_des_coadd_tile_info,
+    get_gaia_path,
+    download_archive_file,
+    check_info,
+)
 from pizza_cutter.files import makedir_fromfile, get_des_info_file
 import argparse
 
@@ -82,18 +87,26 @@ def main():
     )
     coadd["source_dir"] = source_dir
 
+    gaia_path = get_gaia_path(args.tilename)
+
     if args.clean:
         # remove the source-${band} tree. This leaves the PSFs and list files
         # in place
         coadd.clean()
     else:
         # download the data
+        download_archive_file(gaia_path, source_dir)
         coadd.download()
 
         info = coadd.get_info()
+        info["gaia_stars_file"] = os.path.join(source_dir, gaia_path)
 
         piff_run = cfg['des_data'].get('piff_run', None)
         add_extra_des_coadd_tile_info(info=info, piff_run=piff_run)
+
+        print("running sanity checks on tile info...", end="", flush=True)
+        check_info(info=info)
+        print("OK", flush=True)
 
         output_path = get_des_info_file(
             medsconf,
