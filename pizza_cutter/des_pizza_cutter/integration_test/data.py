@@ -180,7 +180,7 @@ def write_sim(
     info['cat_path'] = "%s_a_cat.fits" % tname
 
     if gaia_stars is not None:
-        info['gaia_stars_file'] = os.path.join(path, 'gaia-stars.fits')
+        info['gaia_stars_file'] = os.path.join(path, '%s_gaia-stars.fits' % tname)
         fitsio.write(info['gaia_stars_file'], gaia_stars, clobber=True)
 
     for ind, (image, weight, bmask, bkg) in enumerate(

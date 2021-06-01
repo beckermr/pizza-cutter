@@ -537,7 +537,7 @@ def test_coadding_end2end_gaia_stars(tmp_path_factory):
 
     meds_path = os.path.join(
         tmp_path,
-        'e2e_test_p_config_meds-pizza-slices.fits.fz',
+        'e2e-test_a_config_meds-pizza-slices.fits.fz',
     )
 
     m = meds.MEDS(meds_path)
@@ -595,7 +595,7 @@ def test_coadding_end2end_range_kwarg(tmp_path_factory):
 
     meds_path = os.path.join(
         tmp_path,
-        'e2e_test_p_config_meds-pizza-slices.fits.fz',
+        'e2e-test_a_config_meds-pizza-slices-range0000-0001.fits.fz',
     )
 
     m = meds.MEDS(meds_path)
