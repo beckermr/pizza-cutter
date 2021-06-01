@@ -135,11 +135,12 @@ def check_info(*, info):
     tilenames = set()
     coadd_keys = [
         "image_path", "seg_path", "bmask_path",
-        "gaia_stars_file", "psf_path",
+        "psf_path", "gaia_stars_file",
     ]
     for key in coadd_keys:
-        fname = os.path.basename(info[key]).split("_")[0]
-        tilenames |= set([fname])
+        if key in info:
+            fname = os.path.basename(info[key]).split("_")[0]
+            tilenames |= set([fname])
     if len(tilenames) > 1:
         errors.append(
             "The coadd files are not for the same tile! %s" % (

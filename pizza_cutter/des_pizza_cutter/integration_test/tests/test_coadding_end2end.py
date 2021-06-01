@@ -71,7 +71,7 @@ def _coadd_end2end(tmp_path_factory, sim_config):
     return {
         'meds_path': os.path.join(
             tmp_path,
-            'e2e_test_p_config_meds-pizza-slices.fits.fz'),
+            'e2e-test_a_config_meds-pizza-slices.fits.fz'),
         'images': images,
         'weights': weights,
         'bmasks': bmasks,
