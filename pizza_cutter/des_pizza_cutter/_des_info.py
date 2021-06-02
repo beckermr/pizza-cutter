@@ -140,14 +140,14 @@ def check_info(*, info):
     for key in coadd_keys:
         if key in info:
             fname = os.path.basename(info[key]).split("_")[0]
-            tilenames |= set([fname])
+            tilenames.add(fname)
     if len(tilenames) > 1:
         errors.append(
             "The coadd files are not for the same tile! %s" % (
                 [info[k] for k in coadd_keys]
             )
         )
-    tilename = list(tilenames)[0]
+    tilename = tilenames.pop()
 
     # 2: coadd always has scale 1
     if info["scale"] != 1.0:
