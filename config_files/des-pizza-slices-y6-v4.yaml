@@ -39,6 +39,7 @@ single_epoch:
 
   # which SE WCS to use - one of piff, pixmappy or image
   wcs_type: pixmappy
+  wcs_color: 0
 
   reject_outliers: False
   symmetrize_masking: True
@@ -100,4 +101,3 @@ gaia_star_masks:
   # coefficients for log10(radius) vs mag.  Don't change this unless
   # you know what you are doing
   poly_coeffs: [0.00443223, -0.22569131, 2.99642999]
-

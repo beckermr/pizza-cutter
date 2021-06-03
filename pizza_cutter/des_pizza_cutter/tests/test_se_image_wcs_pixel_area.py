@@ -26,6 +26,7 @@ def test_se_image_wcs_pixel_area_array(se_image_data, x, y):
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=1,
+        wcs_color=0,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -55,6 +56,7 @@ def test_se_image_wcs_pixel_area_esutil(se_image_data, wcs_pos_offset):
         psf_model=None,
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=wcs_pos_offset,
+        wcs_color=0,
         noise_seed=10,
         mask_tape_bumps=False,
     )
@@ -89,6 +91,7 @@ def test_se_image_wcs_pixel_area_galsim(se_image_data, wcs_pos_offset):
         psf_model=None,
         wcs=se_image_data['gs_wcs'],
         wcs_position_offset=wcs_pos_offset,
+        wcs_color=0,
         noise_seed=10,
         mask_tape_bumps=False,
     )

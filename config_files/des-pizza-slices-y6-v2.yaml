@@ -39,6 +39,7 @@ single_epoch:
 
   # which SE WCS to use - one of piff, pixmappy or image
   wcs_type: pixmappy
+  wcs_color: 0
 
   reject_outliers: False
   symmetrize_masking: True

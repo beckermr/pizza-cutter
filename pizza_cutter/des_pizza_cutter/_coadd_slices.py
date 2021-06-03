@@ -59,6 +59,7 @@ def _build_slice_inputs(
         mask_tape_bumps,
         edge_buffer,
         wcs_type,
+        wcs_color,
         psf_type,
         tmpdir=None):
     """Build the inputs to coadd a single slice.
@@ -142,6 +143,9 @@ def _build_slice_inputs(
     wcs_type : str
         The SE WCS solution to use for coadd. This should be one of 'pixmappy'
         or 'scamp'.
+    wcs_color : float
+        The color to use for thr WCS, if any. A default of 0 is fine except for
+        pixmappy where a default of 0.61 may be needed.
     psf_type : str
         The SE PSF model to use. This should be one 'psfex' or 'piff'.
 
@@ -170,6 +174,7 @@ def _build_slice_inputs(
                 psf_model=se_info['%s_psf' % psf_type],
                 wcs=se_info['%s_wcs' % wcs_type],
                 wcs_position_offset=se_info['position_offset'],
+                wcs_color=wcs_color,
                 noise_seed=se_info['noise_seed'],
                 mask_tape_bumps=mask_tape_bumps,
                 tmpdir=tmpdir,

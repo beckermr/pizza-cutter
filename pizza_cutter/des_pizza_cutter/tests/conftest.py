@@ -109,14 +109,24 @@ def se_image_data():
         }
 
         source_info['position_offset'] = 1.0
+
+        pth = os.path.join(
+            os.environ['TEST_DESDATA'], 'piff_data.yaml')
+        with open(pth, 'r') as fp:
+            piff_data = yaml.load(fp, Loader=yaml.Loader)
+        for band in piff_data:
+            piff_data[band] = os.path.join(DESDATA, piff_data[band])
+
     else:
         source_info = None
+        piff_data = None
 
     return {
         'source_info': source_info,
         'wcs_header': se_wcs_data,
         'eu_wcs': FastHashingWCS(se_wcs_data),
         'gs_wcs': get_gs_fits_wcs_from_dict(se_wcs_data),
+        'piff_data': piff_data,
     }
 
 
