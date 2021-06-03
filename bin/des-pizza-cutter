@@ -7,7 +7,10 @@ import tempfile
 import click
 import yaml
 from pizza_cutter.des_pizza_cutter import (
-    make_des_pizza_slices, load_objects_into_info)
+    make_des_pizza_slices,
+    load_objects_into_info,
+    check_info,
+)
 
 
 def go(config, info, tag, output_path, log_level, seed, slice_range, tmpdir):
@@ -30,6 +33,10 @@ def go(config, info, tag, output_path, log_level, seed, slice_range, tmpdir):
     # this loads all of the data we need into the info dict
     print('loading PSF and WCS data...', flush=True)
     load_objects_into_info(info=info)
+
+    print("running sanity checks on tile info...", end="", flush=True)
+    check_info(info=info)
+    print("OK", flush=True)
 
     if output_path.endswith(".fits"):
         meds_path = output_path
