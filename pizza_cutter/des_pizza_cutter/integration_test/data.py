@@ -67,6 +67,7 @@ single_epoch:
   frac_buffer: 1
   psf_type: galsim
   wcs_type: affine
+  wcs_color: 0
 
   reject_outliers: False
   symmetrize_masking: True
@@ -125,6 +126,7 @@ single_epoch:
   frac_buffer: 1
   psf_type: galsim
   wcs_type: affine
+  wcs_color: 0
 
   reject_outliers: False
   symmetrize_masking: [90, 180, 270]
@@ -163,25 +165,47 @@ def write_sim(
     info_fname = expandpath(os.path.join(path, 'info.yaml'))
     makedir_fromfile(info_fname)
 
-    info['tilename'] = 'e2e_test'
-    info['band'] = 'p'
+    tname = 'e2e-test'
+    info['tilename'] = tname
+    info['band'] = 'a'
     info['image_flags'] = 0
     info['magzp'] = MAGZP_REF
     info['scale'] = 1.0
     info['path'] = None
     info['filename'] = None
 
+    info['image_path'] = "%s_a.fits.fz" % tname
+    info['seg_path'] = "%s_a_segmap.fits" % tname
+    info['bmask_path'] = "%s_a.fits.fz" % tname
+    info['psf_path'] = "%s_a_psfcat.psf" % tname
+    info['psfex_path'] = "%s_psfex.fits" % tname
+    info['cat_path'] = "%s_a_cat.fits" % tname
+
     if gaia_stars is not None:
-        info['gaia_stars_file'] = os.path.join(path, 'gaia-stars.fits')
+        info['gaia_stars_file'] = os.path.join(path, '%s_gaia-stars.fits' % tname)
         fitsio.write(info['gaia_stars_file'], gaia_stars, clobber=True)
 
     for ind, (image, weight, bmask, bkg) in enumerate(
             zip(images, weights, bmasks, bkgs)):
 
+        info['src_info'][ind]['band'] = 'a'
+        info['src_info'][ind]['expnum'] = 2*ind
+        info['src_info'][ind]['ccdnum'] = 2*ind + 1
+        info['src_info'][ind]['tilename'] = tname
+
+        se_slug = "D%08d_%s_c%02d" % (2*ind, 'a', 2*ind+1)
+
+        info['src_info'][ind]['piff_path'] = '%s_piff.fits' % se_slug
+        info['src_info'][ind]['psfex_path'] = '%s_psfex.fits' % se_slug
+        info['src_info'][ind]['psf_path'] = '%s_psf.fits' % se_slug
+        info['src_info'][ind]['seg_path'] = '%s_seg.fits' % se_slug
+        info['src_info'][ind]['head_path'] = "%s_%s_c%02d_scamp.ohead" % (
+            tname, 'a', 2*ind+1,
+        )
         info['src_info'][ind]['magzp'] = (
             MAGZP_REF - np.log10(info['src_info'][ind]['scale'])/0.4)
 
-        fname = os.path.join(path, 'img%s.fits' % uuid.uuid4().hex)
+        fname = os.path.join(path, '%s_img%s.fits' % (se_slug, uuid.uuid4().hex))
         ext = '%s' % uuid.uuid4().hex[0:3]
         with fitsio.FITS(fname, 'rw', clobber=True) as fits:
             fits.write(image, extname=ext)
@@ -191,21 +215,21 @@ def write_sim(
         info['src_info'][ind]['filename'] = os.path.basename(fname)
         info['src_info'][ind]['path'] = os.path.dirname(fname)
 
-        fname = os.path.join(path, 'wgt%s.fits' % uuid.uuid4().hex)
+        fname = os.path.join(path, '%s_wgt%s.fits' % (se_slug, uuid.uuid4().hex))
         ext = '%s' % uuid.uuid4().hex[0:3]
         with fitsio.FITS(fname, 'rw', clobber=True) as fits:
             fits.write(weight, extname=ext)
         info['src_info'][ind]['weight_path'] = fname
         info['src_info'][ind]['weight_ext'] = ext
 
-        fname = os.path.join(path, 'bmask%s.fits' % uuid.uuid4().hex)
+        fname = os.path.join(path, '%s_bmask%s.fits' % (se_slug, uuid.uuid4().hex))
         ext = '%s' % uuid.uuid4().hex[0:3]
         with fitsio.FITS(fname, 'rw', clobber=True) as fits:
             fits.write(bmask, extname=ext)
         info['src_info'][ind]['bmask_path'] = fname
         info['src_info'][ind]['bmask_ext'] = ext
 
-        fname = os.path.join(path, 'bkg%s.fits' % uuid.uuid4().hex)
+        fname = os.path.join(path, '%s_bkg%s.fits' % (se_slug, uuid.uuid4().hex))
         ext = '%s' % uuid.uuid4().hex[0:3]
         with fitsio.FITS(fname, 'rw', clobber=True) as fits:
             fits.write(bkg, extname=ext)
@@ -364,13 +388,13 @@ def generate_sim():
     images[1][:, :] = np.nan
 
     # image 3 has a bad pixel that totally excludes it
-    x_loc = int(x0s[3] + 0.5 - position_offsets[3])
-    y_loc = int(y0s[3] + 0.5 - position_offsets[3])
+    x_loc = int(np.floor(x0s[3] + 0.5 - position_offsets[3]))
+    y_loc = int(np.floor(y0s[3] + 0.5 - position_offsets[3]))
     bmasks[3][y_loc, x_loc] |= SIM_BMASK_BAD
 
     # image 4 is interpolated in a strip
-    x_loc = int(x0s[4] + 0.5 - position_offsets[4])
-    y_loc = int(y0s[4] + 0.5 - position_offsets[4])
+    x_loc = int(np.floor(x0s[4] + 0.5 - position_offsets[4]))
+    y_loc = int(np.floor(y0s[4] + 0.5 - position_offsets[4]))
     bmasks[4][y_loc:y_loc+2, :] |= SIM_BMASK_SPLINE_INTERP
 
     # image 5 is too masked
@@ -383,13 +407,13 @@ def generate_sim():
     weights[7][:64, :] = 0
 
     # image 8 is noise interpolated
-    x_loc = int(x0s[8] + 0.5 - position_offsets[8])
-    y_loc = int(y0s[8] + 0.5 - position_offsets[8])
+    x_loc = int(np.floor(x0s[8] + 0.5 - position_offsets[8]))
+    y_loc = int(np.floor(y0s[8] + 0.5 - position_offsets[8]))
     bmasks[8][y_loc-10:y_loc-8, :] |= SIM_BMASK_NOISE_INTERP
 
     # image 10 is spline interpolated in the noise
-    x_loc = int(x0s[10] + 0.5 - position_offsets[10])
-    y_loc = int(y0s[10] + 0.5 - position_offsets[10])
+    x_loc = int(np.floor(x0s[10] + 0.5 - position_offsets[10]))
+    y_loc = int(np.floor(y0s[10] + 0.5 - position_offsets[10]))
     bmasks[10][y_loc-6:y_loc-4, :] |= SIM_BMASK_SPLINE_INTERP
 
     # set the coadd information too

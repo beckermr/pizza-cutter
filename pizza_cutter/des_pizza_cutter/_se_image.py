@@ -269,6 +269,9 @@ class SEImageSlice(object):
     wcs_position_offset : float
         The offset to get from pixel-centered, zero-indexed coordinates to
         the coordinates expected by the WCS.
+    wcs_color : float
+        A color to use for the WCS. Typically zero is fine, but for pixmappy
+        it is worth thinking about this. A good default might be 0.61.
     noise_seed : int
         A seed to use for the noise field.
     mask_tape_bumps: boold
@@ -287,6 +290,8 @@ class SEImageSlice(object):
         Compute ra, dec for a given set of pixel coordinates.
     sky2image(ra, dec)
         Return x, y pixel coordinates for a given ra, dec.
+    get_wcs_pixel_area(x, y)
+        Get the pixel scale at a set of x-y locations.
     get_wcs_jacobian(x, y)
         Return the Jacobian of the WCS transformation as a `galsim.JacobianWCS`
         object.
@@ -360,12 +365,14 @@ class SEImageSlice(object):
                  psf_model,
                  wcs,
                  wcs_position_offset,
+                 wcs_color,
                  noise_seed,
                  mask_tape_bumps,
                  tmpdir=None):
 
         self.source_info = source_info
         self._wcs_position_offset = wcs_position_offset
+        self._wcs_color = wcs_color
         self._noise_seed = noise_seed
         self._mask_tape_bumps = mask_tape_bumps
         self._tmpdir = tmpdir
@@ -438,6 +445,7 @@ class SEImageSlice(object):
                 "_psf_model",
                 "_wcs",
                 "_wcs_position_offset",
+                "_wcs_color",
                 "_noise_seed",
                 "_mask_tape_bumps",
             ]:
@@ -603,23 +611,12 @@ class SEImageSlice(object):
                 y + self._wcs_position_offset)
         elif isinstance(self._wcs, galsim.BaseWCS):
             assert self._wcs.isCelestial()
-
-            # pixmappy uses c=, but real galsim wcs use color=
-            try:
-                ra, dec = self._wcs._radec(
-                    x - self._wcs.x0 + self._wcs_position_offset,
-                    y - self._wcs.y0 + self._wcs_position_offset,
-                    c=0,  # explicitly turning off color
-                )
-            except TypeError:
-                ra, dec = self._wcs._radec(
-                    x - self._wcs.x0 + self._wcs_position_offset,
-                    y - self._wcs.y0 + self._wcs_position_offset,
-                    color=0,  # explicitly turning off color
-                )
-
-            np.degrees(ra, out=ra)
-            np.degrees(dec, out=dec)
+            ra, dec = self._wcs.xyToradec(
+                x + self._wcs_position_offset,
+                y + self._wcs_position_offset,
+                units=galsim.degrees,
+                color=self._wcs_color,
+            )
         else:
             raise ValueError('WCS %s not recognized!' % self._wcs)
 
@@ -668,19 +665,14 @@ class SEImageSlice(object):
         elif isinstance(self._wcs, galsim.BaseWCS):
             assert self._wcs.isCelestial()
 
-            x = []
-            y = []
-            for _ra, _dec in zip(ra, dec):
-                # for the DES we always have a one-indexed system
-                world_pos = galsim.CelestialCoord(
-                    ra=_ra*galsim.degrees,
-                    dec=_dec*galsim.degrees
-                )
-                image_pos = self._wcs.toImage(world_pos)
-                x.append(image_pos.x - self._wcs_position_offset)
-                y.append(image_pos.y - self._wcs_position_offset)
-            x = np.array(x)
-            y = np.array(y)
+            x, y = self._wcs.radecToxy(
+                ra,
+                dec,
+                galsim.degrees,
+                color=self._wcs_color,
+            )
+            x -= self._wcs_position_offset
+            y -= self._wcs_position_offset
         else:
             raise ValueError('WCS %s not recognized!' % self._wcs)
 
@@ -762,7 +754,7 @@ class SEImageSlice(object):
             pos = galsim.PositionD(
                 x=x + self._wcs_position_offset,
                 y=y + self._wcs_position_offset)
-            jac = self._wcs.local(image_pos=pos)
+            jac = self._wcs.local(image_pos=pos, color=self._wcs_color)
         else:
             raise ValueError('WCS %s not recognized!' % self._wcs)
 
@@ -811,6 +803,26 @@ class SEImageSlice(object):
         else:
             return in_sky_bnds
 
+    def _compute_psf_stamp_bounds(self, x, y, dim):
+        # compute the lower left corner of the stamp
+        # we find the nearest pixel to the input (x, y)
+        # and offset by half the stamp size in pixels
+        # assumes the stamp size is odd
+        # there is an assert for this below
+        half = (dim - 1) / 2
+        x_cen = np.floor(x+0.5)
+        y_cen = np.floor(y+0.5)
+
+        # make sure this is true so pixel index math is ok
+        assert y_cen - half == int(y_cen - half)
+        assert x_cen - half == int(x_cen - half)
+
+        # compute bounds in Piff wcs coords
+        xmin = int(x_cen - half)
+        ymin = int(y_cen - half)
+
+        return xmin, ymin
+
     def get_psf_image(self, x, y):
         """Get an image of the PSF as a numpy array at the given location.
 
@@ -827,9 +839,8 @@ class SEImageSlice(object):
         -------
         psf_im : np.ndarray
             An image of the PSF with odd dimension and with the PSF centered
-            at the canonical center of the image. The central pixel of the
-            returned image is located at coordinates `(int(x+0.5), int(y+0.5))`
-            in the SE image.
+            at the subpixel offset (x - floor(x+0.5), y - floor(y+0.5)) relative
+            to the true center of the image.
         """
         assert np.ndim(x) == 0 and np.ndim(y) == 0, (
             "PSFs are only returned for a single position at a time")
@@ -840,11 +851,10 @@ class SEImageSlice(object):
         # - when used with a coadd via interpolation, this should
         #   locate the PSF center at the proper pixel location in the final
         #   coadd
-        dx = x - int(x+0.5)
-        dy = y - int(y+0.5)
+        dx = x - np.floor(x+0.5)
+        dy = y - np.floor(y+0.5)
 
         if isinstance(self._psf_model, galsim.GSObject):
-
             # get jacobian
             wcs = self.get_wcs_jacobian(x, y)
 
@@ -895,14 +905,25 @@ class SEImageSlice(object):
             psf_im = im.array.copy()
 
         elif isinstance(self._psf_model, piff.PSF):
-            # draw the image
-            # piff requires no offset since it renders in the actual
-            # SE image pixel grid, not a hypothetical grid with the
-            # star at a pixel center
+            # get jacobian
+            wcs = self.get_wcs_jacobian(x, y)
+
+            xmin, ymin = self._compute_psf_stamp_bounds(x, y, PIFF_STAMP_SIZE)
+
+            # compute bounds in Piff wcs coords
+            xmin += self._wcs_position_offset
+            ymin += self._wcs_position_offset
+            bounds = galsim.BoundsI(
+                xmin, xmin+PIFF_STAMP_SIZE-1,
+                ymin, ymin+PIFF_STAMP_SIZE-1,
+            )
+
+            # draw into this image
+            image = galsim.ImageD(bounds, wcs=wcs)
             im = self._psf_model.draw(
                 x=x + self._wcs_position_offset,
                 y=y + self._wcs_position_offset,
-                stamp_size=PIFF_STAMP_SIZE,
+                image=image,
             )
             psf_im = im.array.copy()
         else:
@@ -976,8 +997,8 @@ class SEImageSlice(object):
 
         buff_box_cen = (buff_box_size - 1) / 2
         col, row = self.sky2image(ra, dec)
-        se_start_row = int(row - buff_box_cen + 0.5)
-        se_start_col = int(col - buff_box_cen + 0.5)
+        se_start_row = int(np.floor(row - buff_box_cen + 0.5))
+        se_start_col = int(np.floor(col - buff_box_cen + 0.5))
         patch_bnds = Bounds(
             rowmin=se_start_row,
             rowmax=se_start_row+buff_box_size-1,
@@ -999,17 +1020,11 @@ class SEImageSlice(object):
 
         x, y = self.sky2image(ra, dec)
         psf = self.get_psf_image(x, y)
-        half = (psf.shape[0] - 1) / 2
-        x_cen = int(x+0.5)
-        y_cen = int(y+0.5)
-
-        # make sure this is true so pixel index math is ok
-        assert y_cen - half == int(y_cen - half)
-        assert x_cen - half == int(x_cen - half)
+        xmin, ymin = self._compute_psf_stamp_bounds(x, y, psf.shape[0])
 
         self.psf = psf
-        self.psf_x_start = int(x_cen - half)
-        self.psf_y_start = int(y_cen - half)
+        self.psf_x_start = xmin
+        self.psf_y_start = ymin
         self.psf_box_size = psf.shape[0]
 
     def set_interp_image_noise_pmask(self, *, interp_image, interp_noise, mask):

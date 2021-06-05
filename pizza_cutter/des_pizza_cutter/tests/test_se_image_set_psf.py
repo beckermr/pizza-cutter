@@ -23,11 +23,12 @@ def test_se_image_set_psf(se_image_data, eps_x, eps_y):
         psf_model=galsim.Gaussian(fwhm=0.8),
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=1,
+        wcs_color=0,
         noise_seed=10,
         mask_tape_bumps=False,
     )
 
-    # do the WCS inversion in the function (and it not being exact),
+    # due to the WCS inversion in the function (and it not being exact),
     # we take the coordinates through a round trip to make sure things are
     # internally consistent
     x = 50 + eps_x
@@ -37,10 +38,10 @@ def test_se_image_set_psf(se_image_data, eps_x, eps_y):
     assert np.allclose(x - eps_x, 50)
     assert np.allclose(y - eps_y, 60)
 
-    dx = x - int(x + 0.5)
-    dy = y - int(y + 0.5)
-    x_start = int(x + 0.5) - 9
-    y_start = int(y + 0.5) - 9
+    dx = x - np.floor(x + 0.5)
+    dy = y - np.floor(y + 0.5)
+    x_start = int(np.floor(x + 0.5)) - 9
+    y_start = int(np.floor(y + 0.5)) - 9
 
     se_im.set_psf(ra, dec)
 
