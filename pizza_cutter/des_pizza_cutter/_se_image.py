@@ -79,6 +79,15 @@ def _read_image_cached(path, ext):
     Each SE image in DES is ~33 MB in float. Thus we use at most ~0.5 GB of
     memory with a 16 element cache.
     """
+    ci = _read_image_cached.cache_info()
+    if ci.misses >= ci.maxsize:
+        print(
+            "_read_image_cached cache miss: misses|maxsize = %d|%d" % (
+                ci.misses,
+                ci.maxsize,
+            ),
+            flush=True,
+        )
     return fitsio.read(path, ext=ext)
 
 
@@ -108,11 +117,31 @@ def _get_noise_image(weight_path, weight_ext, scale, noise_seed, tmpdir):
 @lru_cache(maxsize=IMAGE_CACHE_SIZE)
 def _get_noise_image_cached(weight_path, weight_ext, scale, noise_seed, tmpdir):
     """Cached generation of memory mapped noise images."""
+    ci = _get_noise_image_cached.cache_info()
+    if ci.misses >= ci.maxsize:
+        print(
+            "_get_noise_image_cached cache miss: misses|maxsize = %d|%d" % (
+                ci.misses,
+                ci.maxsize,
+            ),
+            flush=True,
+        )
+
     return _get_noise_image_impl(weight_path, weight_ext, scale, noise_seed, tmpdir)
 
 
 @lru_cache(maxsize=IMAGE_CACHE_SIZE)
 def _get_wcs_inverse(wcs, wcs_position_offset, se_wcs, se_im_shape, delta):
+    ci = _get_wcs_inverse.cache_info()
+    if ci.misses >= ci.maxsize:
+        print(
+            "_get_wcs_inverse cache miss: misses|maxsize = %d|%d" % (
+                ci.misses,
+                ci.maxsize,
+            ),
+            flush=True,
+        )
+
     if hasattr(se_wcs, "source_info"):
         logger.debug(
             "wcs inverse cache miss for %s/%s",
@@ -161,6 +190,16 @@ def _compute_wcs_area(se_wcs, x_se, y_se, dxy=1):
 
 @lru_cache(maxsize=IMAGE_CACHE_SIZE)
 def _get_wcs_area_interp(se_wcs, se_im_shape, delta, position_offset=0):
+    ci = _get_wcs_area_interp.cache_info()
+    if ci.misses >= ci.maxsize:
+        print(
+            "_get_wcs_area_interp cache miss: misses|maxsize = %d|%d" % (
+                ci.misses,
+                ci.maxsize,
+            ),
+            flush=True,
+        )
+
     if hasattr(se_wcs, "source_info"):
         logger.debug(
             "wcs area interp cache miss for %s/%s",
