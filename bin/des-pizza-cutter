@@ -13,7 +13,7 @@ from pizza_cutter.des_pizza_cutter import (
 )
 
 
-def go(config, info, tag, output_path, log_level, seed, slice_range, tmpdir):
+def go(config, info, tag, output_path, log_level, seed, slice_range, tmpdir, n_jobs):
     """Create a metadetection MEDS file from a DES coadd tile."""
 
     logging.basicConfig(stream=sys.stdout)
@@ -31,8 +31,7 @@ def go(config, info, tag, output_path, log_level, seed, slice_range, tmpdir):
     print('band:', info['band'], flush=True)
 
     # this loads all of the data we need into the info dict
-    print('loading PSF and WCS data...', flush=True)
-    load_objects_into_info(info=info)
+    load_objects_into_info(info=info, skip_se=True, verbose=True)
 
     print("running sanity checks on tile info...", end="", flush=True)
     check_info(info=info)
@@ -77,6 +76,7 @@ def go(config, info, tag, output_path, log_level, seed, slice_range, tmpdir):
         slice_range=slice_range,
         coadd_config=cfg['coadd'],
         single_epoch_config=cfg['single_epoch'],
+        n_jobs=n_jobs,
     )
 
 
@@ -123,14 +123,22 @@ def go(config, info, tag, output_path, log_level, seed, slice_range, tmpdir):
     help=(
         'the name of the temporary directory to use. if passed without '
         '--use-tmpdir, it will still be used.'))
+@click.option(
+    '--n-jobs', type=int, default=1,
+    help='the number of multiprocessing jobs to use.',
+)
 def main(
-        config, info, tag, output_path, log_level, seed,
-        slice_range,
-        use_tmpdir, tmpdir):
+    config, info, tag, output_path, log_level, seed,
+    slice_range,
+    use_tmpdir, tmpdir, n_jobs,
+):
     """Create a metadetection MEDS file from a DES coadd tile."""
 
     def _call(_tmpdir):
-        go(config, info, tag, output_path, log_level, seed, slice_range, _tmpdir)
+        go(
+            config, info, tag, output_path, log_level,
+            seed, slice_range, _tmpdir, n_jobs
+        )
 
     if use_tmpdir and tmpdir is None:
         tmpdir = tempfile.TemporaryDirectory().name

@@ -1,13 +1,15 @@
-import functools
 import logging
 import time
 import pprint
+from functools import lru_cache
+import os
 
 import fitsio
 import numpy as np
 import esutil as eu
 import galsim
 import piff
+import pixmappy
 
 from meds.bounds import Bounds
 from meds.util import radec_to_uv
@@ -27,15 +29,34 @@ from ._constants import (
 )
 from ._affine_wcs import AffineWCS
 from ._tape_bumps import TAPE_BUMPS
-from ..wcs import wrap_ra_diff
+from ._load_info import _munge_fits_header
+from ._piff_tools import get_piff_psf
+from ..wcs import wrap_ra_diff, FastHashingWCS
 
 logger = logging.getLogger(__name__)
+
+IMAGE_CACHE_SIZE = 32
 
 # TODO: make a config option?
 PIFF_STAMP_SIZE = 25
 
 
-@functools.lru_cache(maxsize=2048)
+@lru_cache(maxsize=2048)
+def _cached_get_rough_sky_bounds(
+    *,
+    im_shape, wcs, position_offset, bounds_buffer_uv, n_grid, celestial
+):
+    return get_rough_sky_bounds(
+        im_shape=im_shape,
+        wcs=wcs,  # the magic of APIs and duck typing - quack!
+        position_offset=position_offset,
+        bounds_buffer_uv=bounds_buffer_uv,  # in arcsec
+        n_grid=n_grid,
+        celestial=celestial,
+    )
+
+
+@lru_cache(maxsize=2048)
 def _get_image_shape(*, image_path, image_ext):
     h = fitsio.read_header(image_path, ext=image_ext)
     if 'znaxis1' in h:
@@ -51,13 +72,21 @@ def _read_image(path, ext):
         return _read_image_cached(path, ext)
 
 
-@functools.lru_cache(maxsize=32)
+@lru_cache(maxsize=IMAGE_CACHE_SIZE*4)
 def _read_image_cached(path, ext):
     """Cached reads of images.
 
     Each SE image in DES is ~33 MB in float. Thus we use at most ~0.5 GB of
     memory with a 16 element cache.
     """
+    ci = _read_image_cached.cache_info()
+    if ci.misses == ci.maxsize+1:
+        print(
+            "_read_image_cached cache size exceeded: maxsize = %d" % (
+                ci.maxsize,
+            ),
+            flush=True,
+        )
     return fitsio.read(path, ext=ext)
 
 
@@ -84,13 +113,22 @@ def _get_noise_image(weight_path, weight_ext, scale, noise_seed, tmpdir):
         )
 
 
-@functools.lru_cache(maxsize=32)
+@lru_cache(maxsize=IMAGE_CACHE_SIZE)
 def _get_noise_image_cached(weight_path, weight_ext, scale, noise_seed, tmpdir):
     """Cached generation of memory mapped noise images."""
+    ci = _get_noise_image_cached.cache_info()
+    if ci.misses == ci.maxsize + 1:
+        print(
+            "_get_noise_image_cached cache size exceeded: maxsize = %d" % (
+                ci.maxsize,
+            ),
+            flush=True,
+        )
+
     return _get_noise_image_impl(weight_path, weight_ext, scale, noise_seed, tmpdir)
 
 
-@functools.lru_cache(maxsize=32)
+@lru_cache(maxsize=2048)
 def _get_wcs_inverse(wcs, wcs_position_offset, se_wcs, se_im_shape, delta):
     if hasattr(se_wcs, "source_info"):
         logger.debug(
@@ -138,7 +176,7 @@ def _compute_wcs_area(se_wcs, x_se, y_se, dxy=1):
     return np.abs(dudx * dvdy - dvdx * dudy)
 
 
-@functools.lru_cache(maxsize=32)
+@lru_cache(maxsize=2048)
 def _get_wcs_area_interp(se_wcs, se_im_shape, delta, position_offset=0):
     if hasattr(se_wcs, "source_info"):
         logger.debug(
@@ -166,6 +204,52 @@ def _get_wcs_area_interp(se_wcs, se_im_shape, delta, position_offset=0):
     )
 
 
+@lru_cache(maxsize=2048)
+def _load_piff_pixmappy(piff_path):
+    logger.debug("load Piff miss for %s", piff_path)
+    piff_path = os.path.expandvars(piff_path)
+    psf = get_piff_psf(piff_path)
+
+    # try and grab pixmappy from piff
+    wcs = psf.wcs[0]
+    if isinstance(wcs, pixmappy.GalSimWCS):
+        # HACK at the internals to code around a bug!
+        if isinstance(
+                wcs.origin,
+                galsim._galsim.PositionD):
+            logger.warning(
+                "adjusting the pixmappy origin to fix a bug!"
+            )
+            wcs._origin = galsim.PositionD(
+                wcs._origin.x,
+                wcs._origin.y
+            )
+    else:
+        raise RuntimeError(
+            "Could not extract pixmappy WCS from piff model %s" % piff_path
+        )
+    return psf, wcs
+
+
+@lru_cache(maxsize=2048)
+def _load_psfex(psfex_path):
+    logger.debug("load psfex cache miss for %s", psfex_path)
+    psfex_path = os.path.expandvars(psfex_path)
+    return galsim.des.DES_PSFEx(psfex_path)
+
+
+@lru_cache(maxsize=2048)
+def _load_image_wcs(image_path, image_ext):
+    logger.debug("load wcs cache miss for %s[%s]", image_path, image_ext)
+    return FastHashingWCS(
+        _munge_fits_header(
+            fitsio.read_header(
+                os.path.expandvars(image_path), ext=image_ext
+            )
+        )
+    )
+
+
 def clear_image_and_wcs_caches():
     """Clear the global image and WCS caches."""
     _get_image_shape.cache_clear()
@@ -173,6 +257,10 @@ def clear_image_and_wcs_caches():
     _get_noise_image_cached.cache_clear()
     _get_wcs_inverse.cache_clear()
     _get_wcs_area_interp.cache_clear()
+    _cached_get_rough_sky_bounds.cache_clear()
+    _load_psfex.cache_clear()
+    _load_image_wcs.cache_clear()
+    _load_piff_pixmappy.cache_clear()
 
 
 class SEImageSlice(object):
@@ -300,13 +388,39 @@ class SEImageSlice(object):
                  tmpdir=None):
 
         self.source_info = source_info
-        self._psf_model = psf_model
-        self._wcs = wcs
         self._wcs_position_offset = wcs_position_offset
         self._wcs_color = wcs_color
         self._noise_seed = noise_seed
         self._mask_tape_bumps = mask_tape_bumps
         self._tmpdir = tmpdir
+
+        if isinstance(wcs, str):
+            if wcs == 'image':
+                wcs = _load_image_wcs(
+                    source_info['image_path'],
+                    source_info['image_ext'],
+                )
+            elif wcs == 'affine':
+                wcs = source_info['affine_wcs']
+            elif wcs == 'pixmappy':
+                res = _load_piff_pixmappy(source_info['piff_path'])
+                wcs = res[1]
+            else:
+                raise RuntimeError("wcs type %s not allowed!" % wcs)
+
+        if isinstance(psf_model, str):
+            if psf_model == 'galsim':
+                psf_model = source_info['galsim_psf']
+            elif psf_model == 'psfex':
+                psf_model = _load_psfex(source_info['psfex_path'])
+            elif psf_model == 'piff':
+                res = _load_piff_pixmappy(source_info['piff_path'])
+                psf_model = res[0]
+            else:
+                raise RuntimeError("psf type %s not allowed!" % psf_model)
+
+        self._psf_model = psf_model
+        self._wcs = wcs
 
         # get the image shape
         if 'image_shape' in source_info:
@@ -324,13 +438,14 @@ class SEImageSlice(object):
         else:
             self._wcs_is_celestial = True
 
-        sky_bnds, ra_ccd, dec_ccd = get_rough_sky_bounds(
+        sky_bnds, ra_ccd, dec_ccd = _cached_get_rough_sky_bounds(
             im_shape=self._im_shape,
             wcs=self,  # the magic of APIs and duck typing - quack!
             position_offset=0,  # the wcs on this class is zero-indexed
             bounds_buffer_uv=16.0,  # in arcsec
             n_grid=4,
-            celestial=self._wcs_is_celestial)
+            celestial=self._wcs_is_celestial,
+        )
         self._sky_bnds = sky_bnds
         self._ra_ccd = ra_ccd
         self._dec_ccd = dec_ccd
@@ -416,13 +531,6 @@ class SEImageSlice(object):
         self.image = im[
             y_start:y_start+box_size, x_start:x_start+box_size].copy() * scale
 
-        wgt = _read_image(
-            self.source_info['weight_path'],
-            ext=self.source_info['weight_ext'])
-        self.weight = (
-            wgt[y_start:y_start+box_size, x_start:x_start+box_size].copy() /
-            scale**2)
-
         bmask = _read_image(
             self.source_info['bmask_path'],
             ext=self.source_info['bmask_ext'])
@@ -432,6 +540,13 @@ class SEImageSlice(object):
 
         self.bmask = bmask[
             y_start:y_start+box_size, x_start:x_start+box_size].copy()
+
+        wgt = _read_image(
+            self.source_info['weight_path'],
+            ext=self.source_info['weight_ext'])
+        self.weight = (
+            wgt[y_start:y_start+box_size, x_start:x_start+box_size].copy() /
+            scale**2)
 
         # this call rereads the weight image using the cached function
         # so it does not do any extra i/o
