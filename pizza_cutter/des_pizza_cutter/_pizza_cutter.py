@@ -761,7 +761,7 @@ def _build_image_info(*, info):
         [len(json.dumps(eval(str(info['image_wcs']))))]
         + [
             len(json.dumps(eval(str(
-                _noerr_load_image_wcs(se["image_path"], se["image_ext"])
+                _noerr_load_image_wcs(se)
             ))))
             for se in PBar(
                 info['src_info'],
@@ -811,7 +811,7 @@ def _build_image_info(*, info):
         ii['scale'][loc] = se_info['scale']
         ii['position_offset'][loc] = se_info['position_offset']
         ii['wcs'][loc] = json.dumps(eval(str(
-            _noerr_load_image_wcs(se_info["image_path"], se_info["image_ext"])
+            _noerr_load_image_wcs(se_info)
         )))
 
     return ii
