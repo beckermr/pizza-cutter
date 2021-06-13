@@ -128,7 +128,7 @@ def _get_noise_image_cached(weight_path, weight_ext, scale, noise_seed, tmpdir):
     return _get_noise_image_impl(weight_path, weight_ext, scale, noise_seed, tmpdir)
 
 
-@lru_cache(maxsize=2048)
+@lru_cache(maxsize=IMAGE_CACHE_SIZE)
 def _get_wcs_inverse(wcs, wcs_position_offset, se_wcs, se_im_shape, delta):
     if hasattr(se_wcs, "source_info"):
         logger.debug(
@@ -176,7 +176,7 @@ def _compute_wcs_area(se_wcs, x_se, y_se, dxy=1):
     return np.abs(dudx * dvdy - dvdx * dudy)
 
 
-@lru_cache(maxsize=2048)
+@lru_cache(maxsize=IMAGE_CACHE_SIZE)
 def _get_wcs_area_interp(se_wcs, se_im_shape, delta, position_offset=0):
     if hasattr(se_wcs, "source_info"):
         logger.debug(
