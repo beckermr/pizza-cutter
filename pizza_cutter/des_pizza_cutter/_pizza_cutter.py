@@ -750,7 +750,6 @@ def _build_image_info(*, info):
         + [
             len(json.dumps(eval(str(se['image_wcs']))))
             for se in info['src_info']
-            if 'image_wcs' in se
         ]
     )
 
@@ -793,8 +792,7 @@ def _build_image_info(*, info):
         ii['magzp'][loc] = se_info['magzp']
         ii['scale'][loc] = se_info['scale']
         ii['position_offset'][loc] = se_info['position_offset']
-        if 'image_wcs' in se_info:
-            ii['wcs'][loc] = json.dumps(eval(str(se_info['image_wcs'])))
+        ii['wcs'][loc] = json.dumps(eval(str(se_info['image_wcs'])))
 
     return ii
 

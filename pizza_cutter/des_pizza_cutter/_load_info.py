@@ -116,29 +116,29 @@ def load_objects_into_info(*, info, verbose=True, skip_se=False):
         if 'galsim_psf_config' in ii:
             ii['galsim_psf'] = _build_gsobject(ii['galsim_psf_config'])
 
+        # wcs info
+        try:
+            ii['image_wcs'] = FastHashingWCS(
+                _munge_fits_header(
+                    fitsio.read_header(
+                        expandvars(ii['image_path']), ext=ii['image_ext'])))
+        except Exception as e:
+            if verbose:
+                print(
+                    "failed to load SE image WCS do to error: %s" % repr(e),
+                    flush=True,
+                )
+            if "affine_wcs_config" not in ii:
+                raise e
+            else:
+                ii['image_wcs'] = None
+
         if not skip_se:
             logger.info(
                 "loading image data products for %s/%s",
                 ii["path"],
                 ii["filename"],
             )
-
-            # wcs info
-            try:
-                ii['image_wcs'] = FastHashingWCS(
-                    _munge_fits_header(
-                        fitsio.read_header(
-                            expandvars(ii['image_path']), ext=ii['image_ext'])))
-            except Exception as e:
-                if verbose:
-                    print(
-                        "failed to load SE image WCS do to error: %s" % repr(e),
-                        flush=True,
-                    )
-                if "affine_wcs_config" not in ii:
-                    raise e
-                else:
-                    ii['image_wcs'] = None
 
             # psfex
             if 'psfex_path' in ii and ii['psfex_path'] is not None:
