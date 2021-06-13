@@ -35,7 +35,7 @@ from ..wcs import wrap_ra_diff, FastHashingWCS
 
 logger = logging.getLogger(__name__)
 
-SMALL_IMAGE_CACHE_SIZE = 16
+SMALL_IMAGE_CACHE_SIZE = 32
 BIG_IMAGE_CACHE_SIZE = 512
 
 # TODO: make a config option?
@@ -73,7 +73,7 @@ def _read_image(path, ext):
         return _read_image_cached(path, ext)
 
 
-@lru_cache(maxsize=SMALL_IMAGE_CACHE_SIZE*4)
+@lru_cache(maxsize=SMALL_IMAGE_CACHE_SIZE*2)
 def _read_image_cached(path, ext):
     """Cached reads of images.
 
@@ -131,6 +131,15 @@ def _get_noise_image_cached(weight_path, weight_ext, scale, noise_seed, tmpdir):
 
 @lru_cache(maxsize=SMALL_IMAGE_CACHE_SIZE)
 def _get_wcs_inverse(wcs, wcs_position_offset, se_wcs, se_im_shape, delta):
+    ci = _get_wcs_inverse.cache_info()
+    if ci.misses == ci.maxsize+1:
+        print(
+            "_get_wcs_inverse cache size exceeded: maxsize = %d" % (
+                ci.maxsize,
+            ),
+            flush=True,
+        )
+
     if hasattr(se_wcs, "source_info"):
         logger.debug(
             "wcs inverse cache miss for %s/%s",
@@ -179,6 +188,15 @@ def _compute_wcs_area(se_wcs, x_se, y_se, dxy=1):
 
 @lru_cache(maxsize=SMALL_IMAGE_CACHE_SIZE)
 def _get_wcs_area_interp(se_wcs, se_im_shape, delta, position_offset=0):
+    ci = _get_wcs_area_interp.cache_info()
+    if ci.misses == ci.maxsize+1:
+        print(
+            "_get_wcs_area_interp cache size exceeded: maxsize = %d" % (
+                ci.maxsize,
+            ),
+            flush=True,
+        )
+
     if hasattr(se_wcs, "source_info"):
         logger.debug(
             "wcs area interp cache miss for %s/%s",
@@ -207,6 +225,15 @@ def _get_wcs_area_interp(se_wcs, se_im_shape, delta, position_offset=0):
 
 @lru_cache(maxsize=BIG_IMAGE_CACHE_SIZE)
 def _load_piff_pixmappy(piff_path):
+    ci = _load_piff_pixmappy.cache_info()
+    if ci.misses == ci.maxsize+1:
+        print(
+            "_load_piff_pixmappy cache size exceeded: maxsize = %d" % (
+                ci.maxsize,
+            ),
+            flush=True,
+        )
+
     logger.debug("load Piff miss for %s", piff_path)
     piff_path = os.path.expandvars(piff_path)
     psf = get_piff_psf(piff_path)
@@ -234,6 +261,15 @@ def _load_piff_pixmappy(piff_path):
 
 @lru_cache(maxsize=BIG_IMAGE_CACHE_SIZE)
 def _load_psfex(psfex_path):
+    ci = _load_psfex.cache_info()
+    if ci.misses == ci.maxsize+1:
+        print(
+            "_load_psfex cache size exceeded: maxsize = %d" % (
+                ci.maxsize,
+            ),
+            flush=True,
+        )
+
     logger.debug("load psfex cache miss for %s", psfex_path)
     psfex_path = os.path.expandvars(psfex_path)
     return galsim.des.DES_PSFEx(psfex_path)
@@ -241,6 +277,15 @@ def _load_psfex(psfex_path):
 
 @lru_cache(maxsize=BIG_IMAGE_CACHE_SIZE)
 def _load_image_wcs(image_path, image_ext):
+    ci = _load_image_wcs.cache_info()
+    if ci.misses == ci.maxsize+1:
+        print(
+            "_load_image_wcs cache size exceeded: maxsize = %d" % (
+                ci.maxsize,
+            ),
+            flush=True,
+        )
+
     logger.debug("load wcs cache miss for %s[%s]", image_path, image_ext)
     return FastHashingWCS(
         _munge_fits_header(
