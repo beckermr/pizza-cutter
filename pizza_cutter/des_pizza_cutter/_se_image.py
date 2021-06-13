@@ -118,6 +118,7 @@ def _get_noise_image(weight_path, weight_ext, scale, noise_seed, tmpdir):
 def _get_noise_image_cached(weight_path, weight_ext, scale, noise_seed, tmpdir):
     """Cached generation of memory mapped noise images."""
     ci = _get_noise_image_cached.cache_info()
+    print("cache miss for noise image:", ci, flush=True)
     if ci.misses == ci.maxsize + 1:
         print(
             "_get_noise_image_cached cache miss: misses|maxsize = %d|%d" % (
@@ -533,13 +534,6 @@ class SEImageSlice(object):
         self.image = im[
             y_start:y_start+box_size, x_start:x_start+box_size].copy() * scale
 
-        wgt = _read_image(
-            self.source_info['weight_path'],
-            ext=self.source_info['weight_ext'])
-        self.weight = (
-            wgt[y_start:y_start+box_size, x_start:x_start+box_size].copy() /
-            scale**2)
-
         bmask = _read_image(
             self.source_info['bmask_path'],
             ext=self.source_info['bmask_ext'])
@@ -549,6 +543,13 @@ class SEImageSlice(object):
 
         self.bmask = bmask[
             y_start:y_start+box_size, x_start:x_start+box_size].copy()
+
+        wgt = _read_image(
+            self.source_info['weight_path'],
+            ext=self.source_info['weight_ext'])
+        self.weight = (
+            wgt[y_start:y_start+box_size, x_start:x_start+box_size].copy() /
+            scale**2)
 
         # this call rereads the weight image using the cached function
         # so it does not do any extra i/o
