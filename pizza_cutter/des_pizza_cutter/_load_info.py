@@ -6,10 +6,10 @@ import fitsio
 import logging
 
 import pixmappy
+from esutil.pbar import PBar
 
 from ._piff_tools import get_piff_psf
 from ._affine_wcs import AffineWCS
-from ..slice_utils.pbar import PBar
 from ..wcs import FastHashingWCS
 
 logger = logging.getLogger(__name__)

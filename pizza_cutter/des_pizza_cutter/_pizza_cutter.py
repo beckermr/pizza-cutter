@@ -46,7 +46,7 @@ from ..files import StagedOutFile
 from ._coadd_slices import (
     _build_slice_inputs, _coadd_slice_inputs)
 
-from ..slice_utils.pbar import PBar
+from esutil.pbar import PBar
 
 logger = logging.getLogger(__name__)
 
@@ -402,7 +402,8 @@ def _coadd_and_write_images(
     distances = []
     dx = info['image_shape'][1]/ph_order
     dy = info['image_shape'][0]/ph_order
-    for i in PBar(slices_to_do, desc="ordering slices for better cache use"):
+    print("ordering slices for better cache use", flush=True)
+    for i in slices_to_do:
         col, row = wcs.sky2image(object_data['ra'][i], object_data['dec'][i])
         xind = min(max(int(col / dx), 0), ph_order-1)
         yind = min(max(int(row / dy), 0), ph_order-1)
@@ -424,7 +425,7 @@ def _coadd_and_write_images(
         info['src_info'][i]['noise_seed'] = rng.randint(low=1, high=2**30)
 
     print(
-        'processing %d slices: %s' % (len(slices_to_do), slice_range),
+        'processing %d slices: %s' % (len(slices_to_do), slice_range or "all slices"),
         flush=True,
     )
 
