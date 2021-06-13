@@ -35,7 +35,7 @@ from ..wcs import wrap_ra_diff, FastHashingWCS
 
 logger = logging.getLogger(__name__)
 
-IMAGE_CACHE_SIZE = 128
+IMAGE_CACHE_SIZE = 16
 
 # TODO: make a config option?
 PIFF_STAMP_SIZE = 25
