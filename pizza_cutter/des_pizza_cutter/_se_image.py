@@ -35,7 +35,7 @@ from ..wcs import wrap_ra_diff, FastHashingWCS
 
 logger = logging.getLogger(__name__)
 
-IMAGE_CACHE_SIZE = 64
+IMAGE_CACHE_SIZE = 32
 
 # TODO: make a config option?
 PIFF_STAMP_SIZE = 25
@@ -72,7 +72,7 @@ def _read_image(path, ext):
         return _read_image_cached(path, ext)
 
 
-@lru_cache(maxsize=IMAGE_CACHE_SIZE)
+@lru_cache(maxsize=IMAGE_CACHE_SIZE*4)
 def _read_image_cached(path, ext):
     """Cached reads of images.
 
@@ -82,8 +82,7 @@ def _read_image_cached(path, ext):
     ci = _read_image_cached.cache_info()
     if ci.misses == ci.maxsize+1:
         print(
-            "_read_image_cached cache miss: misses|maxsize = %d|%d" % (
-                ci.misses,
+            "_read_image_cached cache size exceeded: maxsize = %d" % (
                 ci.maxsize,
             ),
             flush=True,
@@ -118,11 +117,9 @@ def _get_noise_image(weight_path, weight_ext, scale, noise_seed, tmpdir):
 def _get_noise_image_cached(weight_path, weight_ext, scale, noise_seed, tmpdir):
     """Cached generation of memory mapped noise images."""
     ci = _get_noise_image_cached.cache_info()
-    print("cache miss for noise image:", ci, flush=True)
     if ci.misses == ci.maxsize + 1:
         print(
-            "_get_noise_image_cached cache miss: misses|maxsize = %d|%d" % (
-                ci.misses,
+            "_get_noise_image_cached cache size exceeded: maxsize = %d" % (
                 ci.maxsize,
             ),
             flush=True,
