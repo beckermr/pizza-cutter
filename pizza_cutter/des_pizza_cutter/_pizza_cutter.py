@@ -22,6 +22,7 @@ from meds.util import (
     get_image_info_struct, get_meds_output_struct, validate_meds)
 
 from .. import __version__
+from ._se_image import _load_image_wcs
 from ._constants import (
     METADATA_EXTNAME,
     GAIA_STARS_EXTNAME,
@@ -748,7 +749,9 @@ def _build_image_info(*, info):
     max_wcs_len = max(
         [len(json.dumps(eval(str(info['image_wcs']))))]
         + [
-            len(json.dumps(eval(str(se['image_wcs']))))
+            len(json.dumps(eval(str(
+                _load_image_wcs(se["image_path"], se["image_ext"])
+            ))))
             for se in info['src_info']
         ]
     )
@@ -792,7 +795,9 @@ def _build_image_info(*, info):
         ii['magzp'][loc] = se_info['magzp']
         ii['scale'][loc] = se_info['scale']
         ii['position_offset'][loc] = se_info['position_offset']
-        ii['wcs'][loc] = json.dumps(eval(str(se_info['image_wcs'])))
+        ii['wcs'][loc] = json.dumps(eval(str(
+            _load_image_wcs(se_info["image_path"], se_info["image_ext"])
+        )))
 
     return ii
 
