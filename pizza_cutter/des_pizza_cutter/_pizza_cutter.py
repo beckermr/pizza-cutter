@@ -743,6 +743,16 @@ def _build_object_data(
     return output_info
 
 
+def _noerr_load_image_wcs(se):
+    try:
+        return _load_image_wcs(se["image_path"], se["image_ext"])
+    except Exception as e:
+        if "affine_wcs_config" not in se:
+            raise e
+        else:
+            return None
+
+
 def _build_image_info(*, info):
     n_images = 1 + len(info['src_info'])
 
@@ -751,7 +761,7 @@ def _build_image_info(*, info):
         [len(json.dumps(eval(str(info['image_wcs']))))]
         + [
             len(json.dumps(eval(str(
-                _load_image_wcs(se["image_path"], se["image_ext"])
+                _noerr_load_image_wcs(se["image_path"], se["image_ext"])
             ))))
             for se in PBar(
                 info['src_info'],
@@ -801,7 +811,7 @@ def _build_image_info(*, info):
         ii['scale'][loc] = se_info['scale']
         ii['position_offset'][loc] = se_info['position_offset']
         ii['wcs'][loc] = json.dumps(eval(str(
-            _load_image_wcs(se_info["image_path"], se_info["image_ext"])
+            _noerr_load_image_wcs(se_info["image_path"], se_info["image_ext"])
         )))
 
     return ii
