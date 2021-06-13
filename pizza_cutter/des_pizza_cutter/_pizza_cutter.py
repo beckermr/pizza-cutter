@@ -126,7 +126,6 @@ def make_des_pizza_slices(
         The number of multiprocessing jobs to use. Only works well for large
         numbers of slices.
     """
-    print("making metadata, image info, and object data...", flush=True, end="")
 
     metadata = _build_metadata(config=config)
     image_info = _build_image_info(info=info)
@@ -153,8 +152,6 @@ def make_des_pizza_slices(
     position_offset = info['position_offset']
 
     gaia_stars_file = info.get('gaia_stars_file', None)
-
-    print("done", flush=True)
 
     with StagedOutFile(meds_path + '.fz', tmpdir=tmpdir) as sf:
 
@@ -758,7 +755,7 @@ def _build_image_info(*, info):
             for se in PBar(
                 info['src_info'],
                 total=len(info['src_info']),
-                desc='loading SE WCS headers',
+                desc='making image info data',
             )
         ]
     )
