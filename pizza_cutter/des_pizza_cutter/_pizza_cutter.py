@@ -745,7 +745,10 @@ def _build_object_data(
 
 def _noerr_load_image_wcs(se):
     try:
-        return _load_image_wcs(se["image_path"], se["image_ext"])
+        if 'image_wcs' in se:
+            return se['image_wcs']
+        else:
+            return _load_image_wcs(se["image_path"], se["image_ext"])
     except Exception as e:
         if "affine_wcs_config" not in se:
             raise e
