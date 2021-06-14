@@ -24,7 +24,7 @@ from ....slice_utils.procflags import (
     HIGH_MASKED_FRAC)
 
 
-def _coadd_end2end(tmp_path_factory, sim_config):
+def _coadd_end2end(tmp_path_factory, sim_config, n_extra_noise_images=0):
     tmp_path = tmp_path_factory.getbasetemp()
     info, images, weights, bmasks, bkgs, _ = generate_sim()
     write_sim(
@@ -36,17 +36,34 @@ def _coadd_end2end(tmp_path_factory, sim_config):
     with open(os.path.join(tmp_path, 'config.yaml'), 'w') as fp:
         fp.write(sim_config)
 
-    cmd = """\
-    des-pizza-cutter \
-      --config={config} \
-      --info={info} \
-      --output-path={tmp_path} \
-      --log-level=DEBUG \
-      --seed=42
-    """.format(
-        config=os.path.join(tmp_path, 'config.yaml'),
-        info=os.path.join(tmp_path, 'info.yaml'),
-        tmp_path=tmp_path)
+    if n_extra_noise_images > 0:
+        cmd = """\
+        des-pizza-cutter \
+          --config={config} \
+          --info={info} \
+          --output-path={tmp_path} \
+          --log-level=DEBUG \
+          --seed=42 \
+          --n-extra-noise-images={n_extra_noise_images}
+        """.format(
+            config=os.path.join(tmp_path, 'config.yaml'),
+            info=os.path.join(tmp_path, 'info.yaml'),
+            tmp_path=tmp_path,
+            n_extra_noise_images=n_extra_noise_images
+        )
+    else:
+        cmd = """\
+        des-pizza-cutter \
+          --config={config} \
+          --info={info} \
+          --output-path={tmp_path} \
+          --log-level=DEBUG \
+          --seed=42
+        """.format(
+            config=os.path.join(tmp_path, 'config.yaml'),
+            info=os.path.join(tmp_path, 'info.yaml'),
+            tmp_path=tmp_path
+        )
 
     mdir = os.environ.get('MEDS_DIR')
     try:
@@ -84,6 +101,11 @@ def _coadd_end2end(tmp_path_factory, sim_config):
 @pytest.fixture(scope="session")
 def coadd_end2end(tmp_path_factory):
     return _coadd_end2end(tmp_path_factory, SIM_CONFIG)
+
+
+@pytest.fixture(scope="session")
+def coadd_end2end_extra_noise_images(tmp_path_factory):
+    return _coadd_end2end(tmp_path_factory, SIM_CONFIG, n_extra_noise_images=3)
 
 
 @pytest.fixture(scope="session")
@@ -479,6 +501,41 @@ def test_coadding_end2end_noise(coadd_end2end):
     # we also demand that it matches to better than 20%
     assert np.std(nse) <= np.sqrt(var)
     assert np.allclose(np.std(nse), np.sqrt(var), atol=0, rtol=0.2)
+
+
+def test_coadding_end2end_extra_noise_images(coadd_end2end_extra_noise_images):
+    m = meds.MEDS(coadd_end2end_extra_noise_images['meds_path'])
+    weights = coadd_end2end_extra_noise_images['weights']
+    info = coadd_end2end_extra_noise_images['info']
+    ei = m._fits['epochs_info'].read()
+
+    ############################################################
+    # get weights for computing nepoch_eff
+    max_wgts = []
+    for ind in range(len(ei)):
+        if ei['weight'][ind] > 0:
+            src_ind = ei['file_id'][ind]-1
+            max_wgts.append(
+                np.max(weights[src_ind]) /
+                info['src_info'][src_ind]['scale'] ** 2
+                )
+    max_wgts = np.array(max_wgts)
+    var = 1.0 / np.sum(max_wgts)
+
+    # due to interpolation causing correlations noise
+    # variance should be smaller
+    # we also demand that it matches to better than 20%
+    nse = m.get_cutout(0, 0, type='noise')
+    assert np.std(nse) <= np.sqrt(var)
+    assert np.allclose(np.std(nse), np.sqrt(var), atol=0, rtol=0.2)
+
+    last_nse = nse
+    for i in range(3):
+        _nse = m.get_cutout(0, 0, type='noise%d' % (i+1))
+        assert np.std(_nse) <= np.sqrt(var)
+        assert np.allclose(np.std(_nse), np.sqrt(var), atol=0, rtol=0.2)
+        assert not np.allclose(last_nse, _nse)
+        last_nse = _nse
 
 
 def test_coadding_end2end_weight(coadd_end2end):

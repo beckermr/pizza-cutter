@@ -342,14 +342,14 @@ def _process_results(
     *, results, start_row, psf_start_row, object_data, epochs_info, fits,
 ):
     logger.info("writing data for slice %s", results['i'])
-    i = results['i']
+    slice_id = results['i']
     epochs_info.append(results["epochs_info"])
 
     # did we get anything?
     if np.array(results["weights"]).size > 0:
-        object_data['ncutout'][i] = 1
-        object_data['nepoch'][i] = results["weights"].size
-        object_data['nepoch_eff'][i] = (
+        object_data['ncutout'][slice_id] = 1
+        object_data['nepoch'][slice_id] = results["weights"].size
+        object_data['nepoch_eff'][slice_id] = (
             results["weights"].sum() / results["weights"].max()
         )
 
@@ -370,10 +370,10 @@ def _process_results(
             fits=fits, data=results["noises"][0],
             ext=NOISE_CUTOUT_EXTNAME, start_row=start_row)
         if len(results["noises"]) > 1:
-            for i in range(1, len(results["noises"])):
+            for nse_i in range(1, len(results["noises"])):
                 _write_single_image(
-                    fits=fits, data=results["noises"][i],
-                    ext="noise%d_cutouts" % i, start_row=start_row,
+                    fits=fits, data=results["noises"][nse_i],
+                    ext="noise%d_cutouts" % nse_i, start_row=start_row,
                     ext_info=NOISE_CUTOUT_EXTNAME,
                 )
 
@@ -389,14 +389,14 @@ def _process_results(
             fits=fits, data=results["psf"],
             ext=PSF_CUTOUT_EXTNAME, start_row=psf_start_row)
 
-        object_data['psf_sigma'][i, 0] = results["psf_sigma"]
+        object_data['psf_sigma'][slice_id, 0] = results["psf_sigma"]
 
         # now we need to set the start row so we know where the data is
-        object_data['start_row'][i, 0] = start_row
-        object_data['psf_start_row'][i, 0] = psf_start_row
+        object_data['start_row'][slice_id, 0] = start_row
+        object_data['psf_start_row'][slice_id, 0] = psf_start_row
     else:
-        object_data['nepoch'][i] = 0
-        object_data['nepoch_eff'][i] = 0
+        object_data['nepoch'][slice_id] = 0
+        object_data['nepoch_eff'][slice_id] = 0
 
 
 def _coadd_and_write_images(
@@ -577,7 +577,10 @@ def _reserve_images(fits, n_pixels, n_pixels_psf, fpack_pars, n_extra_noise_imag
         NOISE_CUTOUT_EXTNAME,
         MFRAC_CUTOUT_EXTNAME,
     ]
-    extra_noise_names = ["noise%d" % (i+1) for i in range(n_extra_noise_images)]
+    extra_noise_names = [
+        "noise%d_cutouts" % (i+1)
+        for i in range(n_extra_noise_images)
+    ]
     names += extra_noise_names
     dims = [n_pixels] * len(names) + [n_pixels_psf]
     names += [PSF_CUTOUT_EXTNAME]
