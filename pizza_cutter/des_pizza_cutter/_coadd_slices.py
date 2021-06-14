@@ -393,7 +393,7 @@ def _build_slice_inputs(
                 bad_flags=spline_interp_flags,
             )
 
-            if interp_image is None or interp_noises is None:
+            if _interp_image is None or _interp_noises is None:
                 flags |= procflags.HIGH_INTERP_MASKED_FRAC
                 slices_not_used.append(se_slice)
                 flags_not_used.append(flags)
