@@ -500,6 +500,7 @@ def test_coadding_end2end_noise(coadd_end2end):
     # variance should be smaller
     # we also demand that it matches to better than 20%
     assert np.std(nse) <= np.sqrt(var)
+    assert np.std(nse) > 0
     assert np.allclose(np.std(nse), np.sqrt(var), atol=0, rtol=0.2)
 
 
@@ -527,12 +528,14 @@ def test_coadding_end2end_extra_noise_images(coadd_end2end_extra_noise_images):
     # we also demand that it matches to better than 20%
     nse = m.get_cutout(0, 0, type='noise')
     assert np.std(nse) <= np.sqrt(var)
+    assert np.std(nse) > 0
     assert np.allclose(np.std(nse), np.sqrt(var), atol=0, rtol=0.2)
 
     last_nse = nse
     for i in range(3):
         _nse = m.get_cutout(0, 0, type='noise%d' % (i+1))
         assert np.std(_nse) <= np.sqrt(var)
+        assert np.std(_nse) > 0
         assert np.allclose(np.std(_nse), np.sqrt(var), atol=0, rtol=0.2)
         assert not np.allclose(last_nse, _nse)
         last_nse = _nse
