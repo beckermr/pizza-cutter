@@ -3,12 +3,11 @@ import os
 import subprocess
 
 from ._constants import MAGZP_REF, POSITION_OFFSET
-from ._piff_tools import load_piff_path_from_image_path
 
 logger = logging.getLogger(__name__)
 
 
-def add_extra_des_coadd_tile_info(*, info, piff_run):
+def add_extra_des_coadd_tile_info(*, info):
     """Read the coadd tile info, load WCS info, and load PSF info for
     the DES Y3+ DESDM layout.
 
@@ -16,8 +15,6 @@ def add_extra_des_coadd_tile_info(*, info, piff_run):
     ----------
     info: dict
         Info dict for a coadd tile
-    piff_run : str
-        The PIFF PSF run to use.
 
     Returns
     -------
@@ -104,17 +101,6 @@ def add_extra_des_coadd_tile_info(*, info, piff_run):
 
         # psfex psf
         ii['psfex_path'] = ii['psf_path']
-
-        # piff
-        if piff_run is not None:
-            piff_data = load_piff_path_from_image_path(
-                image_path=ii['image_path'],
-                piff_run=piff_run,
-            )
-
-            if piff_data['psf_path'] is not None:
-                ii['piff_path'] = piff_data['psf_path']
-            ii['image_flags'] |= piff_data['flags']
 
         # image scale
         ii['scale'] = 10.0**(0.4*(MAGZP_REF - ii['magzp']))
