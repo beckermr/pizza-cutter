@@ -38,6 +38,8 @@ def test_se_image_interp_set(se_image_data, coadd_image_data):
 
     orig_image = se_im.image.copy()
     orig_noises = [nse.copy() for nse in se_im.noises]
+    for i in range(len(se_im.noises)-1):
+        assert not np.allclose(se_im.noises[i], se_im.noises[i+1])
 
     pmask = np.zeros_like(se_im.image, dtype=np.int32)
     pmask[1, 2] = 32

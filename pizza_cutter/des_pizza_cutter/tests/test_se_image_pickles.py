@@ -14,7 +14,8 @@ from .._se_image import SEImageSlice
     reason=(
         'SEImageSlice can only be tested if '
         'test data is at TEST_DESDATA'))
-def test_se_image_pickles(se_image_data):
+@pytest.mark.parametrize('noise_seeds', [[10], [1232, 25, 22]])
+def test_se_image_pickles(se_image_data, noise_seeds):
     psf_mod = piff.PSF.read(se_image_data['source_info']['piff_path'])
     se_im = SEImageSlice(
         source_info=se_image_data['source_info'],
@@ -22,7 +23,7 @@ def test_se_image_pickles(se_image_data):
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=1,
         wcs_color=0,
-        noise_seeds=[10],
+        noise_seeds=noise_seeds,
         mask_tape_bumps=False,
     )
 

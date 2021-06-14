@@ -88,6 +88,8 @@ def test_se_image_slice_read(monkeypatch, se_image_data):
         )
         assert np.array_equal(nse[50:82, 10:42], se_im.noises[1])
 
+        assert not np.allclose(se_im.noises[0], se_im.noises[1])
+
 
 @pytest.mark.skipif(
     os.environ.get('TEST_DESDATA', None) is None,
