@@ -28,7 +28,7 @@ def test_se_image_slice_read(monkeypatch, se_image_data):
             wcs=se_image_data['eu_wcs'],
             wcs_position_offset=1,
             wcs_color=0,
-            noise_seed=10,
+            noise_seeds=[10, 12],
             mask_tape_bumps=False,
             tmpdir=tmpdir,
         )
@@ -76,7 +76,17 @@ def test_se_image_slice_read(monkeypatch, se_image_data):
             sx=1024,
             sy=1024,
         )
-        assert np.array_equal(nse[50:82, 10:42], se_im.noise)
+        assert np.array_equal(nse[50:82, 10:42], se_im.noises[0])
+
+        zmsk = wgt <= 0
+        nse = MemMappedNoiseImage(
+            seed=12,
+            weight=wgt * (~zmsk) + zmsk * np.max(wgt[~zmsk]),
+            dir=tmpdir,
+            sx=1024,
+            sy=1024,
+        )
+        assert np.array_equal(nse[50:82, 10:42], se_im.noises[1])
 
 
 @pytest.mark.skipif(
@@ -95,7 +105,7 @@ def test_se_image_slice_noise_adjacent(monkeypatch, se_image_data):
             wcs=se_image_data['eu_wcs'],
             wcs_position_offset=1,
             wcs_color=0,
-            noise_seed=10,
+            noise_seeds=[10, 11],
             mask_tape_bumps=False,
             tmpdir=tmpdir,
         )
@@ -113,7 +123,7 @@ def test_se_image_slice_noise_adjacent(monkeypatch, se_image_data):
             wcs=se_image_data['eu_wcs'],
             wcs_position_offset=1,
             wcs_color=0,
-            noise_seed=10,
+            noise_seeds=[10, 11],
             mask_tape_bumps=False,
             tmpdir=tmpdir,
         )
@@ -126,7 +136,8 @@ def test_se_image_slice_noise_adjacent(monkeypatch, se_image_data):
         se_im_adj.set_slice(patch_bnds)
 
         # make sure the overlapping parts of the noise field are the same
-        assert np.array_equal(se_im.noise[:, 10:], se_im_adj.noise[:, :-10])
+        assert np.array_equal(se_im.noises[0][:, 10:], se_im_adj.noises[0][:, :-10])
+        assert np.array_equal(se_im.noises[1][:, 10:], se_im_adj.noises[1][:, :-10])
 
 
 @pytest.mark.skipif(
@@ -145,7 +156,7 @@ def test_se_image_slice_double_use(monkeypatch, se_image_data):
             wcs=se_image_data['eu_wcs'],
             wcs_position_offset=1,
             wcs_color=0,
-            noise_seed=10,
+            noise_seeds=[10],
             mask_tape_bumps=False,
             tmpdir=tmpdir,
         )
@@ -213,7 +224,7 @@ def test_se_image_slice_two_obj(monkeypatch, se_image_data):
             wcs=se_image_data['eu_wcs'],
             wcs_position_offset=1,
             wcs_color=0,
-            noise_seed=10,
+            noise_seeds=[10, 11],
             mask_tape_bumps=False,
             tmpdir=tmpdir,
         )
@@ -247,7 +258,7 @@ def test_se_image_slice_two_obj(monkeypatch, se_image_data):
             wcs=se_image_data['eu_wcs'],
             wcs_position_offset=1,
             wcs_color=0,
-            noise_seed=10,
+            noise_seeds=[10, 11],
             mask_tape_bumps=False,
             tmpdir=tmpdir,
         )

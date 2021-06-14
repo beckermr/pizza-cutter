@@ -23,7 +23,7 @@ def test_se_image_psf_array(se_image_data, x, y):
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=1,
         wcs_color=0,
-        noise_seed=10,
+        noise_seeds=[10],
         mask_tape_bumps=False,
     )
 
@@ -62,7 +62,7 @@ def test_se_image_psf_gsobject(se_image_data, eps_x, eps_y, wcs_pos_offset):
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=wcs_pos_offset,
         wcs_color=0,
-        noise_seed=10,
+        noise_seeds=[10],
         mask_tape_bumps=False,
     )
 
@@ -119,7 +119,7 @@ def test_se_image_psf_psfex(
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=wcs_pos_offset,
         wcs_color=0,
-        noise_seed=10,
+        noise_seeds=[10],
         mask_tape_bumps=False,
     )
 
@@ -180,7 +180,7 @@ def test_se_image_psf_piff(se_image_data, eps_x, eps_y, wcs_pos_offset):
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=wcs_pos_offset,
         wcs_color=0,
-        noise_seed=10,
+        noise_seeds=[10],
         mask_tape_bumps=False,
     )
 
@@ -237,7 +237,7 @@ def test_se_image_psf_piff_color(se_image_data, eps_x, eps_y, wcs_pos_offset):
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=wcs_pos_offset,
         wcs_color=0.7,
-        noise_seed=10,
+        noise_seeds=[10],
         mask_tape_bumps=False,
     )
 

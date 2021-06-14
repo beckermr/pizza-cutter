@@ -23,7 +23,7 @@ def test_se_image_wcs_jacobian_array(se_image_data, x, y):
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=1,
         wcs_color=0,
-        noise_seed=10,
+        noise_seeds=[10],
         mask_tape_bumps=False,
     )
 
@@ -53,7 +53,7 @@ def test_se_image_wcs_jacobian_esutil(se_image_data, wcs_pos_offset):
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=wcs_pos_offset,
         wcs_color=0,
-        noise_seed=10,
+        noise_seeds=[10],
         mask_tape_bumps=False,
     )
 
@@ -83,7 +83,7 @@ def test_se_image_wcs_jacobian_galsim(se_image_data, wcs_pos_offset):
         wcs=se_image_data['gs_wcs'],
         wcs_position_offset=wcs_pos_offset,
         wcs_color=0,
-        noise_seed=10,
+        noise_seeds=[10],
         mask_tape_bumps=False,
     )
 
