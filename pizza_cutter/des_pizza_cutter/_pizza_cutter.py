@@ -370,10 +370,10 @@ def _process_results(
             fits=fits, data=results["noises"][0],
             ext=NOISE_CUTOUT_EXTNAME, start_row=start_row)
         if len(results["noises"]) > 1:
-            for i in range(len(results["noises"])-1):
+            for i in range(1, len(results["noises"])):
                 _write_single_image(
-                    fits=fits, data=results["noises"][i+1],
-                    ext="noise%d_cutouts" % (i+1), start_row=start_row,
+                    fits=fits, data=results["noises"][i],
+                    ext="noise%d_cutouts" % i, start_row=start_row,
                     ext_info=NOISE_CUTOUT_EXTNAME,
                 )
 
