@@ -124,7 +124,7 @@ def make_des_pizza_slices(
         the single epoch images. See the documentaion of
         `pizza_cutter.des_pizza_cutter._coadd_slices._build_slice_inputs`
         for details on the required entries.
-    n_extra_noise_images : int, optional
+    n_extra_noise_images : int
         The number of extra noise images to make. These are written as cutout
         types 'noise1', 'noise2', etc. in the final MEDS file.
     n_jobs : int, optional
