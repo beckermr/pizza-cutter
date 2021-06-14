@@ -101,8 +101,7 @@ def main():
         info = coadd.get_info()
         info["gaia_stars_file"] = os.path.join(source_dir, gaia_path)
 
-        piff_run = cfg['des_data'].get('piff_run', None)
-        add_extra_des_coadd_tile_info(info=info, piff_run=piff_run)
+        add_extra_des_coadd_tile_info(info=info)
 
         print("running sanity checks on tile info...", end="", flush=True)
         check_info(info=info)
