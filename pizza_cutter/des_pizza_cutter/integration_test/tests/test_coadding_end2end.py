@@ -531,6 +531,7 @@ def test_coadding_end2end_extra_noise_images(coadd_end2end_extra_noise_images):
     assert np.std(nse) > 0
     assert np.allclose(np.std(nse), np.sqrt(var), atol=0, rtol=0.2)
 
+    all_nse = [np.std(nse)]
     last_nse = nse
     for i in range(3):
         _nse = m.get_cutout(0, 0, type='noise%d' % (i+1))
@@ -539,6 +540,9 @@ def test_coadding_end2end_extra_noise_images(coadd_end2end_extra_noise_images):
         assert np.allclose(np.std(_nse), np.sqrt(var), atol=0, rtol=0.2)
         assert not np.allclose(last_nse, _nse)
         last_nse = _nse
+        all_nse.append(np.std(_nse))
+
+    assert np.max(all_nse) - np.min(all_nse) < 0.1 * np.mean(all_nse)
 
 
 def test_coadding_end2end_weight(coadd_end2end):
