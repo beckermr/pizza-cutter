@@ -5,6 +5,7 @@ from ._des_info import (
     get_gaia_path,
     download_archive_file,
     check_info,
+    get_coaddtile_geom,
 )
 from ._constants import *
 from ._load_info import load_objects_into_info

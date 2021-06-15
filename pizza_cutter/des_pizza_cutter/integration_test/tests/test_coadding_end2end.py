@@ -3,6 +3,7 @@ import subprocess
 import galsim
 import copy
 import esutil as eu
+import json
 
 import pytest
 import numpy as np
@@ -177,6 +178,7 @@ def test_coadding_end2end_metadata(coadd_end2end):
     assert metadata['config'][0] == coadd_end2end['config']
     assert metadata['numpy_version'][0] == np.__version__
     assert metadata['meds_dir'][0] == 'meds_dir_xyz'
+    assert json.loads(metadata['tile_info'][0]) == coadd_end2end['info']
 
 
 def test_coadding_end2end_image_info(coadd_end2end):

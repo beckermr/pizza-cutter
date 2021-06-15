@@ -3,6 +3,8 @@ import os
 import sys
 import logging
 import tempfile
+import copy
+import json
 
 import click
 import yaml
@@ -34,6 +36,7 @@ def go(
     print('band:', info['band'], flush=True)
 
     # this loads all of the data we need into the info dict
+    json_info = json.dumps(copy.deepcopy(info))
     load_objects_into_info(info=info, skip_se=True, verbose=True)
 
     print("running sanity checks on tile info...", end="", flush=True)
@@ -74,6 +77,7 @@ def go(
         config=_config,
         meds_path=meds_path,
         info=info,
+        json_info=json_info,
         fpack_pars=cfg.get('fpack_pars', None),
         seed=seed,
         slice_range=slice_range,

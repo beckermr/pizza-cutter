@@ -65,6 +65,7 @@ def make_des_pizza_slices(
     config,
     meds_path,
     info,
+    json_info,
     seed,
     slice_range=None,
     remove_fits_file=True,
@@ -87,6 +88,8 @@ def make_des_pizza_slices(
         Dictionary of information about the coadd and SE images. This should
         be set to the output of the `des-pizza-cutter-prep-tile` CLI or a
         similar function.
+    json_info : str
+        The original info file as json. This will be written to the metadata.
     seed : int
         The random seed used to make the noise field.
     slice_range: iterable or str
@@ -132,7 +135,7 @@ def make_des_pizza_slices(
         numbers of slices.
     """
 
-    metadata = _build_metadata(config=config)
+    metadata = _build_metadata(config=config, json_info=json_info)
     image_info = _build_image_info(info=info)
 
     if 'image_shape' in info:
@@ -852,7 +855,7 @@ def _build_image_info(*, info):
     return ii
 
 
-def _build_metadata(*, config):
+def _build_metadata(*, config, json_info):
     numpy_version = np.__version__
     scipy_version = scipy.__version__
     esutil_version = eu.__version__
@@ -865,6 +868,7 @@ def _build_metadata(*, config):
     dt = [
         ('magzp_ref', 'f8'),
         ('config', 'S%d' % len(config)),
+        ('tile_info', 'S%d' % len(json_info)),
         ('pizza_cutter_version', 'S%d' % len(__version__)),
         ('numpy_version', 'S%d' % len(numpy_version)),
         ('scipy_version', 'S%d' % len(scipy_version)),
@@ -896,6 +900,7 @@ def _build_metadata(*, config):
     metadata['meds_dir'] = os.environ['MEDS_DIR']
     metadata['piff_data_dir'] = os.environ.get('PIFF_DATA_DIR', '')
     metadata['desdata'] = os.environ.get('DESDATA', '')
+    metadata['tile_info'] = json_info
     return metadata
 
 
