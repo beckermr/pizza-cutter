@@ -82,6 +82,9 @@ def add_extra_des_coadd_tile_info(*, info):
 
     info['image_flags'] = 0  # TODO set this properly for the coadd?
 
+    # add coadd tile geometry
+    info.update(get_coaddtile_geom(info['tilename']))
+
     for index, ii in enumerate(info['src_info']):
         ii['image_shape'] = [4096, 2048]
         ii['image_flags'] = 0
@@ -218,6 +221,67 @@ def check_info(*, info):
             "Found problems with info file for tile!\n\n===\n\n%s\n\n===\n\n"
             % "\n\n===\n\n".join(errors)
         )
+
+
+def get_coaddtile_geom(tilename):
+    """Get the coadd tile geom and return as dict.
+
+    You can use the info returned here to query the unique tile area via
+
+        if crossra0 == 'Y':
+            uramin = uramin - 360.0
+            msk = ra > 180.0
+            ra[msk] -= 360
+
+        in_coadd = (
+            (ra > uramin)
+            & (ra <= uramax)
+            & (dec > udecmin)
+            & (dec <= udecmax)
+        )
+
+    Parameters
+    ----------
+    tilename : str
+        The name of the tile (e.g., "DES0146-3623").
+
+    Returns
+    -------
+    ctg : dict
+        A dictionary with key/values
+
+            crossra0 : str
+                Either Y or N.
+            udecmin, udecmax, uramin, uramax : float
+                The ra/dec ranges of the unique tile region.
+    """
+    import easyaccess as ea
+    conn = ea.connect(section='desoper')
+    curs = conn.cursor()
+    curs.execute("""
+select
+    cast(crossra0 as VARCHAR(1)) as crossra0,
+    udecmin,
+    udecmax,
+    uramin,
+    uramax
+from coaddtile_geom ctg
+where
+    ctg.tilename = '%s'
+""" % tilename)
+    c = curs.fetchall()
+    if len(c) == 0:
+        raise RuntimeError(
+            "No coadd tile geom information can be found for tile '%s'!" % tilename
+        )
+    crossra0, udecmin, udecmax, uramin, uramax = c[0]
+    return dict(
+        crossra0=crossra0,
+        udecmin=udecmin,
+        udecmax=udecmax,
+        uramin=uramin,
+        uramax=uramax,
+    )
 
 
 def get_gaia_path(tilename, version="v1"):
