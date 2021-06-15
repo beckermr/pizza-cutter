@@ -7,20 +7,6 @@ from numba import njit
 logger = logging.getLogger(__name__)
 
 
-def _draw_noise_image(*, weight, rng):
-    """
-    draw a noise image based on a weight map
-
-    Parameters
-    ----------
-    weight: array
-        A weight map, with no zeros
-    rng: numpy.RandomState
-        Random number generator
-    """
-    return rng.normal(size=weight.shape) * np.sqrt(1.0/weight)
-
-
 @njit
 def _get_nearby_good_pixels(image, bad_msk, nbad, buff=4):
     """
@@ -151,7 +137,7 @@ def _grid_interp(*, image, bad_msk, maxfrac=0.90):
 
 
 def interpolate_image_and_noise(
-        *, image, noise, weight, bmask, bad_flags):
+        *, image, noises, weight, bmask, bad_flags):
     """Interpolate an image using the
     `scipy.interpolate.CloughTocher2DInterpolator`. An interpolated noise
     field is returned as well.
@@ -160,8 +146,8 @@ def interpolate_image_and_noise(
     ----------
     image : array-like
         The image to interpolate.
-    noise : array-like
-        A noise field to interpolate in the same way as the image.
+    noises : list of array-like
+        The noise fields to interpolate in the same way as the image.
     weight : array-like
         A weight map to test for zero values. Any pixels with zero weight
         are interpolated.
@@ -175,7 +161,7 @@ def interpolate_image_and_noise(
     -------
     interp_image : array-like
         The interpolated image.
-    interp_noise : array-like
+    interp_noises : list of array-like
         The interpolated noise field.
     """
     bad_msk = (weight <= 0) | ((bmask & bad_flags) != 0)
@@ -186,18 +172,20 @@ def interpolate_image_and_noise(
         if interp_image is None:
             return None, None
 
-        interp_noise = _grid_interp(image=noise, bad_msk=bad_msk)
-        if interp_noise is None:
-            return None, None
+        interp_noises = []
+        for noise in noises:
+            interp_noises.append(_grid_interp(image=noise, bad_msk=bad_msk))
+            if interp_noises[-1] is None:
+                return None, None
 
-        return interp_image, interp_noise
+        return interp_image, interp_noises
     else:
         # return a copy here since the caller expects new images
-        return image.copy(), noise.copy()
+        return image.copy(), [noise.copy() for noise in noises]
 
 
 def copy_masked_edges_image_and_noise(
-    *, image, noise, weight, bmask, bad_flags
+    *, image, noises, weight, bmask, bad_flags
 ):
     """Any edge that is fully masked or has all weights zero
     has the adjacent pixels copied into it.
@@ -206,8 +194,8 @@ def copy_masked_edges_image_and_noise(
     ----------
     image : array-like
         The image to interpolate.
-    noise : array-like
-        A noise field to interpolate in the same way as the image.
+    noises : list of array-like
+        The noise fields to interpolate in the same way as the image.
     weight : array-like
         A weight map to test for zero values. Any pixels with zero weight
         are interpolated.
@@ -221,14 +209,15 @@ def copy_masked_edges_image_and_noise(
     -------
     interp_image : array-like
         The interpolated image.
-    interp_noise : array-like
-        The interpolated noise field.
+    interp_noises : list of array-like
+        The interpolated noise fields.
     interp_bmask : array-like
         The new bmask.
     interp_weight : array-like
         The new weight map.
     """
-    interp_image, interp_noise = image.copy(), noise.copy()
+    interp_image = image.copy()
+    interp_noises = [noise.copy() for noise in noises]
     interp_bmask, interp_weight = bmask.copy(), weight.copy()
     for i, ii in [(0, 1), (-1, -2)]:
         bad_msk_i = (weight[i, :] <= 0) | ((bmask[i, :] & bad_flags) != 0)
@@ -237,17 +226,19 @@ def copy_masked_edges_image_and_noise(
             logger.debug('doing msk edge interpolation row %d', i)
 
             interp_image[i, ~bad_msk_ii] = interp_image[ii, ~bad_msk_ii]
-            interp_noise[i, ~bad_msk_ii] = interp_noise[ii, ~bad_msk_ii]
             interp_bmask[i, ~bad_msk_ii] = interp_bmask[ii, ~bad_msk_ii]
             interp_weight[i, ~bad_msk_ii] = interp_weight[ii, ~bad_msk_ii]
+            for k in range(len(noises)):
+                interp_noises[k][i, ~bad_msk_ii] = interp_noises[k][ii, ~bad_msk_ii]
 
         bad_msk_i = (weight[:, i] <= 0) | ((bmask[:, i] & bad_flags) != 0)
         bad_msk_ii = (weight[:, ii] <= 0) | ((bmask[:, ii] & bad_flags) != 0)
         if np.all(bad_msk_i) and not np.all(bad_msk_ii):
             logger.debug('doing msk edge interpolation col %d', i)
             interp_image[~bad_msk_ii, i] = interp_image[~bad_msk_ii, ii]
-            interp_noise[~bad_msk_ii, i] = interp_noise[~bad_msk_ii, ii]
             interp_bmask[~bad_msk_ii, i] = interp_bmask[~bad_msk_ii, ii]
             interp_weight[~bad_msk_ii, i] = interp_weight[~bad_msk_ii, ii]
+            for k in range(len(noises)):
+                interp_noises[k][~bad_msk_ii, i] = interp_noises[k][~bad_msk_ii, ii]
 
-    return interp_image, interp_noise, interp_bmask, interp_weight
+    return interp_image, interp_noises, interp_bmask, interp_weight

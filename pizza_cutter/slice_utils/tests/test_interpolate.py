@@ -23,21 +23,30 @@ def test_interpolate_image_and_noise_weight():
     image[msk] = np.nan
 
     rng = np.random.RandomState(seed=42)
-    noise = rng.normal(size=image.shape)
-    iimage, inoise = interpolate_image_and_noise(
+    noises = [
+        rng.normal(size=image.shape),
+        rng.normal(size=image.shape),
+        rng.normal(size=image.shape),
+    ]
+    iimage, inoises = interpolate_image_and_noise(
         image=image,
         weight=weight,
         bmask=bmask,
         bad_flags=bad_flags,
-        noise=noise)
+        noises=noises)
 
     assert np.allclose(iimage, 10 + x*5)
 
     # make sure noise field was inteprolated
     rng = np.random.RandomState(seed=42)
-    noise = rng.normal(size=image.shape)
-    assert not np.allclose(noise[msk], inoise[msk])
-    assert np.allclose(noise[~msk], inoise[~msk])
+    noises = [
+        rng.normal(size=image.shape),
+        rng.normal(size=image.shape),
+        rng.normal(size=image.shape),
+    ]
+    for noise, inoise in zip(noises, inoises):
+        assert not np.allclose(noise[msk], inoise[msk])
+        assert np.allclose(noise[~msk], inoise[~msk])
 
 
 def test_interpolate_image_and_noise_bmask():
@@ -59,21 +68,30 @@ def test_interpolate_image_and_noise_bmask():
     image[msk] = np.nan
 
     rng = np.random.RandomState(seed=42)
-    noise = rng.normal(size=image.shape)
-    iimage, inoise = interpolate_image_and_noise(
+    noises = [
+        rng.normal(size=image.shape),
+        rng.normal(size=image.shape),
+        rng.normal(size=image.shape),
+    ]
+    iimage, inoises = interpolate_image_and_noise(
         image=image,
         weight=weight,
         bmask=bmask,
         bad_flags=bad_flags,
-        noise=noise)
+        noises=noises)
 
     assert np.allclose(iimage, 10 + x*5)
 
     # make sure noise field was inteprolated
     rng = np.random.RandomState(seed=42)
-    noise = rng.normal(size=image.shape)
-    assert not np.allclose(noise[msk], inoise[msk])
-    assert np.allclose(noise[~msk], inoise[~msk])
+    noises = [
+        rng.normal(size=image.shape),
+        rng.normal(size=image.shape),
+        rng.normal(size=image.shape),
+    ]
+    for noise, inoise in zip(noises, inoises):
+        assert not np.allclose(noise[msk], inoise[msk])
+        assert np.allclose(noise[~msk], inoise[~msk])
 
 
 def test_interpolate_image_and_noise_big_missing():
@@ -91,12 +109,12 @@ def test_interpolate_image_and_noise_big_missing():
     msk = (bmask & bad_flags) != 0
     image[msk] = np.nan
 
-    iimage, inoise = interpolate_image_and_noise(
+    iimage, inoises = interpolate_image_and_noise(
         image=image,
         weight=weight,
         bmask=bmask,
         bad_flags=bad_flags,
-        noise=nse)
+        noises=[nse])
 
     # interp will be waaay off but shpuld have happened
     assert np.all(np.isfinite(iimage))
@@ -104,8 +122,8 @@ def test_interpolate_image_and_noise_big_missing():
     # make sure noise field was inteprolated
     rng = np.random.RandomState(seed=42)
     noise = rng.normal(size=image.shape)
-    assert not np.allclose(noise[msk], inoise[msk])
-    assert np.allclose(noise[~msk], inoise[~msk])
+    assert not np.allclose(noise[msk], inoises[0][msk])
+    assert np.allclose(noise[~msk], inoises[0][~msk])
 
 
 def test_interpolate_gauss_image(show=False):
@@ -145,12 +163,12 @@ def test_interpolate_gauss_image(show=False):
     bmask = np.zeros_like(image_unmasked, dtype=np.int32)
     bad_flags = 0
 
-    iimage, inoise = interpolate_image_and_noise(
+    iimage, inoises = interpolate_image_and_noise(
         image=image_masked,
         weight=weight,
         bmask=bmask,
         bad_flags=bad_flags,
-        noise=noise_image,
+        noises=[noise_image],
     )
 
     maxdiff = np.abs(image_unmasked-iimage).max()
@@ -188,24 +206,30 @@ def test_copy_masked_edges_image_and_noise_weight(i, ii, kind):
     image[msk] = np.nan
 
     rng = np.random.RandomState(seed=42)
-    noise = rng.normal(size=image.shape)
-    iimage, inoise, ibmask, iweight = copy_masked_edges_image_and_noise(
+    noises = [
+        rng.normal(size=image.shape),
+        rng.normal(size=image.shape),
+        rng.normal(size=image.shape),
+    ]
+    iimage, inoises, ibmask, iweight = copy_masked_edges_image_and_noise(
         image=image,
         weight=weight,
         bmask=bmask,
         bad_flags=bad_flags,
-        noise=noise)
+        noises=noises)
 
     if kind == "x":
         assert np.allclose(iimage[:, i], image[:, ii])
-        assert np.allclose(inoise[:, i], noise[:, ii])
         assert np.allclose(ibmask[:, i], bmask[:, ii])
         assert np.allclose(iweight[:, i], weight[:, ii])
+        for noise, inoise in zip(noises, inoises):
+            assert np.allclose(inoise[:, i], noise[:, ii])
     else:
         assert np.allclose(iimage[i, :], image[ii, :])
-        assert np.allclose(inoise[i, :], noise[ii, :])
         assert np.allclose(ibmask[i, :], bmask[ii, :])
         assert np.allclose(iweight[i, :], weight[ii, :])
+        for noise, inoise in zip(noises, inoises):
+            assert np.allclose(inoise[i, :], noise[ii, :])
 
 
 @pytest.mark.parametrize("kind", ["x", "y"])
@@ -227,21 +251,23 @@ def test_copy_masked_edges_image_and_noise_bmask(i, ii, kind):
     image[msk] = np.nan
 
     rng = np.random.RandomState(seed=42)
-    noise = rng.normal(size=image.shape)
-    iimage, inoise, ibmask, iweight = copy_masked_edges_image_and_noise(
+    noises = [
+        rng.normal(size=image.shape),
+    ]
+    iimage, inoises, ibmask, iweight = copy_masked_edges_image_and_noise(
         image=image,
         weight=weight,
         bmask=bmask,
         bad_flags=bad_flags,
-        noise=noise)
+        noises=noises)
 
     if kind == "x":
         assert np.allclose(iimage[:, i], image[:, ii])
-        assert np.allclose(inoise[:, i], noise[:, ii])
+        assert np.allclose(inoises[0][:, i], noises[0][:, ii])
         assert np.allclose(ibmask[:, i], bmask[:, ii])
         assert np.allclose(iweight[:, i], weight[:, ii])
     else:
         assert np.allclose(iimage[i, :], image[ii, :])
-        assert np.allclose(inoise[i, :], noise[ii, :])
+        assert np.allclose(inoises[0][i, :], noises[0][ii, :])
         assert np.allclose(ibmask[i, :], bmask[ii, :])
         assert np.allclose(iweight[i, :], weight[ii, :])

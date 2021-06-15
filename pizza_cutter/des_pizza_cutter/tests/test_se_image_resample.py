@@ -23,7 +23,7 @@ def test_se_image_resample_smoke(se_image_data, coadd_image_data):
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=1,
         wcs_color=0,
-        noise_seed=10,
+        noise_seeds=[10, 11, 23, 45],
         mask_tape_bumps=False,
     )
     se_im._im_shape = (512, 512)
@@ -40,7 +40,7 @@ def test_se_image_resample_smoke(se_image_data, coadd_image_data):
     se_im.set_psf(ra, dec)
     se_im.set_interp_image_noise_pmask(
         interp_image=se_im.image,
-        interp_noise=se_im.noise,
+        interp_noises=se_im.noises,
         mask=np.zeros_like(se_im.bmask),
     )
     x, y = coadd_image_data['eu_wcs'].sky2image(ra, dec)
@@ -63,8 +63,11 @@ def test_se_image_resample_smoke(se_image_data, coadd_image_data):
     # we are simply looking for weird outputs here to make sure it actually
     # runs in a simple, known case
     for k in resampled_data:
-        if k != 'bmask' and k != 'ormask':
+        if k not in ['noises']:
             assert np.all(np.isfinite(resampled_data[k])), k
+
+    for ns in resampled_data['noises']:
+        assert np.all(np.isfinite(ns)), 'noises'
 
 
 @pytest.mark.skipif(
@@ -74,7 +77,8 @@ def test_se_image_resample_smoke(se_image_data, coadd_image_data):
         'test data is at TEST_DESDATA'))
 @pytest.mark.parametrize('eps_x', [-3, 0, 3])
 @pytest.mark.parametrize('eps_y', [-5, 0, 5])
-def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
+@pytest.mark.parametrize('noise_seeds', [[10], [11, 10]])
+def test_se_image_resample_shifts(se_image_data, eps_x, eps_y, noise_seeds):
     # we reset the private methods on this class but our caches rely on the
     # filenames and source info, so we clear them by hand
     clear_image_and_wcs_caches()
@@ -148,7 +152,7 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=1,
         wcs_color=0,
-        noise_seed=10,
+        noise_seeds=noise_seeds,
         mask_tape_bumps=False,
     )
     se_im._im_shape = (512, 512)
@@ -166,7 +170,10 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
     se_im.image = rng.normal(size=(box_size, box_size)) + 100
     se_im.interp_only_image = rng.normal(size=(box_size, box_size)) + 100
     se_im.interp_frac = rng.normal(size=(box_size, box_size)) + 100
-    se_im.noise = rng.normal(size=(box_size, box_size)) + 100
+    se_im.noises = [
+        rng.normal(size=(box_size, box_size)) + 100
+        for _ in noise_seeds
+    ]
     se_im.bmask = (rng.normal(size=(box_size, box_size)) * 100).astype(np.int32)
     se_im.x_start = x_start
     se_im.y_start = y_start
@@ -216,11 +223,20 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y):
     final_y_start -= 1
     final_x_start -= x_start
     final_y_start -= y_start
-    for k in ['image', 'noise', 'bmask', 'pmask', 'interp_only_image', 'interp_frac']:
+    for k in ['image', 'bmask', 'pmask', 'interp_only_image', 'interp_frac']:
         assert np.allclose(
             resampled_data[k],
             getattr(se_im, k)[final_y_start:final_y_start+100,
                               final_x_start:final_x_start+100]), k
+
+    for i in range(len(noise_seeds)):
+        assert np.allclose(
+            resampled_data["noises"][i],
+            se_im.noises[i][
+                final_y_start:final_y_start+100,
+                final_x_start:final_x_start+100
+            ],
+        ), i
 
     ra, dec = wcs.image2sky(
         # using pos_off here since calling directly!

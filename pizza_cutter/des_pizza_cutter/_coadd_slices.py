@@ -43,25 +43,27 @@ def _build_coadd_weight(*, coadding_weight, weight, psf):
 
 
 def _build_slice_inputs(
-        *, ra, dec, ra_psf, dec_psf, box_size,
-        frac_buffer,
-        coadd_info, start_row, start_col,
-        se_src_info,
-        rng,
-        coadding_weight,
-        reject_outliers,
-        symmetrize_masking,
-        copy_masked_edges,
-        noise_interp_flags,
-        spline_interp_flags,
-        bad_image_flags,
-        max_masked_fraction,
-        mask_tape_bumps,
-        edge_buffer,
-        wcs_type,
-        wcs_color,
-        psf_type,
-        tmpdir=None):
+    *, ra, dec, ra_psf, dec_psf, box_size,
+    frac_buffer,
+    coadd_info, start_row, start_col,
+    se_src_info,
+    rng,
+    coadding_weight,
+    reject_outliers,
+    symmetrize_masking,
+    copy_masked_edges,
+    noise_interp_flags,
+    spline_interp_flags,
+    bad_image_flags,
+    max_masked_fraction,
+    mask_tape_bumps,
+    edge_buffer,
+    wcs_type,
+    wcs_color,
+    psf_type,
+    tmpdir=None,
+    n_extra_noise_images,
+):
     """Build the inputs to coadd a single slice.
 
     Parameters
@@ -95,6 +97,9 @@ def _build_slice_inputs(
             (PSF FWHM)**4
     tmpdir: optional, string
         Optional temporary directory for temporary files
+    n_extra_noise_images : int
+        The number of extra noise images to make. These are written as cutout
+        types 'noise1', 'noise2', etc. in the final MEDS file.
 
     These next options are from the 'single_epoch' section of the main
     configuration file (passed around as `single_epoch_config` in the code).
@@ -175,7 +180,7 @@ def _build_slice_inputs(
                 wcs=wcs_type,
                 wcs_position_offset=se_info['position_offset'],
                 wcs_color=wcs_color,
-                noise_seed=se_info['noise_seed'],
+                noise_seeds=se_info['noise_seeds'],
                 mask_tape_bumps=mask_tape_bumps,
                 tmpdir=tmpdir,
             )
@@ -310,7 +315,10 @@ def _build_slice_inputs(
             flags_not_used.append(flags)
         else:
             interp_image = se_slice.image.copy()
-            interp_noise = se_slice.noise.copy()
+            interp_noises = [
+                se_slice.noises[nse_ind].copy()
+                for nse_ind in range(len(se_slice.noises))
+            ]
             interp_weight = se_slice.weight.copy()
             interp_bmask = se_slice.bmask.copy()
 
@@ -331,27 +339,30 @@ def _build_slice_inputs(
                     np.sqrt(1.0/se_wgt))
                 interp_image[msk] = noise[msk]
 
-                noise = (
-                    rng.normal(size=se_slice.weight.shape) *
-                    np.sqrt(1.0/se_wgt))
-                interp_noise[msk] = noise[msk]
+                for nse_ind in range(len(interp_noises)):
+                    noise = (
+                        rng.normal(size=se_slice.weight.shape) *
+                        np.sqrt(1.0/se_wgt))
+                    interp_noises[nse_ind][msk] = noise[msk]
 
                 pmask[msk] |= BMASK_NOISE_INTERP
 
             # then deal with fully masked edges as a special case
             if copy_masked_edges:
-                _interp_image, _interp_noise, interp_bmask, interp_weight \
+                _interp_image, _interp_noises, interp_bmask, interp_weight \
                     = copy_masked_edges_image_and_noise(
                         image=interp_image,
-                        noise=interp_noise,
+                        noises=interp_noises,
                         weight=interp_weight,
                         bmask=interp_bmask,
                         bad_flags=spline_interp_flags,
                     )
-                msk = (interp_image != _interp_image) | (_interp_noise != interp_noise)
+                msk = (interp_image != _interp_image)
+                for nse_ind in range(len(interp_noises)):
+                    msk = msk | (_interp_noises[nse_ind] != interp_noises[nse_ind])
                 pmask[msk] |= BMASK_SPLINE_INTERP
                 interp_image = _interp_image
-                interp_noise = _interp_noise
+                interp_noises = _interp_noises
 
                 # recheck edge masking here just in case
                 skip_edge_masked = slice_full_edge_masked(
@@ -374,15 +385,15 @@ def _build_slice_inputs(
             # inteprolated values
             # the same thing is done for the noise field since the noise
             # interpolation above is equivalent to drawing noise
-            _interp_image, _interp_noise = interpolate_image_and_noise(
+            _interp_image, _interp_noises = interpolate_image_and_noise(
                 image=interp_image,
-                noise=interp_noise,
+                noises=interp_noises,
                 weight=interp_weight,
                 bmask=interp_bmask,
                 bad_flags=spline_interp_flags,
             )
 
-            if interp_image is None or interp_noise is None:
+            if _interp_image is None or _interp_noises is None:
                 flags |= procflags.HIGH_INTERP_MASKED_FRAC
                 slices_not_used.append(se_slice)
                 flags_not_used.append(flags)
@@ -394,14 +405,15 @@ def _build_slice_inputs(
 
             msk = (
                 (_interp_image != interp_image)
-                | (_interp_noise != interp_noise)
                 | (interp_weight < 0)
                 | ((interp_bmask & spline_interp_flags) != 0)
             )
+            for nse_ind in range(len(interp_noises)):
+                msk = msk | (_interp_noises[nse_ind] != interp_noises[nse_ind])
 
             pmask[msk] |= BMASK_SPLINE_INTERP
             interp_image = _interp_image
-            interp_noise = _interp_noise
+            interp_noises = _interp_noises
 
             # retest masked fraction
             masked_frac = np.mean(pmask != 0)
@@ -423,7 +435,7 @@ def _build_slice_inputs(
             se_slice.set_interp_image_noise_pmask(
                 mask=pmask,
                 interp_image=interp_image,
-                interp_noise=interp_noise,
+                interp_noises=interp_noises,
             )
 
             slices.append(se_slice)
@@ -445,6 +457,7 @@ def _coadd_slice_inputs(
     *, wcs, wcs_position_offset, wcs_image_shape, start_row, start_col,
     box_size, psf_start_row, psf_start_col, psf_box_size,
     se_image_slices, weights, se_wcs_interp_delta, coadd_wcs_interp_delta,
+    n_extra_noise_images,
 ):
     """Coadd the slice inputs to form the coadded image, noise realization,
     psf, and weight map.
@@ -486,6 +499,9 @@ def _coadd_slice_inputs(
         function.
     coadd_wcs_interp_delta : int
         The spacing in pixels used for interpolating the coadd WCS pixel area.
+    n_extra_noise_images : int
+        The number of extra noise images to make. These are written as cutout
+        types 'noise1', 'noise2', etc. in the final MEDS file.
 
     Returns
     -------
@@ -524,8 +540,13 @@ def _coadd_slice_inputs(
         (box_size, box_size), dtype=se_image_slices[0].image.dtype)
     bmask = np.zeros((box_size, box_size), dtype=np.int32)
     ormask = np.zeros((box_size, box_size), dtype=np.int32)
-    noise = np.zeros(
-        (box_size, box_size), dtype=se_image_slices[0].image.dtype)
+    noises = [
+        np.zeros(
+            (box_size, box_size),
+            dtype=se_image_slices[0].image.dtype,
+        )
+        for _ in range(n_extra_noise_images+1)
+    ]
     psf = np.zeros(
         (psf_box_size, psf_box_size), dtype=se_image_slices[0].image.dtype)
 
@@ -560,7 +581,8 @@ def _coadd_slice_inputs(
             )
 
         image += (resampled_data['image'] * weight)
-        noise += (resampled_data['noise'] * weight)
+        for i in range(n_extra_noise_images+1):
+            noises[i] += (resampled_data['noises'][i] * weight)
         # we force the interp fraction to be in [0, 1]
         # because the lanczos interp doesn't do this natively
         _mfrac = np.abs(resampled_data['interp_frac'])
@@ -576,14 +598,14 @@ def _coadd_slice_inputs(
         ormask |= resampled_data['bmask']
         bmask |= resampled_data['pmask']
 
-    weight = np.zeros_like(noise)
-    weight[:, :] = 1.0 / np.var(noise)
+    weight = np.zeros_like(noises[0])
+    weight[:, :] = 1.0 / np.var(noises[0])
 
     return (
         image,
         bmask,
         ormask,
-        noise,
+        noises,
         psf,
         weight,
         interp_se_frac,

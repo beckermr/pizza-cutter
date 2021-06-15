@@ -13,7 +13,10 @@ from pizza_cutter.des_pizza_cutter import (
 )
 
 
-def go(config, info, tag, output_path, log_level, seed, slice_range, tmpdir, n_jobs):
+def go(
+    config, info, tag, output_path, log_level, seed, slice_range,
+    tmpdir, n_jobs, n_extra_noise_images
+):
     """Create a metadetection MEDS file from a DES coadd tile."""
 
     logging.basicConfig(stream=sys.stdout)
@@ -77,6 +80,7 @@ def go(config, info, tag, output_path, log_level, seed, slice_range, tmpdir, n_j
         coadd_config=cfg['coadd'],
         single_epoch_config=cfg['single_epoch'],
         n_jobs=n_jobs,
+        n_extra_noise_images=n_extra_noise_images,
     )
 
 
@@ -127,17 +131,21 @@ def go(config, info, tag, output_path, log_level, seed, slice_range, tmpdir, n_j
     '--n-jobs', type=int, default=1,
     help='the number of multiprocessing jobs to use.',
 )
+@click.option(
+    '--n-extra-noise-images', type=int, default=0,
+    help='the number of extra noise images to produce for each coadd.',
+)
 def main(
     config, info, tag, output_path, log_level, seed,
     slice_range,
-    use_tmpdir, tmpdir, n_jobs,
+    use_tmpdir, tmpdir, n_jobs, n_extra_noise_images,
 ):
     """Create a metadetection MEDS file from a DES coadd tile."""
 
     def _call(_tmpdir):
         go(
             config, info, tag, output_path, log_level,
-            seed, slice_range, _tmpdir, n_jobs
+            seed, slice_range, _tmpdir, n_jobs, n_extra_noise_images,
         )
 
     if use_tmpdir and tmpdir is None:

@@ -335,8 +335,8 @@ class SEImageSlice(object):
     wcs_color : float
         A color to use for the WCS. Typically zero is fine, but for pixmappy
         it is worth thinking about this. A good default might be 0.61.
-    noise_seed : int
-        A seed to use for the noise field.
+    noise_seeds : list of int
+        The list of seeds to use for the noise fields.
     mask_tape_bumps: boold
         If True, turn on TAPEBUMP flag and turn off SUSPECT in bmask for
         tape bump regions in DES CCDs.
@@ -377,8 +377,8 @@ class SEImageSlice(object):
         se_wcs_interp_delta, coadd_wcs_interp_delta
     )
         Resample a SEImageSlice to a new WCS.
-    set_interp_image_noise_pmask(interp_image, interp_noise, mask)
-        Set the inteprolated image, noise and processing mask.
+    set_interp_image_noise_pmask(interp_image, interp_noises, mask)
+        Set the inteprolated image, noise fields, and processing mask.
 
     Attributes
     ----------
@@ -390,8 +390,8 @@ class SEImageSlice(object):
         The slice of the wight map. Set by calling `set_slice`.
     bmask : np.ndarray
         The slice of the bit mask. Set by calling `set_slice`.
-    noise : np.ndarray
-        The slice of the noise field for the image. Set by calling `set_slice`.
+    noises : list of np.ndarray
+        The slices of the noise fields for the image. Set by calling `set_slice`.
     x_start : int
         The zero-indexed starting column for the slice. Set by calling
         `set_slice`.
@@ -429,14 +429,14 @@ class SEImageSlice(object):
                  wcs,
                  wcs_position_offset,
                  wcs_color,
-                 noise_seed,
+                 noise_seeds,
                  mask_tape_bumps,
                  tmpdir=None):
 
         self.source_info = source_info
         self._wcs_position_offset = wcs_position_offset
         self._wcs_color = wcs_color
-        self._noise_seed = noise_seed
+        self._noise_seeds = noise_seeds
         self._mask_tape_bumps = mask_tape_bumps
         self._tmpdir = tmpdir
 
@@ -509,7 +509,7 @@ class SEImageSlice(object):
                 "_wcs",
                 "_wcs_position_offset",
                 "_wcs_color",
-                "_noise_seed",
+                "_noise_seeds",
                 "_mask_tape_bumps",
             ]:
                 state["__internals"][attr] = repr(getattr(self, attr))
@@ -597,13 +597,17 @@ class SEImageSlice(object):
         # this call rereads the weight image using the cached function
         # so it does not do any extra i/o
         # we are using the weight path and extension as part of the cache key
-        nse = _get_noise_image(
-            self.source_info['weight_path'], self.source_info['weight_ext'],
-            scale, self._noise_seed,
-            self._tmpdir,
-        )
-        self.noise = nse[
-            y_start:y_start+box_size, x_start:x_start+box_size].copy()
+        noises = []
+        for noise_seed in self._noise_seeds:
+            nse = _get_noise_image(
+                self.source_info['weight_path'], self.source_info['weight_ext'],
+                scale, noise_seed,
+                self._tmpdir,
+            )
+            noises.append(nse[
+                y_start:y_start+box_size, x_start:x_start+box_size].copy()
+            )
+        self.noises = noises
 
     def _set_tape_bump_mask(self, bmask):
         """
@@ -1090,15 +1094,15 @@ class SEImageSlice(object):
         self.psf_y_start = ymin
         self.psf_box_size = psf.shape[0]
 
-    def set_interp_image_noise_pmask(self, *, interp_image, interp_noise, mask):
+    def set_interp_image_noise_pmask(self, *, interp_image, interp_noises, mask):
         """Set the inteprolated image, noise and processing mask.
 
         Parameters
         ----------
         interp_image : np.ndarray
             The interpolated image.
-        interp_noise : np.ndarray
-            The interpolated noise field.
+        interp_noises : list of np.ndarray
+            The interpolated noise fields.
         mask : np.ndarray
             An array of ints w/ the same shape as the image.
         """
@@ -1111,7 +1115,7 @@ class SEImageSlice(object):
         self.interp_only_image = interp_image.copy()
         self.interp_only_image[~msk] = 0
         self.image = interp_image
-        self.noise = interp_noise
+        self.noises = interp_noises
         self.pmask = mask
 
     def resample(
@@ -1176,7 +1180,7 @@ class SEImageSlice(object):
                 'image' : the resampled image
                 'bmask' : an approximate bmask using the nearest SE image
                     pixel
-                'noise' : the resampled noise image
+                'noises' : the resampled noise images
                 'psf' : the resampled PSF image
                 'pmask' : the resampled pmask
         """
@@ -1251,14 +1255,22 @@ class SEImageSlice(object):
         y_self = y_self.ravel() + self.y_start
         area_se = se_wcs_area_interp(x_self, y_self)
 
-        rim, rn, edge = lanczos_resample_two(
+        rim, edge = lanczos_resample(
             self.image / area_se.reshape(self.box_size, self.box_size),
-            self.noise / area_se.reshape(self.box_size, self.box_size),
             y_rs_se,
             x_rs_se,
         )
         rim *= area_coadd
-        rn *= area_coadd
+
+        rns = []
+        for _rn in self.noises:
+            rn, _ = lanczos_resample(
+                _rn / area_se.reshape(self.box_size, self.box_size),
+                y_rs_se,
+                x_rs_se,
+            )
+            rn *= area_coadd
+            rns.append(rn)
 
         riom, rif, _ = lanczos_resample_two(
             self.interp_only_image / area_se.reshape(self.box_size, self.box_size),
@@ -1275,7 +1287,7 @@ class SEImageSlice(object):
         edge = edge.reshape(box_size, box_size)
         resampled_data = {
             'image': rim.reshape(box_size, box_size),
-            'noise': rn.reshape(box_size, box_size),
+            'noises': [rn.reshape(box_size, box_size) for rn in rns],
             'interp_only_image': riom.reshape(box_size, box_size),
             'interp_frac': rif.reshape(box_size, box_size),
             'edge': edge,

@@ -39,7 +39,8 @@ from ._constants import (
     EPOCHS_INFO_EXTNAME,
     MFRAC_CUTOUT_EXTNAME,
     CUTOUT_DTYPES,
-    CUTOUT_DEFAULT_VALUES)
+    CUTOUT_DEFAULT_VALUES,
+)
 from ..slice_utils.locate import build_slice_locations
 from ..slice_utils.measure import measure_fwhm
 from ..files import StagedOutFile
@@ -71,6 +72,7 @@ def make_des_pizza_slices(
     fpack_pars=None,
     coadd_config,
     single_epoch_config,
+    n_extra_noise_images,
     n_jobs=1,
 ):
     """Build a MEDS pizza slices file.
@@ -122,6 +124,9 @@ def make_des_pizza_slices(
         the single epoch images. See the documentaion of
         `pizza_cutter.des_pizza_cutter._coadd_slices._build_slice_inputs`
         for details on the required entries.
+    n_extra_noise_images : int
+        The number of extra noise images to make. These are written as cutout
+        types 'noise1', 'noise2', etc. in the final MEDS file.
     n_jobs : int, optional
         The number of multiprocessing jobs to use. Only works well for large
         numbers of slices.
@@ -171,6 +176,7 @@ def make_des_pizza_slices(
                 fpack_pars=fpack_pars,
                 tmpdir=tmpdir,
                 nworkers=n_jobs,
+                n_extra_noise_images=n_extra_noise_images,
             )
 
             fits.write(metadata, extname=METADATA_EXTNAME)
@@ -207,7 +213,7 @@ def make_des_pizza_slices(
 
 def _coadd_single_slice(
     *, i, object_data, info, single_epoch_config, wcs, position_offset,
-    coadding_weight, slice_seed, tmpdir,
+    coadding_weight, slice_seed, tmpdir, n_extra_noise_images,
 ):
     logger.info('processing slice %d', i)
 
@@ -260,6 +266,7 @@ def _coadd_single_slice(
         psf_type=single_epoch_config['psf_type'],
         rng=rng,
         tmpdir=tmpdir,
+        n_extra_noise_images=n_extra_noise_images,
     )
 
     se_image_slices, weights, slices_not_used, flags_not_used = bsres
@@ -278,7 +285,7 @@ def _coadd_single_slice(
     # did we get anything?
     if np.array(weights).size > 0:
         (
-            image, bmask, ormask, noise, psf, weight, mfrac, _
+            image, bmask, ormask, noises, psf, weight, mfrac, _
         ) = _coadd_slice_inputs(
             wcs=wcs,
             wcs_position_offset=position_offset,
@@ -293,6 +300,7 @@ def _coadd_single_slice(
             weights=weights,
             se_wcs_interp_delta=single_epoch_config["se_wcs_interp_delta"],
             coadd_wcs_interp_delta=single_epoch_config["coadd_wcs_interp_delta"],
+            n_extra_noise_images=n_extra_noise_images,
         )
 
         if np.all(image == 0):
@@ -301,7 +309,7 @@ def _coadd_single_slice(
         results["image"] = image
         results["bmask"] = bmask
         results["ormask"] = ormask
-        results["noise"] = noise
+        results["noises"] = noises
         results["psf"] = psf
         results["weight"] = weight
         results["mfrac"] = mfrac
@@ -312,7 +320,7 @@ def _coadd_single_slice(
 
 def _process_slice_chunk(
     *, slice_inds, object_data, info, single_epoch_config, wcs, position_offset,
-    coadding_weight, slice_seeds, tmpdir,
+    coadding_weight, slice_seeds, tmpdir, n_extra_noise_images,
 ):
     for i, slice_seed in zip(slice_inds, slice_seeds):
         results = _coadd_single_slice(
@@ -325,22 +333,23 @@ def _process_slice_chunk(
             coadding_weight=coadding_weight,
             slice_seed=slice_seed,
             tmpdir=tmpdir,
+            n_extra_noise_images=n_extra_noise_images,
         )
         RESULT_QUEUE.put(results, block=True)
 
 
 def _process_results(
-    *, results, start_row, psf_start_row, object_data, epochs_info, fits
+    *, results, start_row, psf_start_row, object_data, epochs_info, fits,
 ):
     logger.info("writing data for slice %s", results['i'])
-    i = results['i']
+    slice_id = results['i']
     epochs_info.append(results["epochs_info"])
 
     # did we get anything?
     if np.array(results["weights"]).size > 0:
-        object_data['ncutout'][i] = 1
-        object_data['nepoch'][i] = results["weights"].size
-        object_data['nepoch_eff'][i] = (
+        object_data['ncutout'][slice_id] = 1
+        object_data['nepoch'][slice_id] = results["weights"].size
+        object_data['nepoch_eff'][slice_id] = (
             results["weights"].sum() / results["weights"].max()
         )
 
@@ -358,8 +367,15 @@ def _process_results(
             ext=ORMASK_CUTOUT_EXTNAME, start_row=start_row)
 
         _write_single_image(
-            fits=fits, data=results["noise"],
+            fits=fits, data=results["noises"][0],
             ext=NOISE_CUTOUT_EXTNAME, start_row=start_row)
+        if len(results["noises"]) > 1:
+            for nse_i in range(1, len(results["noises"])):
+                _write_single_image(
+                    fits=fits, data=results["noises"][nse_i],
+                    ext="noise%d_cutouts" % nse_i, start_row=start_row,
+                    ext_info=NOISE_CUTOUT_EXTNAME,
+                )
 
         _write_single_image(
             fits=fits, data=results["weight"],
@@ -373,21 +389,21 @@ def _process_results(
             fits=fits, data=results["psf"],
             ext=PSF_CUTOUT_EXTNAME, start_row=psf_start_row)
 
-        object_data['psf_sigma'][i, 0] = results["psf_sigma"]
+        object_data['psf_sigma'][slice_id, 0] = results["psf_sigma"]
 
         # now we need to set the start row so we know where the data is
-        object_data['start_row'][i, 0] = start_row
-        object_data['psf_start_row'][i, 0] = psf_start_row
+        object_data['start_row'][slice_id, 0] = start_row
+        object_data['psf_start_row'][slice_id, 0] = psf_start_row
     else:
-        object_data['nepoch'][i] = 0
-        object_data['nepoch_eff'][i] = 0
+        object_data['nepoch'][slice_id] = 0
+        object_data['nepoch_eff'][slice_id] = 0
 
 
 def _coadd_and_write_images(
     *, fits, fpack_pars, object_data, info, single_epoch_config,
     wcs, position_offset, coadding_weight, seed,
     slice_range=None,
-    tmpdir=None, nworkers=1,
+    tmpdir=None, nworkers=1, n_extra_noise_images,
 ):
 
     # we use a space-filling curve to order the slices
@@ -415,14 +431,15 @@ def _coadd_and_write_images(
     logger.info('reserving mosaic images...')
     n_pixels = int(np.sum(object_data['box_size'][slices_to_do]**2))
     n_pixels_psf = int(np.sum(object_data['psf_box_size'][slices_to_do]**2))
-    _reserve_images(fits, n_pixels, n_pixels_psf, fpack_pars)
+    _reserve_images(fits, n_pixels, n_pixels_psf, fpack_pars, n_extra_noise_images)
 
     rng = np.random.RandomState(seed=seed)
     slice_seeds = rng.randint(1, 2**32-1, size=len(object_data))
 
     # set the noise image seeds for each SE image via the RNG once
     for i in range(len(info['src_info'])):
-        info['src_info'][i]['noise_seed'] = rng.randint(low=1, high=2**30)
+        info['src_info'][i]['noise_seeds'] = rng.randint(
+            low=1, high=2**30, size=n_extra_noise_images+1)
 
     print(
         'processing %d slices: %s' % (len(slices_to_do), slice_range or "all slices"),
@@ -469,6 +486,7 @@ def _coadd_and_write_images(
                         coadding_weight=coadding_weight,
                         slice_seeds=worker_seeds[w],
                         tmpdir=tmpdir,
+                        n_extra_noise_images=n_extra_noise_images,
                     ),
                 ))
 
@@ -497,6 +515,7 @@ def _coadd_and_write_images(
                 coadding_weight=coadding_weight,
                 slice_seed=slice_seeds[i],
                 tmpdir=tmpdir,
+                n_extra_noise_images=n_extra_noise_images,
             )
             _process_results(
                 results=results,
@@ -548,8 +567,7 @@ def _read_gaia_stars(
     return data
 
 
-def _reserve_images(fits, n_pixels, n_pixels_psf, fpack_pars):
-    """Does everything but the PSF image."""
+def _reserve_images(fits, n_pixels, n_pixels_psf, fpack_pars, n_extra_noise_images):
     names = [
         IMAGE_CUTOUT_EXTNAME,
         WEIGHT_CUTOUT_EXTNAME,
@@ -559,6 +577,11 @@ def _reserve_images(fits, n_pixels, n_pixels_psf, fpack_pars):
         NOISE_CUTOUT_EXTNAME,
         MFRAC_CUTOUT_EXTNAME,
     ]
+    extra_noise_names = [
+        "noise%d_cutouts" % (i+1)
+        for i in range(n_extra_noise_images)
+    ]
+    names += extra_noise_names
     dims = [n_pixels] * len(names) + [n_pixels_psf]
     names += [PSF_CUTOUT_EXTNAME]
     for ext, _dims in PBar(
@@ -566,9 +589,15 @@ def _reserve_images(fits, n_pixels, n_pixels_psf, fpack_pars):
         total=len(names),
         desc='reserving image HDUs'
     ):
+        if ext in extra_noise_names:
+            # for these, use the info from the orig noise cutout
+            ext_info = NOISE_CUTOUT_EXTNAME
+        else:
+            ext_info = ext
+
         fits.create_image_hdu(
             img=None,
-            dtype=CUTOUT_DTYPES[ext],
+            dtype=CUTOUT_DTYPES[ext_info],
             dims=_dims,
             extname=ext,
             header=fpack_pars)
@@ -577,9 +606,12 @@ def _reserve_images(fits, n_pixels, n_pixels_psf, fpack_pars):
         fits[ext].write_keys(fpack_pars, clean=False)
 
 
-def _write_single_image(*, fits, data, ext, start_row):
-    subim = np.zeros(data.shape, dtype=CUTOUT_DTYPES[ext])
-    subim += CUTOUT_DEFAULT_VALUES[ext]
+def _write_single_image(*, fits, data, ext, start_row, ext_info=None):
+    if ext_info is None:
+        ext_info = ext
+
+    subim = np.zeros(data.shape, dtype=CUTOUT_DTYPES[ext_info])
+    subim += CUTOUT_DEFAULT_VALUES[ext_info]
     subim[:, :] = data
     # TODO: do I need to add .ravel() here?
     fits[ext].write(subim, start=start_row)
