@@ -86,7 +86,7 @@ def load_objects_into_info(*, info, verbose=True, skip_se=False):
         info['affine_wcs'] = AffineWCS(**info['affine_wcs_config'])
 
     # this is to keep track where it will be in image info extension
-    info['file_id'] = 0
+    info['image_id'] = 0
 
     # we need tuples for hashing
     if 'image_shape' in info:
@@ -102,7 +102,7 @@ def load_objects_into_info(*, info, verbose=True, skip_se=False):
         _itrbl = enumerate(info['src_info'])
     for index, ii in _itrbl:
         # this is to keep track where it will be in image info extension
-        ii['file_id'] = index+1
+        ii['image_id'] = index+1
 
         # we need tuples for hashing
         if 'image_shape' in ii:

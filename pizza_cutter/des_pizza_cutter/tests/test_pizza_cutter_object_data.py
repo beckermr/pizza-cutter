@@ -15,7 +15,7 @@ def test_pizza_cutter_build_object_data(coadd_image_data):
 
     assert np.array_equal(d['id'], np.arange(d.shape[0]))
     assert np.all(d['box_size'] == 500)
-    assert np.all(d['file_id'] == 0)
+    assert np.all(d['file_id'] == -1)
     assert np.all(d['psf_box_size'] == 21)
     assert np.all(d['psf_cutout_row'] == 10)
     assert np.all(d['psf_cutout_col'] == 10)

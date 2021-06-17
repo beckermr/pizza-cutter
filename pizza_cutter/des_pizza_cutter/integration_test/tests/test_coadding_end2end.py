@@ -128,25 +128,25 @@ def test_coadding_end2end_epochs_info(coadd_end2end):
     # images 0, 1, 2 do not intersect the slice or get cut before they make
     # it into the epochs_info extensions
     # we add 1 for the file id's
-    assert np.all(ei['file_id'] != 1)
-    assert np.all(ei['file_id'] != 2)
-    assert np.all(ei['file_id'] != 3)
+    assert np.all(ei['image_id'] != 1)
+    assert np.all(ei['image_id'] != 2)
+    assert np.all(ei['image_id'] != 3)
 
     # images 4 is flagged at the pixel level
-    msk = ei['file_id'] == 4
+    msk = ei['image_id'] == 4
     assert np.all((ei['flags'][msk] & SLICE_HAS_FLAGS) != 0)
     assert np.all(ei['weight'][msk] == 0)
 
     # images  6, 7, 8 have too high a masked fraction
-    msk = ei['file_id'] == 6
+    msk = ei['image_id'] == 6
     assert np.all((ei['flags'][msk] & HIGH_MASKED_FRAC) != 0)
     assert np.all(ei['weight'][msk] == 0)
 
-    msk = ei['file_id'] == 7
+    msk = ei['image_id'] == 7
     assert np.all((ei['flags'][msk] & HIGH_MASKED_FRAC) != 0)
     assert np.all(ei['weight'][msk] == 0)
 
-    msk = ei['file_id'] == 8
+    msk = ei['image_id'] == 8
     assert np.all((ei['flags'][msk] & HIGH_MASKED_FRAC) != 0)
     assert np.all(ei['weight'][msk] == 0)
 
@@ -155,7 +155,7 @@ def test_coadding_end2end_epochs_info(coadd_end2end):
     max_wgts = []
     for ind in range(len(ei)):
         if ei['weight'][ind] > 0:
-            src_ind = ei['file_id'][ind]-1
+            src_ind = ei['image_id'][ind]-1
             max_wgts.append(
                 np.max(weights[src_ind]) /
                 info['src_info'][src_ind]['scale'] ** 2
@@ -215,7 +215,7 @@ def test_coadding_end2end_object_data(coadd_end2end):
     max_wgts = []
     for ind in range(len(ei)):
         if ei['weight'][ind] > 0:
-            src_ind = ei['file_id'][ind]-1
+            src_ind = ei['image_id'][ind]-1
             max_wgts.append(
                 np.max(weights[src_ind]) /
                 info['src_info'][src_ind]['scale'] ** 2
@@ -228,7 +228,7 @@ def test_coadding_end2end_object_data(coadd_end2end):
     assert object_data['ra'][0] == 0
     assert object_data['dec'][0] == 0
     assert object_data['ncutout'][0] == 1
-    assert object_data['file_id'][0, 0] == 0
+    assert object_data['file_id'][0, 0] == -1
     assert object_data['cutout_row'][0, 0] == 24
     assert object_data['cutout_col'][0, 0] == 24
 
@@ -262,7 +262,7 @@ def test_coadding_end2end_psf(coadd_end2end):
     psfs = []
     for ind in range(len(ei)):
         if ei['weight'][ind] > 0:
-            src_ind = ei['file_id'][ind]-1
+            src_ind = ei['image_id'][ind]-1
             max_wgts.append(
                 np.max(weights[src_ind]) /
                 info['src_info'][src_ind]['scale'] ** 2
@@ -317,7 +317,7 @@ def test_coadding_end2end_gal(coadd_end2end):
     psfs = []
     for ind in range(len(ei)):
         if ei['weight'][ind] > 0:
-            src_ind = ei['file_id'][ind]-1
+            src_ind = ei['image_id'][ind]-1
             max_wgts.append(
                 np.max(weights[src_ind]) /
                 info['src_info'][src_ind]['scale'] ** 2
@@ -489,7 +489,7 @@ def test_coadding_end2end_noise(coadd_end2end):
     max_wgts = []
     for ind in range(len(ei)):
         if ei['weight'][ind] > 0:
-            src_ind = ei['file_id'][ind]-1
+            src_ind = ei['image_id'][ind]-1
             max_wgts.append(
                 np.max(weights[src_ind]) /
                 info['src_info'][src_ind]['scale'] ** 2
@@ -517,7 +517,7 @@ def test_coadding_end2end_extra_noise_images(coadd_end2end_extra_noise_images):
     max_wgts = []
     for ind in range(len(ei)):
         if ei['weight'][ind] > 0:
-            src_ind = ei['file_id'][ind]-1
+            src_ind = ei['image_id'][ind]-1
             max_wgts.append(
                 np.max(weights[src_ind]) /
                 info['src_info'][src_ind]['scale'] ** 2
