@@ -654,7 +654,7 @@ def _make_epochs_info(
     """
     dt = [
         ('id', 'i8'),
-        ('file_id', 'i8'),  # index into image info
+        ('image_id', 'i8'),
         ('flags', 'i4'),
         ('row_start', 'i8'),
         ('col_start', 'i8'),
@@ -672,7 +672,7 @@ def _make_epochs_info(
 
     for weight, se_slice in zip(weights, slices):
         data['flags'][loc] = 0  # we used it, so flags are zero
-        data['file_id'][loc] = se_slice.source_info['file_id']
+        data['image_id'][loc] = se_slice.source_info['image_id']
 
         data['row_start'][loc] = se_slice.y_start
         data['col_start'][loc] = se_slice.x_start
@@ -687,7 +687,7 @@ def _make_epochs_info(
 
     for flags, se_slice in zip(flags_not_used, slices_not_used):
         data['flags'][loc] = flags
-        data['file_id'][loc] = se_slice.source_info['file_id']
+        data['image_id'][loc] = se_slice.source_info['image_id']
 
         data['row_start'][loc] = se_slice.y_start
         data['col_start'][loc] = se_slice.x_start
@@ -748,7 +748,8 @@ def _build_object_data(
     # and fill!
     output_info['id'] = np.arange(len(rows))
     output_info['box_size'] = box_size
-    output_info['file_id'] = 0
+    # this is not used here so set to -1
+    output_info['file_id'] = -1
     output_info['psf_box_size'] = psf_box_size
     output_info['psf_cutout_row'] = psf_cen
     output_info['psf_cutout_col'] = psf_cen
@@ -829,7 +830,7 @@ def _build_image_info(*, info):
         ext_len=3)
 
     # first we do the coadd since it is special
-    ii['image_id'][0] = info['file_id']
+    ii['image_id'][0] = info['image_id']
     ii['image_flags'][0] = info['image_flags']
     ii['magzp'][0] = info['magzp']
     ii['scale'][0] = info['scale']
@@ -843,7 +844,7 @@ def _build_image_info(*, info):
                 'image_path', 'image_ext', 'weight_path', 'weight_ext',
                 'bmask_path', 'bmask_ext', 'bkg_path', 'bkg_ext']:
             ii[key][loc] = se_info[key]
-        ii['image_id'][loc] = se_info['file_id']
+        ii['image_id'][loc] = se_info['image_id']
         ii['image_flags'][loc] = se_info['image_flags']
         ii['magzp'][loc] = se_info['magzp']
         ii['scale'][loc] = se_info['scale']
@@ -851,6 +852,8 @@ def _build_image_info(*, info):
         ii['wcs'][loc] = json.dumps(eval(str(
             _noerr_load_image_wcs(se_info)
         )))
+
+    assert np.array_equal(ii["image_id"], np.arange(len(ii), dtype=np.int32))
 
     return ii
 
