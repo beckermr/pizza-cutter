@@ -172,7 +172,7 @@ def _interp_one(
 
 
 def interpolate_image_and_noise(
-    *, image, noises, weight, bmask, bad_flags, rng,
+    *, image, noises, weight, bmask, bad_flags, rng=None,
     maxfrac=0.9, buff=4, fill_isolated_with_noise=False,
 ):
     """Interpolate an image using the
@@ -193,7 +193,7 @@ def interpolate_image_and_noise(
     bad_flags : int
         Pixels with in the bit mask using
         `(bmask & bad_flags) != 0`.
-    rng : np.random.RandomState
+    rng : np.random.RandomState, optional
         An RNG to use if we are filling isolkated bad pixels with noise.
     maxfrac : float, optional
         The maximum fraction of bad pixels. If the fraction is higher than this,
@@ -227,6 +227,12 @@ def interpolate_image_and_noise(
         good_yx = np.unravel_index(good_ind, bad_msk.shape)
 
         if fill_isolated_with_noise:
+            if rng is None:
+                raise RuntimeError(
+                    "You must pass an RNG to fill an image with noise "
+                    "when interpolating!"
+                )
+
             msk = bad_iso == 1
             if np.any(msk):
                 # mark them as ok pixels
