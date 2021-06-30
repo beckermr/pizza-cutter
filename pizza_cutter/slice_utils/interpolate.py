@@ -290,6 +290,7 @@ def copy_masked_edges_image_and_noise(
 ):
     """Any edge that is fully masked or has all weights zero
     has the adjacent pixels copied into it.
+
     Parameters
     ----------
     image : array-like
@@ -304,6 +305,7 @@ def copy_masked_edges_image_and_noise(
     bad_flags : int
         Pixels with in the bit mask using
         `(bmask & bad_flags) != 0`.
+
     Returns
     -------
     interp_image : array-like
