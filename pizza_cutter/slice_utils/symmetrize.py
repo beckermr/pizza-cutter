@@ -34,6 +34,8 @@ def symmetrize_weight(*, weight, angle=None):
                 angle,
                 reshape=False,
                 order=1,
+                mode='constant',
+                cval=1.0,
             )
             msk = rot_wgt > 0
             if np.any(msk):
@@ -71,6 +73,8 @@ def symmetrize_bmask(*, bmask, angle=None):
                     angle,
                     reshape=False,
                     order=1,
+                    mode='constant',
+                    cval=1.0,
                 )
                 msk = mask_for_bit > 0
                 bmask[msk] |= bit
