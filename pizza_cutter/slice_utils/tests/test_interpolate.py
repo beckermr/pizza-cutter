@@ -5,7 +5,26 @@ import pytest
 from ..interpolate import (
     interpolate_image_and_noise,
     copy_masked_edges_image_and_noise,
+    interpolate_image_at_mask,
 )
+
+
+def test_interpolate_image_at_mask():
+    # linear image interp should be perfect for regions smaller than the
+    # patches used for interpolation
+    y, x = np.mgrid[0:100, 0:100]
+    image = (10 + x*5).astype(np.float32)
+    bmask = np.zeros_like(image, dtype=bool)
+    bmask[30:35, 40:45] = True
+
+    # put nans here to make sure interp is done ok
+    image[bmask] = np.nan
+
+    iimage = interpolate_image_at_mask(
+        image=image,
+        bad_msk=bmask,
+    )
+    assert np.allclose(iimage, 10 + x*5)
 
 
 def test_interpolate_image_and_noise_weight():
@@ -36,6 +55,52 @@ def test_interpolate_image_and_noise_weight():
         noises=noises)
 
     assert np.allclose(iimage, 10 + x*5)
+
+    # make sure noise field was inteprolated
+    rng = np.random.RandomState(seed=42)
+    noises = [
+        rng.normal(size=image.shape),
+        rng.normal(size=image.shape),
+        rng.normal(size=image.shape),
+    ]
+    for noise, inoise in zip(noises, inoises):
+        assert not np.allclose(noise[msk], inoise[msk])
+        assert np.allclose(noise[~msk], inoise[~msk])
+
+
+def test_interpolate_image_and_noise_weight_fill():
+    # linear image interp should be perfect for regions smaller than the
+    # patches used for interpolation
+    y, x = np.mgrid[0:100, 0:100]
+    image = (10 + x*5).astype(np.float32)
+    weight = np.ones_like(image)
+    bmask = np.zeros_like(image, dtype=np.int32)
+    bad_flags = 0
+    weight[30:50, 40:60] = 0.0
+
+    # put nans here to make sure interp is done ok
+    msk = weight <= 0
+    image[msk] = np.nan
+
+    rng = np.random.RandomState(seed=42)
+    noises = [
+        rng.normal(size=image.shape),
+        rng.normal(size=image.shape),
+        rng.normal(size=image.shape),
+    ]
+    rng = np.random.RandomState(seed=42)
+    iimage, inoises = interpolate_image_and_noise(
+        image=image,
+        weight=weight,
+        bmask=bmask,
+        bad_flags=bad_flags,
+        noises=noises,
+        rng=rng,
+        fill_isolated_with_noise=True,
+    )
+
+    assert not np.allclose(iimage, 10 + x*5)
+    assert np.allclose(np.mean(iimage[35:45, 45:55]), 0, rtol=0, atol=0.2)
 
     # make sure noise field was inteprolated
     rng = np.random.RandomState(seed=42)
