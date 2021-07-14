@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 @njit
-def _get_nearby_good_pixels(bad_msk, nbad, buff, iso_buff=1):
+def _get_nearby_good_pixels(bad_msk, nbad, buff, iso_buff):
     """
     get the set of good pixels surrounding bad pixels.
 
@@ -115,7 +115,7 @@ def _get_nearby_good_pixels(bad_msk, nbad, buff, iso_buff=1):
 
 def interpolate_image_at_mask(
     *, image, bad_msk, maxfrac=0.90, buff=4,
-    fill_isolated_with_noise=False, weight=None, rng=None
+    fill_isolated_with_noise=False, weight=None, rng=None, iso_buff=1,
 ):
     """
     interpolate the bad pixels in an image
@@ -138,6 +138,10 @@ def interpolate_image_at_mask(
         Fill isolated bad pixels with noise and then interp.
     rng : np.random.RandomState, optional
         An RNG to use if we are filling isolated bad pixels with noise.
+    iso_buff : int
+        The size of the good pixel test buffer region around each bad pixel. If
+        a given bad pixel doesn't have any good pixels in this region, then it is
+        marked as isolated.
 
     Returns
     -------
@@ -153,7 +157,7 @@ def interpolate_image_at_mask(
         interp_image = image.copy()
 
         bad_ind, bad_iso, _good_ind = _get_nearby_good_pixels(
-            bad_msk, nbad, buff
+            bad_msk, nbad, buff, iso_buff,
         )
         good_ind = np.unique(_good_ind)
         good_yx = np.unravel_index(good_ind, bad_msk.shape)
@@ -185,7 +189,7 @@ def interpolate_image_at_mask(
                 # will noise fill
                 nbad = bad_msk.sum()
                 bad_ind, _, _good_ind = _get_nearby_good_pixels(
-                    bad_msk, nbad, buff
+                    bad_msk, nbad, buff, iso_buff,
                 )
                 good_ind = np.unique(_good_ind)
                 bad_yx = np.unravel_index(bad_ind, bad_msk.shape)
@@ -244,7 +248,7 @@ def _interp_one(
 
 def interpolate_image_and_noise(
     *, image, noises, weight, bmask, bad_flags, rng=None,
-    maxfrac=0.9, buff=4, fill_isolated_with_noise=False,
+    maxfrac=0.9, buff=4, fill_isolated_with_noise=False, iso_buff=1,
 ):
     """Interpolate an image using the
     `scipy.interpolate.CloughTocher2DInterpolator`. An interpolated noise
@@ -273,6 +277,10 @@ def interpolate_image_and_noise(
         The buffer of good pixels around each bad pixel to keep for the interpolant.
     fill_isolated_with_noise : bool, optional
         Fill isolated bad pixels with noise and then interp.
+    iso_buff : int
+        The size of the good pixel test buffer region around each bad pixel. If
+        a given bad pixel doesn't have any good pixels in this region, then it is
+        marked as isolated.
 
     Returns
     -------
@@ -293,7 +301,7 @@ def interpolate_image_and_noise(
 
         nbad = bad_msk.sum()
         bad_ind, bad_iso, _good_ind = _get_nearby_good_pixels(
-            bad_msk, nbad, buff,
+            bad_msk, nbad, buff, iso_buff,
         )
         good_ind = np.unique(_good_ind)
         bad_yx = np.unravel_index(bad_ind, bad_msk.shape)
@@ -318,7 +326,7 @@ def interpolate_image_and_noise(
                 # will noise fill
                 nbad = bad_msk.sum()
                 bad_ind, _, _good_ind = _get_nearby_good_pixels(
-                    bad_msk, nbad, buff,
+                    bad_msk, nbad, buff, iso_buff,
                 )
                 good_ind = np.unique(_good_ind)
                 bad_yx = np.unravel_index(bad_ind, bad_msk.shape)
