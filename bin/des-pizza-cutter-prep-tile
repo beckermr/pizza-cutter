@@ -75,6 +75,7 @@ def main():
         args.tilename,
         args.band,
         campaign=cfg["des_data"]["campaign"],
+        piff_campaign=cfg["des_data"]["piff_campaign"],
     )
     csrc["source_dir"] = source_dir
 
@@ -83,6 +84,7 @@ def main():
         args.tilename,
         args.band,
         campaign=cfg["des_data"]["campaign"],
+        piff_campaign=cfg["des_data"]["piff_campaign"],
         sources=csrc,
     )
     coadd["source_dir"] = source_dir
@@ -101,7 +103,10 @@ def main():
         info = coadd.get_info()
         info["gaia_stars_file"] = os.path.join(source_dir, gaia_path)
 
-        add_extra_des_coadd_tile_info(info=info)
+        add_extra_des_coadd_tile_info(
+            info=info,
+            piff_campaign=cfg["des_data"]["piff_campaign"].upper(),
+        )
 
         print("running sanity checks on tile info...", end="", flush=True)
         check_info(info=info)

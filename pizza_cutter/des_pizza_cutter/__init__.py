@@ -6,6 +6,7 @@ from ._des_info import (
     download_archive_file,
     check_info,
     get_coaddtile_geom,
+    flag_data_in_info,
 )
 from ._constants import *
 from ._load_info import load_objects_into_info

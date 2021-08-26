@@ -3,7 +3,7 @@ import yaml
 
 import pytest
 
-from .._des_info import check_info
+from .._des_info import check_info, flag_data_in_info
 
 
 INFO_YAML = """\
@@ -57,6 +57,14 @@ src_info:
   tilename: DES2005-5123
   weight_ext: wgt
   weight_path: /Users/beckermr/MEDS_DIR/des-pizza-slices-y6-v6/DES2005-5123/sources-z/OPS/finalcut/Y6A1/r4433/20150911/D00473830/p01/red/immask/D00473830_z_c05_r4433p01_immasked.fits.fz
+  piff_info:
+    desdm_flags: 0
+    fwhm_cen: 2.0
+    star_t_std: 0.03
+    star_t_mean: 0.5
+    nstar: 55
+    exp_star_t_mean: 0.55
+    exp_star_t_std: 0.02
 - band: z
   bkg_ext: sci
   bkg_path: /Users/beckermr/MEDS_DIR/des-pizza-slices-y6-v6/DES2005-5123/sources-z/OPS/finalcut/Y5A1/r3515/20170906/D00675122/p01/red/bkg/D00675122_z_c56_r3515p01_bkg.fits.fz
@@ -85,7 +93,34 @@ src_info:
   tilename: DES2005-5123
   weight_ext: wgt
   weight_path: /Users/beckermr/MEDS_DIR/des-pizza-slices-y6-v6/DES2005-5123/sources-z/OPS/finalcut/Y5A1/r3515/20170906/D00675122/p01/red/immask/D00675122_z_c56_r3515p01_immasked.fits.fz
+  piff_info:
+    desdm_flags: 10
+    fwhm_cen: 2.0
+    star_t_std: 0.03
+    star_t_mean: 0.5
+    nstar: 55
+    exp_star_t_mean: 0.55
+    exp_star_t_std: 0.02
 """  # noqa
+
+
+def test_flag_data_in_info():
+    info = copy.deepcopy(yaml.safe_load(INFO_YAML))
+    flag_data_in_info(
+        info=info,
+        config={
+            "single_epoch": {
+                "piff_cuts": dict(
+                    max_fwhm_cen=3,
+                    min_nstar=25,
+                    max_exp_T_mean_fac=4,
+                    max_ccd_T_std_fac=0.3,
+                ),
+            },
+        },
+    )
+    assert info["src_info"][0]["image_flags"] == 0
+    assert info["src_info"][1]["image_flags"] == 2**0
 
 
 def test_check_info_smoke():

@@ -12,6 +12,7 @@ from pizza_cutter.des_pizza_cutter import (
     make_des_pizza_slices,
     load_objects_into_info,
     check_info,
+    flag_data_in_info,
 )
 
 
@@ -38,6 +39,7 @@ def go(
     # this loads all of the data we need into the info dict
     json_info = json.dumps(copy.deepcopy(info))
     load_objects_into_info(info=info, skip_se=True, verbose=True)
+    flag_data_in_info(info=info, config=_config)
 
     print("running sanity checks on tile info...", end="", flush=True)
     check_info(info=info)
