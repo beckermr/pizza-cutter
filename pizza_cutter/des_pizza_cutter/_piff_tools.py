@@ -39,38 +39,14 @@ select
   qa.star_t_std,
   qa.star_t_mean,
   qa.nstar,
-  expqa.exp_star_t_mean,
-  expqa.exp_star_t_std
+  qa.exp_star_t_mean,
+  qa.exp_star_t_std
 from
-  (
-    select
-      distinct
-      count(*) as nccd,
-      qa.expnum,
-      t.tag,
-      avg(star_t_mean) as exp_star_t_mean,
-      stddev(star_t_mean) as exp_star_t_std
-    from
-      PIFF_MODEL_QA qa,
-      proctag t,
-      miscfile m
-    where
-      qa.expnum = {expnum}
-      and t.tag = '{piff_campaign}'
-      and t.pfw_attempt_id = m.pfw_attempt_id
-      and m.filetype = 'piff_model'
-      and m.filename = qa.filename
-      and qa.ccdnum != 31
-    group by
-      qa.expnum,
-      t.tag
-  ) expqa,
   PIFF_MODEL_QA qa,
   proctag t,
   miscfile m
 where
-  qa.expnum = expqa.expnum
-  and t.tag = expqa.tag
+  qa.expnum = {expnum}
   and t.tag = '{piff_campaign}'
   and t.pfw_attempt_id = m.pfw_attempt_id
   and m.filetype = 'piff_model'
