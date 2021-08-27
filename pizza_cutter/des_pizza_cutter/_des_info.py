@@ -3,11 +3,63 @@ import os
 import subprocess
 
 from ._constants import MAGZP_REF, POSITION_OFFSET
+from ._piff_tools import get_piff_psf_info, compute_piff_flags
 
 logger = logging.getLogger(__name__)
 
 
-def add_extra_des_coadd_tile_info(*, info):
+def flag_data_in_info(*, info, config):
+    """Flag any bad data in the info dict.
+
+    Parameters
+    ----------
+    info : dict
+        A dictionary with at least the following keys:
+
+            'src_info' : list of dicts for the SE sources
+            'image_path' : the path to the FITS file with the coadd image
+            'image_ext' : the name of the FITS extension with the coadd image
+
+        The dictionaries in the 'src_info' list have at least the
+        following keys:
+
+            'image_path' : the path to the FITS file with the SE image
+            'image_ext' : the name of the FITS extension with the SE image
+
+        The info structure can optionally have the key
+
+            'affine_wcs_config' : a dictionary used to build an `AffineWCS`
+                instance
+
+        The source info structures can optionally have the keys
+
+            'psfex_path' : the path to the PSFEx PSF model
+            'piff_path' : the path to the Piff PSF model
+            'galsim_psf_config' : a dictionary with a valid galsim config
+                file entry to build the PSF as a galsim object.
+            'affine_wcs_config' : a dictionary used to build an `AffineWCS`
+                instance
+    config : dict
+        The input config data.
+    """
+    if "single_epoch" in config and "piff_cuts" in config["single_epoch"]:
+        for index, ii in enumerate(info['src_info']):
+            if "piff_info" in ii:
+                piff_flags = compute_piff_flags(
+                    piff_info=ii["piff_info"],
+                    **config["single_epoch"]["piff_cuts"],
+                )
+                ii["image_flags"] |= piff_flags
+                if piff_flags != 0:
+                    logger.info(
+                        "ignoring image %s/%s due to non-zero Piff flags %d",
+                        ii["path"],
+                        ii["filename"],
+                        piff_flags,
+                    )
+
+
+def add_extra_des_coadd_tile_info(*, info, piff_campaign):
     """Read the coadd tile info, load WCS info, and load PSF info for
     the DES Y3+ DESDM layout.
 
@@ -15,6 +67,8 @@ def add_extra_des_coadd_tile_info(*, info):
     ----------
     info: dict
         Info dict for a coadd tile
+    piff_campaign : str
+        The Piff campaign in DESDM.
 
     Returns
     -------
@@ -107,6 +161,13 @@ def add_extra_des_coadd_tile_info(*, info):
 
         # image scale
         ii['scale'] = 10.0**(0.4*(MAGZP_REF - ii['magzp']))
+
+        if 'piff_path' in ii and ii['piff_path'] is not None:
+            fname = os.path.basename(ii['piff_path'])
+            ii['piff_info'] = get_piff_psf_info(
+                expnum=ii['expnum'],
+                piff_campaign=piff_campaign,
+            )[fname]
 
 
 def check_info(*, info):
