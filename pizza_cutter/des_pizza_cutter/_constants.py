@@ -8,6 +8,7 @@ BMASK_RESAMPLE_BOUNDS = 2**26
 
 # bit associated with gaia star mask
 BMASK_GAIA_STAR = 2**25
+BMASK_EXPAND_GAIA_STAR = 2**24
 
 # these are constants that are etched in stone for MEDS files
 MAGZP_REF = 30.0
