@@ -236,7 +236,7 @@ def test_interpolate_image_and_noise_allbad():
         noises=noises)
 
     assert iimage is None
-    assert all(ins is None for ins in inoises)
+    assert inoises is None
 
 
 def test_interpolate_gauss_image(show=False):
