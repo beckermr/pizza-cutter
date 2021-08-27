@@ -217,8 +217,6 @@ def test_interpolate_image_and_noise_allbad():
 
     rng = np.random.RandomState(seed=42)
     bmask[:, :] = 1
-    bmask[:, 0] = 2
-    bmask[:, -1] = 4
 
     # put nans here to make sure interp is done ok
     msk = (bmask & bad_flags) != 0
