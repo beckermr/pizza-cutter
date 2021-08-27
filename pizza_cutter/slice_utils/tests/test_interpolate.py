@@ -27,6 +27,21 @@ def test_interpolate_image_at_mask():
     assert np.allclose(iimage, 10 + x*5)
 
 
+def test_interpolate_image_at_mask_allbad():
+    # linear image interp should be perfect for regions smaller than the
+    # patches used for interpolation
+    y, x = np.mgrid[0:100, 0:100]
+    image = (10 + x*5).astype(np.float32)
+    bmask = np.zeros_like(image, dtype=bool)
+    bmask[:, :] = True
+
+    iimage = interpolate_image_at_mask(
+        image=image,
+        bad_msk=bmask,
+    )
+    assert iimage is None
+
+
 def test_interpolate_image_and_noise_weight():
     # linear image interp should be perfect for regions smaller than the
     # patches used for interpolation
@@ -189,6 +204,41 @@ def test_interpolate_image_and_noise_big_missing():
     noise = rng.normal(size=image.shape)
     assert not np.allclose(noise[msk], inoises[0][msk])
     assert np.allclose(noise[~msk], inoises[0][~msk])
+
+
+def test_interpolate_image_and_noise_allbad():
+    # linear image interp should be perfect for regions smaller than the
+    # patches used for interpolation
+    y, x = np.mgrid[0:100, 0:100]
+    image = (10 + x*5).astype(np.float32)
+    weight = np.ones_like(image)
+    bmask = np.zeros_like(image, dtype=np.int32)
+    bad_flags = 1
+
+    rng = np.random.RandomState(seed=42)
+    bmask[:, :] = 1
+    bmask[:, 0] = 2
+    bmask[:, -1] = 4
+
+    # put nans here to make sure interp is done ok
+    msk = (bmask & bad_flags) != 0
+    image[msk] = np.nan
+
+    rng = np.random.RandomState(seed=42)
+    noises = [
+        rng.normal(size=image.shape),
+        rng.normal(size=image.shape),
+        rng.normal(size=image.shape),
+    ]
+    iimage, inoises = interpolate_image_and_noise(
+        image=image,
+        weight=weight,
+        bmask=bmask,
+        bad_flags=bad_flags,
+        noises=noises)
+
+    assert iimage is None
+    assert inoises is None
 
 
 def test_interpolate_gauss_image(show=False):
