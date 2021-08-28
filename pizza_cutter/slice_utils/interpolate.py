@@ -153,7 +153,7 @@ def interpolate_image_at_mask(
 
     nbad = bad_msk.sum()
     bm_frac = nbad/npix
-    if bm_frac <= maxfrac:
+    if bm_frac <= maxfrac and nbad < npix:
         interp_image = image.copy()
 
         bad_ind, bad_iso, _good_ind = _get_nearby_good_pixels(
@@ -294,7 +294,7 @@ def interpolate_image_and_noise(
     if np.any(bad_msk):
         logger.debug('doing image interpolation')
 
-        if np.mean(bad_msk) > maxfrac:
+        if np.mean(bad_msk) > maxfrac or np.all(bad_msk):
             return None, None
 
         med_weight = np.median(weight[~bad_msk])
