@@ -40,6 +40,7 @@ from ._constants import (
     MFRAC_CUTOUT_EXTNAME,
     CUTOUT_DTYPES,
     CUTOUT_DEFAULT_VALUES,
+    TILE_INFO_EXTNAME,
 )
 from ..slice_utils.locate import build_slice_locations
 from ..slice_utils.measure import measure_fwhm
@@ -135,7 +136,7 @@ def make_des_pizza_slices(
         numbers of slices.
     """
 
-    metadata = _build_metadata(config=config, json_info=json_info)
+    metadata, json_info_image = _build_metadata(config=config, json_info=json_info)
     image_info = _build_image_info(info=info)
 
     if 'image_shape' in info:
@@ -183,6 +184,7 @@ def make_des_pizza_slices(
             )
 
             fits.write(metadata, extname=METADATA_EXTNAME)
+            fits.write(json_info_image, extname=TILE_INFO_EXTNAME)
             fits.write(image_info, extname=IMAGE_INFO_EXTNAME)
 
             if gaia_stars_file is not None:
@@ -870,22 +872,21 @@ def _build_metadata(*, config, json_info):
     ngmix_version = ngmix.__version__
     dt = [
         ('magzp_ref', 'f8'),
-        ('config', 'S%d' % len(config)),
-        ('tile_info', 'S%d' % len(json_info)),
-        ('pizza_cutter_version', 'S%d' % len(__version__)),
-        ('numpy_version', 'S%d' % len(numpy_version)),
-        ('scipy_version', 'S%d' % len(scipy_version)),
-        ('esutil_version', 'S%d' % len(esutil_version)),
-        ('ngmix_version', 'S%d' % len(ngmix_version)),
-        ('fitsio_version', 'S%d' % len(fitsio_version)),
-        ('piff_version', 'S%d' % len(piff_version)),
-        ('pixmappy_version', 'S%d' % len(pixmappy_version)),
-        ('desmeds_version', 'S%d' % len(desmeds_version)),
-        ('meds_version', 'S%d' % len(meds_version)),
-        ('meds_fmt_version', 'S%d' % len(MEDS_FMT_VERSION)),
-        ('meds_dir', 'S%d' % len(os.environ['MEDS_DIR'])),
-        ('piff_data_dir', 'S%d' % len(os.environ.get('PIFF_DATA_DIR', ' '))),
-        ('desdata', 'S%d' % len(os.environ.get('DESDATA', ' ')))]
+        ('config', 'U%d' % len(config)),
+        ('pizza_cutter_version', 'U%d' % len(__version__)),
+        ('numpy_version', 'U%d' % len(numpy_version)),
+        ('scipy_version', 'U%d' % len(scipy_version)),
+        ('esutil_version', 'U%d' % len(esutil_version)),
+        ('ngmix_version', 'U%d' % len(ngmix_version)),
+        ('fitsio_version', 'U%d' % len(fitsio_version)),
+        ('piff_version', 'U%d' % len(piff_version)),
+        ('pixmappy_version', 'U%d' % len(pixmappy_version)),
+        ('desmeds_version', 'U%d' % len(desmeds_version)),
+        ('meds_version', 'U%d' % len(meds_version)),
+        ('meds_fmt_version', 'U%d' % len(MEDS_FMT_VERSION)),
+        ('meds_dir', 'U%d' % len(os.environ['MEDS_DIR'])),
+        ('piff_data_dir', 'U%d' % len(os.environ.get('PIFF_DATA_DIR', ' '))),
+        ('desdata', 'U%d' % len(os.environ.get('DESDATA', ' ')))]
     metadata = np.zeros(1, dt)
     metadata['magzp_ref'] = MAGZP_REF
     metadata['config'] = config
@@ -903,8 +904,7 @@ def _build_metadata(*, config, json_info):
     metadata['meds_dir'] = os.environ['MEDS_DIR']
     metadata['piff_data_dir'] = os.environ.get('PIFF_DATA_DIR', '')
     metadata['desdata'] = os.environ.get('DESDATA', '')
-    metadata['tile_info'] = json_info
-    return metadata
+    return metadata, np.frombuffer(json_info.encode("ascii"), dtype='u1')
 
 
 def _extract_slice_range(slice_range, num):

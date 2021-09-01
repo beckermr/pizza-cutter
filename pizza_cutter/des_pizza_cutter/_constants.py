@@ -17,6 +17,7 @@ IMAGE_INFO_EXTNAME = 'image_info'
 METADATA_EXTNAME = 'metadata'
 EPOCHS_INFO_EXTNAME = 'epochs_info'
 GAIA_STARS_EXTNAME = 'gaia_stars'
+TILE_INFO_EXTNAME = 'tile_info'
 
 IMAGE_CUTOUT_EXTNAME = 'image_cutouts'
 WEIGHT_CUTOUT_EXTNAME = 'weight_cutouts'
