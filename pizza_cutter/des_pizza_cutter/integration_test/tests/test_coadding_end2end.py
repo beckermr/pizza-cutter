@@ -179,7 +179,7 @@ def test_coadding_end2end_metadata(coadd_end2end):
     assert metadata['numpy_version'][0] == np.__version__
     assert metadata['meds_dir'][0] == 'meds_dir_xyz'
 
-    ti = json.loads(m._fits['tile_info'].read())
+    ti = json.loads(m._fits['tile_info'].read().tobytes())
     assert ti == coadd_end2end['info']
 
 

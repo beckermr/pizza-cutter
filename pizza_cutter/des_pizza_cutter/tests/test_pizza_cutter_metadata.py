@@ -24,30 +24,33 @@ def test_pizza_cutter_build_metadata(monkeypatch):
     json_info = "tile info"
     metadata, json_info_image = _build_metadata(config=config, json_info=json_info)
 
-    assert np.all(metadata['numpy_version'] == np.__version__.encode('ascii'))
-    assert np.all(metadata['scipy_version'] == scipy.__version__.encode('ascii'))
-    assert np.all(metadata['esutil_version'] == eu.__version__.encode('ascii'))
-    assert np.all(metadata['ngmix_version'] == ngmix.__version__.encode('ascii'))
+    assert np.all(metadata['numpy_version'] == np.__version__)
+    assert np.all(metadata['scipy_version'] == scipy.__version__)
+    assert np.all(metadata['esutil_version'] == eu.__version__)
+    assert np.all(metadata['ngmix_version'] == ngmix.__version__)
     assert np.all(
-        metadata['fitsio_version'] == fitsio.__version__.encode('ascii'))
-    assert np.all(metadata['meds_version'] == meds.__version__.encode('ascii'))
-    assert np.all(metadata['piff_version'] == piff.__version__.encode('ascii'))
+        metadata['fitsio_version'] == fitsio.__version__)
+    assert np.all(metadata['meds_version'] == meds.__version__)
+    assert np.all(metadata['piff_version'] == piff.__version__)
     assert np.all(
-        metadata['pixmappy_version'] == pixmappy.__version__.encode('ascii'))
+        metadata['pixmappy_version'] == pixmappy.__version__)
     assert np.all(
-        metadata['desmeds_version'] == desmeds.__version__.encode('ascii'))
+        metadata['desmeds_version'] == desmeds.__version__)
     assert np.all(
-        metadata['pizza_cutter_version'] == __version__.encode('ascii'))
-    assert np.all(metadata['config'] == config.encode('ascii'))
+        metadata['pizza_cutter_version'] == __version__)
+    assert np.all(metadata['config'] == config)
     assert np.all(metadata['magzp_ref'] == MAGZP_REF)
     assert np.all(
-        metadata['meds_fmt_version'] == MEDS_FMT_VERSION.encode('ascii'))
+        metadata['meds_fmt_version'] == MEDS_FMT_VERSION)
     assert np.all(
-        metadata['meds_dir'] == os.environ['MEDS_DIR'].encode('ascii'))
+        metadata['meds_dir'] == os.environ['MEDS_DIR'])
     assert np.all(
         metadata['piff_data_dir'] ==
-        os.environ['PIFF_DATA_DIR'].encode('ascii'))
+        os.environ['PIFF_DATA_DIR'])
     assert np.all(
-        metadata['desdata'] == os.environ['DESDATA'].encode('ascii'))
+        metadata['desdata'] == os.environ['DESDATA'])
 
-    assert np.array_equal(json_info_image, np.array(json_info.encode("ascii")))
+    assert np.array_equal(
+        json_info_image,
+        np.frombuffer(json_info.encode("ascii"), dtype='u1'),
+    )
