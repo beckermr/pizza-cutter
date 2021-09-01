@@ -22,7 +22,7 @@ def test_pizza_cutter_build_metadata(monkeypatch):
     monkeypatch.setenv('DESDATA', 'BLAHHH')
     config = 'blah blah blah'
     json_info = "tile info"
-    metadata = _build_metadata(config=config, json_info=json_info)
+    metadata, json_info_image = _build_metadata(config=config, json_info=json_info)
 
     assert np.all(metadata['numpy_version'] == np.__version__.encode('ascii'))
     assert np.all(metadata['scipy_version'] == scipy.__version__.encode('ascii'))
@@ -39,7 +39,6 @@ def test_pizza_cutter_build_metadata(monkeypatch):
     assert np.all(
         metadata['pizza_cutter_version'] == __version__.encode('ascii'))
     assert np.all(metadata['config'] == config.encode('ascii'))
-    assert np.all(metadata['tile_info'] == json_info.encode('ascii'))
     assert np.all(metadata['magzp_ref'] == MAGZP_REF)
     assert np.all(
         metadata['meds_fmt_version'] == MEDS_FMT_VERSION.encode('ascii'))
@@ -50,3 +49,5 @@ def test_pizza_cutter_build_metadata(monkeypatch):
         os.environ['PIFF_DATA_DIR'].encode('ascii'))
     assert np.all(
         metadata['desdata'] == os.environ['DESDATA'].encode('ascii'))
+
+    assert np.array_equal(json_info_image, np.array(json_info.encode("ascii")))

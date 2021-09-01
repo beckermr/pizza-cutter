@@ -40,6 +40,7 @@ from ._constants import (
     MFRAC_CUTOUT_EXTNAME,
     CUTOUT_DTYPES,
     CUTOUT_DEFAULT_VALUES,
+    TILE_INFO_EXTNAME,
 )
 from ..slice_utils.locate import build_slice_locations
 from ..slice_utils.measure import measure_fwhm
@@ -135,7 +136,7 @@ def make_des_pizza_slices(
         numbers of slices.
     """
 
-    metadata = _build_metadata(config=config, json_info=json_info)
+    metadata, json_info_image = _build_metadata(config=config, json_info=json_info)
     image_info = _build_image_info(info=info)
 
     if 'image_shape' in info:
@@ -183,6 +184,7 @@ def make_des_pizza_slices(
             )
 
             fits.write(metadata, extname=METADATA_EXTNAME)
+            fits.write(json_info_image, extname=TILE_INFO_EXTNAME)
             fits.write(image_info, extname=IMAGE_INFO_EXTNAME)
 
             if gaia_stars_file is not None:
@@ -871,7 +873,6 @@ def _build_metadata(*, config, json_info):
     dt = [
         ('magzp_ref', 'f8'),
         ('config', 'S%d' % len(config)),
-        ('tile_info', 'S%d' % len(json_info)),
         ('pizza_cutter_version', 'S%d' % len(__version__)),
         ('numpy_version', 'S%d' % len(numpy_version)),
         ('scipy_version', 'S%d' % len(scipy_version)),
@@ -903,8 +904,7 @@ def _build_metadata(*, config, json_info):
     metadata['meds_dir'] = os.environ['MEDS_DIR']
     metadata['piff_data_dir'] = os.environ.get('PIFF_DATA_DIR', '')
     metadata['desdata'] = os.environ.get('DESDATA', '')
-    metadata['tile_info'] = json_info
-    return metadata
+    return metadata, np.array(json_info.encode("ascii"))
 
 
 def _extract_slice_range(slice_range, num):
