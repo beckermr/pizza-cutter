@@ -244,6 +244,8 @@ def check_info(*, info):
     for ii in info["src_info"]:
         ccd_slug = "D%08d_%s_c%02d_" % (ii["expnum"], band, ii["ccdnum"])
         for key in se_keys:
+            if key not in ii or ii[key] is None:
+                continue
             if not os.path.basename(ii[key]).startswith(ccd_slug):
                 errors.append(
                     "File path %s doesn't start with %s and this looks wrong!" % (
