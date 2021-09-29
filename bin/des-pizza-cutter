@@ -87,6 +87,11 @@ def go(
         single_epoch_config=cfg['single_epoch'],
         n_jobs=n_jobs,
         n_extra_noise_images=n_extra_noise_images,
+        remove_fits_file=(
+            False
+            if log_level.upper() == "DEBUG" and tmpdir is None
+            else True
+        ),
     )
 
 

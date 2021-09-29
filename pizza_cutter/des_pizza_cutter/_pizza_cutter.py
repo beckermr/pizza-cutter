@@ -618,6 +618,9 @@ def _write_single_image(*, fits, data, ext, start_row, ext_info=None):
     subim = np.zeros(data.shape, dtype=CUTOUT_DTYPES[ext_info])
     subim += CUTOUT_DEFAULT_VALUES[ext_info]
     subim[:, :] = data
+    if ext in [MFRAC_CUTOUT_EXTNAME, WEIGHT_CUTOUT_EXTNAME]:
+        if np.any(subim < 0):
+            raise RuntimeError("negative values in ext %s: %f" % (ext, np.min(subim)))
     # TODO: do I need to add .ravel() here?
     fits[ext].write(subim, start=start_row)
 
