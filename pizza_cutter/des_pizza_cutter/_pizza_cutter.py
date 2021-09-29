@@ -5,6 +5,7 @@ import functools
 import json
 import logging
 import multiprocessing as mp
+import copy
 
 import numpy as np
 import fitsio
@@ -434,9 +435,14 @@ def _coadd_and_write_images(
     n_slices_to_do = len(slices_to_do)
 
     logger.info('reserving mosaic images...')
-    n_pixels = int(np.sum(object_data['box_size'][slices_to_do]**2))
-    n_pixels_psf = int(np.sum(object_data['psf_box_size'][slices_to_do]**2))
-    _reserve_images(fits, n_pixels, n_pixels_psf, fpack_pars, n_extra_noise_images)
+    npix = object_data['box_size'][0]**2
+    npix_psf = object_data['psf_box_size'][0]**2
+    n_pixels = int(np.sum(object_data['box_size']**2))
+    n_pixels_psf = int(np.sum(object_data['psf_box_size']**2))
+    _reserve_images(
+        fits, n_pixels, n_pixels_psf, fpack_pars, n_extra_noise_images,
+        npix, npix_psf
+    )
 
     rng = np.random.RandomState(seed=seed)
     slice_seeds = rng.randint(1, 2**32-1, size=len(object_data))
@@ -451,8 +457,6 @@ def _coadd_and_write_images(
         flush=True,
     )
 
-    npix = object_data['box_size'][0]**2
-    npix_psf = object_data['psf_box_size'][0]**2
     epochs_info = []
 
     if nworkers > 1:
@@ -572,7 +576,10 @@ def _read_gaia_stars(
     return data
 
 
-def _reserve_images(fits, n_pixels, n_pixels_psf, fpack_pars, n_extra_noise_images):
+def _reserve_images(
+    fits, n_pixels, n_pixels_psf, fpack_pars, n_extra_noise_images,
+    n_pixels_per, n_pixels_psf_per,
+):
     names = [
         IMAGE_CUTOUT_EXTNAME,
         WEIGHT_CUTOUT_EXTNAME,
@@ -588,9 +595,10 @@ def _reserve_images(fits, n_pixels, n_pixels_psf, fpack_pars, n_extra_noise_imag
     ]
     names += extra_noise_names
     dims = [n_pixels] * len(names) + [n_pixels_psf]
+    dims_per = [n_pixels_per] * len(names) + [n_pixels_psf_per]
     names += [PSF_CUTOUT_EXTNAME]
-    for ext, _dims in PBar(
-        zip(names, dims),
+    for ext, _dims, _dims_per in PBar(
+        zip(names, dims, dims_per),
         total=len(names),
         desc='reserving image HDUs'
     ):
@@ -600,15 +608,21 @@ def _reserve_images(fits, n_pixels, n_pixels_psf, fpack_pars, n_extra_noise_imag
         else:
             ext_info = ext
 
+        fpp = copy.deepcopy(fpack_pars)
+
+        if fpp is not None and "FZTILE" not in fpp:
+            fpp["FZTILE"] = "(%d,1)" % _dims_per
+
         fits.create_image_hdu(
             img=None,
             dtype=CUTOUT_DTYPES[ext_info],
             dims=_dims,
             extname=ext,
-            header=fpack_pars)
+            header=fpp)
 
         # also need to write the header...IDK why...
-        fits[ext].write_keys(fpack_pars, clean=False)
+        if fpp is not None:
+            fits[ext].write_keys(fpp, clean=False)
 
 
 def _write_single_image(*, fits, data, ext, start_row, ext_info=None):

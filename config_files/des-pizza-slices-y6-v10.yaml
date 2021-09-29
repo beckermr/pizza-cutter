@@ -5,8 +5,8 @@ des_data:
 
 # optional but these are good defaults
 fpack_pars:
+  # if you do not set FZTILE, the code sets it to the size of a slice for you
   FZQVALUE: 4
-  FZTILE: "(10240,1)"
   FZALGOR: "RICE_1"
   # preserve zeros, don't dither them
   FZQMETHD: "SUBTRACTIVE_DITHER_2"
