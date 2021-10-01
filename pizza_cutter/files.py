@@ -213,14 +213,17 @@ class StagedInFile(object):
             else:
                 makedir_fromfile(self.path)
 
-            print("staging in", self.original_path, "->", self.path)
+            logger.info("staging in '%s' -> '%s'", self.original_path, self.path)
             shutil.copy(self.original_path, self.path)
 
             self.was_staged_in = True
 
+    def __del__(self):
+        self.cleanup()
+
     def cleanup(self):
         if self.was_staged_in and os.path.exists(self.path):
-            print("removing temporary file:", self.path)
+            logger.info("removing temporary file: %s", self.path)
             os.remove(self.path)
             self.was_staged_in = False
 
