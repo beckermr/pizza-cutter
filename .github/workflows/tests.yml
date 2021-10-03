@@ -44,4 +44,4 @@ jobs:
         run: |
           git clone https://github.com/beckermr/des-y3-test-data.git
           export TEST_DESDATA=`pwd`/des-y3-test-data
-          pytest -vv pizza_cutter
+          pytest -n 2 -vv pizza_cutter

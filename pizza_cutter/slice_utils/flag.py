@@ -71,10 +71,10 @@ def compute_masked_fraction(*, weight, bmask, bad_flags, ignore_mask=None):
         The fraction masked.
     """
     if ignore_mask is not None:
-        keep_mask = ~ignore_mask
-        if not np.any(keep_mask):
+        if np.all(ignore_mask):
             return 1.0
         else:
+            keep_mask = ~ignore_mask
             return np.sum(
                 ((weight <= 0.0) | ((bmask & bad_flags) != 0)) & keep_mask
             ) / np.sum(keep_mask)

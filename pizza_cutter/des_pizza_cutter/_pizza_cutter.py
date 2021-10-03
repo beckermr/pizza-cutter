@@ -6,6 +6,7 @@ import json
 import logging
 import multiprocessing as mp
 import copy
+from functools import lru_cache
 
 import numpy as np
 import fitsio
@@ -17,6 +18,8 @@ import desmeds
 import ngmix
 import scipy
 from hilbertcurve.hilbertcurve import HilbertCurve
+
+from metadetect.masking import make_foreground_bmask
 
 from meds.maker import MEDS_FMT_VERSION
 from meds.util import (
@@ -217,6 +220,19 @@ def make_des_pizza_slices(
     validate_meds(meds_path + '.fz')
 
 
+def _add_gaia_radius(*, gaia_stars, max_g_mag, poly_coeffs):
+    w, = np.where(gaia_stars['phot_g_mean_mag'] <= max_g_mag)
+    gaia_stars = gaia_stars[w]
+
+    add_dt = [('radius_pixels', 'f4')]
+    gaia_stars = eu.numpy_util.add_fields(gaia_stars, add_dt)
+
+    ply = np.poly1d(poly_coeffs)
+    log10_radius_pixels = ply(gaia_stars['phot_g_mean_mag'])
+    gaia_stars['radius_pixels'] = 10.0**log10_radius_pixels
+    return gaia_stars
+
+
 def _coadd_single_slice(
     *, i, object_data, info, single_epoch_config, wcs, position_offset,
     coadding_weight, slice_seed, tmpdir, n_extra_noise_images,
@@ -245,6 +261,31 @@ def _coadd_single_slice(
     psf_orig_start_col = col - half
     psf_orig_start_row = row - half
 
+    gaia_stars_file = info.get('gaia_stars_file', None)
+    if gaia_stars_file is not None and "gaia_star_masks" in single_epoch_config:
+        logger.info("build GAIA star mask for slice")
+        gaia_stars = _read_gaia_stars(
+            fname=gaia_stars_file,
+            wcs=wcs,
+            wcs_position_offset=position_offset,
+        )
+        gaia_stars = _add_gaia_radius(
+            gaia_stars=gaia_stars,
+            max_g_mag=single_epoch_config["gaia_star_masks"]["max_g_mag"],
+            poly_coeffs=single_epoch_config["gaia_star_masks"]["poly_coeffs"]
+        )
+
+        gaia_star_mask = make_foreground_bmask(
+            xm=gaia_stars['x'].astype('f8') - object_data['orig_start_col'][i, 0],
+            ym=gaia_stars['y'].astype('f8') - object_data['orig_start_row'][i, 0],
+            rm=gaia_stars['radius_pixels'].astype('f8'),
+            dims=(object_data['box_size'][i], object_data['box_size'][i]),
+            symmetrize=single_epoch_config["gaia_star_masks"]["symmetrize"],
+            mask_bit_val=2**0,
+        ).astype(bool)
+    else:
+        gaia_star_mask = None
+
     bsres = _build_slice_inputs(
         ra=object_data['ra'][i],
         dec=object_data['dec'][i],
@@ -252,9 +293,12 @@ def _coadd_single_slice(
         dec_psf=dec_psf,
         box_size=object_data['box_size'][i],
         frac_buffer=single_epoch_config['frac_buffer'],
-        coadd_info=info,
         start_row=object_data['orig_start_row'][i, 0],
         start_col=object_data['orig_start_col'][i, 0],
+        wcs=wcs,
+        wcs_position_offset=position_offset,
+        wcs_interp_delta=single_epoch_config["se_wcs_interp_delta"],
+        gaia_star_mask=gaia_star_mask,
         se_src_info=info['src_info'],
         reject_outliers=single_epoch_config['reject_outliers'],
         symmetrize_masking=single_epoch_config['symmetrize_masking'],
@@ -542,6 +586,7 @@ def _coadd_and_write_images(
     fits.write(epochs_info, extname=EPOCHS_INFO_EXTNAME)
 
 
+@lru_cache(maxsize=1)
 def _read_gaia_stars(
     fname,
     wcs,
