@@ -20,3 +20,4 @@ setuptools_scm
 setuptools_scm_git_archive
 importlib_metadata
 hilbertcurve
+metadetect>=0.3.10

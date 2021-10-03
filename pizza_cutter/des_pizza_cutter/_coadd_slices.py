@@ -261,11 +261,11 @@ def _build_slice_inputs(
                     se_slice.weight[msk] = 0
 
                     bmask_r = bmask_orig.copy()
-                    symmetrize_bmask(bmask=bmask_r, angle=angle)
+                    symmetrize_bmask(bmask=bmask_r, angle=angle, sym_flags=bad_flags)
                     se_slice.bmask |= bmask_r
             else:
                 # this operates in place on references
-                symmetrize_bmask(bmask=se_slice.bmask)
+                symmetrize_bmask(bmask=se_slice.bmask, sym_flags=bad_flags)
                 symmetrize_weight(weight=se_slice.weight)
 
         if not copy_masked_edges:

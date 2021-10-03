@@ -50,7 +50,7 @@ def slice_has_flags(*, bmask, flags):
     return np.any((bmask & flags) != 0)
 
 
-def compute_masked_fraction(*, weight, bmask, bad_flags):
+def compute_masked_fraction(*, weight, bmask, bad_flags, ignore_mask=None):
     """Compute the fraction of an image that is masked.
 
     Parameters
@@ -61,10 +61,22 @@ def compute_masked_fraction(*, weight, bmask, bad_flags):
         The bit mask for the slice.
     bad_flags : int
         The flags to test in the bit mask using `(bmask & bad_flags) != 0`.
+    ignore_mask : array-like, optional
+        If not None, then the masked fraction is computed from only pixels
+        marked as False in this mask.
 
     Returns
     -------
     masked : float
         The fraction masked.
     """
-    return np.mean((weight <= 0.0) | ((bmask & bad_flags) != 0))
+    if ignore_mask is not None:
+        keep_mask = ~ignore_mask
+        if not np.any(keep_mask):
+            return 1.0
+        else:
+            return np.sum(
+                ((weight <= 0.0) | ((bmask & bad_flags) != 0)) & keep_mask
+            ) / np.sum(keep_mask)
+    else:
+        return np.mean((weight <= 0.0) | ((bmask & bad_flags) != 0))

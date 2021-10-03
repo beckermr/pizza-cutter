@@ -79,3 +79,24 @@ def test_slice_has_flags():
 
     bmask[6, 6] = 2**0
     assert slice_has_flags(bmask=bmask, flags=flags)
+
+
+def test_compute_masked_fraction_ignore_mask():
+    weight = np.ones((10, 10))
+    bmask = np.zeros((10, 10), dtype=np.int32)
+    bad_flags = 2**0
+
+    weight[4, 7] = 0.0
+    bmask[7, 9] = 4  # try a different flag
+    bmask[8, 2] = 2**0
+    bmask[3, 3] = 2**0
+
+    ignore_mask = np.zeros_like(bmask).astype(bool)
+    ignore_mask[3, 3] = 1
+
+    assert compute_masked_fraction(
+        weight=weight,
+        bmask=bmask,
+        bad_flags=bad_flags,
+        ignore_mask=ignore_mask
+    ) == 2/99
