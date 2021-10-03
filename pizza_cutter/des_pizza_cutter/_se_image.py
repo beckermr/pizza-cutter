@@ -1181,7 +1181,10 @@ class SEImageSlice(object):
             & (y_img >= 0)
             & (y_img < image.shape[0])
         )
-        mapped_image[y_self[msk], x_self[msk]] = image[y_img[msk], x_img[msk]]
+        mapped_image[
+            y_self[msk] - self.y_start,
+            x_self[msk] - self.x_start
+        ] = image[y_img[msk], x_img[msk]]
         return mapped_image
 
     def resample(
