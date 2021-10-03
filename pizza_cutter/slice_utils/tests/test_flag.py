@@ -100,3 +100,24 @@ def test_compute_masked_fraction_ignore_mask():
         bad_flags=bad_flags,
         ignore_mask=ignore_mask
     ) == 2/99
+
+
+def test_compute_masked_fraction_ignore_mask_all():
+    weight = np.ones((10, 10))
+    bmask = np.zeros((10, 10), dtype=np.int32)
+    bad_flags = 2**0
+
+    weight[4, 7] = 0.0
+    bmask[7, 9] = 4  # try a different flag
+    bmask[8, 2] = 2**0
+    bmask[3, 3] = 2**0
+
+    ignore_mask = np.zeros_like(bmask).astype(bool)
+    ignore_mask[:, :] = 1
+
+    assert compute_masked_fraction(
+        weight=weight,
+        bmask=bmask,
+        bad_flags=bad_flags,
+        ignore_mask=ignore_mask
+    ) == 1.0
