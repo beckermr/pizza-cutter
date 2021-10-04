@@ -233,6 +233,25 @@ def _add_gaia_radius(*, gaia_stars, max_g_mag, poly_coeffs):
     return gaia_stars
 
 
+def _build_gaia_star_mask(
+    *, gaia_stars, max_g_mag, poly_coeffs, start_col, start_row, box_size, symmetrize
+):
+    gaia_stars = _add_gaia_radius(
+        gaia_stars=gaia_stars,
+        max_g_mag=max_g_mag,
+        poly_coeffs=poly_coeffs,
+    )
+
+    return make_foreground_bmask(
+        xm=gaia_stars['x'].astype('f8') - start_col,
+        ym=gaia_stars['y'].astype('f8') - start_row,
+        rm=gaia_stars['radius_pixels'].astype('f8'),
+        dims=(box_size, box_size),
+        symmetrize=symmetrize,
+        mask_bit_val=2**0,
+    ).astype(bool)
+
+
 def _coadd_single_slice(
     *, i, object_data, info, single_epoch_config, wcs, position_offset,
     coadding_weight, slice_seed, tmpdir, n_extra_noise_images,
@@ -247,8 +266,8 @@ def _coadd_single_slice(
     # this col, row includes the position offset
     # we don't need to remove it when putting them back into the WCS
     # but we will remove it later since we work in zero-indexed coords
-    col = int(col + 0.5)
-    row = int(row + 0.5)
+    col = int(np.floor(col + 0.5))
+    row = int(np.floor(row + 0.5))
     # ra, dec of the pixel center
     ra_psf, dec_psf = wcs.image2sky(col, row)
 
@@ -263,26 +282,21 @@ def _coadd_single_slice(
 
     gaia_stars_file = info.get('gaia_stars_file', None)
     if gaia_stars_file is not None and "gaia_star_masks" in single_epoch_config:
-        logger.info("build GAIA star mask for slice")
+        logger.info("building GAIA star mask for slice")
         gaia_stars = _read_gaia_stars(
             fname=gaia_stars_file,
             wcs=wcs,
             wcs_position_offset=position_offset,
         )
-        gaia_stars = _add_gaia_radius(
+        gaia_star_mask = _build_gaia_star_mask(
             gaia_stars=gaia_stars,
             max_g_mag=single_epoch_config["gaia_star_masks"]["max_g_mag"],
-            poly_coeffs=single_epoch_config["gaia_star_masks"]["poly_coeffs"]
+            poly_coeffs=single_epoch_config["gaia_star_masks"]["poly_coeffs"],
+            start_col=object_data['orig_start_col'][i, 0],
+            start_row=object_data['orig_start_row'][i, 0],
+            box_size=object_data['box_size'][i],
+            symmetrize=single_epoch_config["gaia_star_masks"]["symmetrize"]
         )
-
-        gaia_star_mask = make_foreground_bmask(
-            xm=gaia_stars['x'].astype('f8') - object_data['orig_start_col'][i, 0],
-            ym=gaia_stars['y'].astype('f8') - object_data['orig_start_row'][i, 0],
-            rm=gaia_stars['radius_pixels'].astype('f8'),
-            dims=(object_data['box_size'][i], object_data['box_size'][i]),
-            symmetrize=single_epoch_config["gaia_star_masks"]["symmetrize"],
-            mask_bit_val=2**0,
-        ).astype(bool)
     else:
         gaia_star_mask = None
 
