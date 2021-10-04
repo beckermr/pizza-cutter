@@ -1173,8 +1173,8 @@ class SEImageSlice(object):
         x_img, y_img = wcs_interp(x_self, y_self)
         x_img -= x_start
         y_img -= y_start
-        y_img = (y_img + 0.5).astype(np.int64)
-        x_img = (x_img + 0.5).astype(np.int64)
+        y_img = np.floor(y_img + 0.5).astype(np.int64)
+        x_img = np.floor(x_img + 0.5).astype(np.int64)
         msk = (
             (x_img >= 0)
             & (x_img < image.shape[1])

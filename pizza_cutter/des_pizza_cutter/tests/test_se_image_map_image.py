@@ -13,7 +13,8 @@ from .._se_image import SEImageSlice
     reason=(
         'SEImageSlice can only be tested if '
         'test data is at TEST_DESDATA'))
-def test_se_image_map_image(se_image_data, coadd_image_data):
+@pytest.mark.parametrize("coadd_dim", [6, 10, 20])
+def test_se_image_map_image(se_image_data, coadd_image_data, coadd_dim):
     psf_mod = piff.PSF.read(se_image_data['source_info']['piff_path'])
     se_im = SEImageSlice(
         source_info=se_image_data['source_info'],
@@ -44,9 +45,9 @@ def test_se_image_map_image(se_image_data, coadd_image_data):
     x, y = coadd_image_data['eu_wcs'].sky2image(ra, dec)
     x = int(np.floor(x+0.5)) - coadd_image_data['position_offset']
     y = int(np.floor(y+0.5)) - coadd_image_data['position_offset']
-    x_start = x - half*2
-    y_start = y - half*2
-    coadd_img = np.arange(dim*2*dim*2).reshape(2*dim, 2*dim)
+    x_start = x - coadd_dim//2
+    y_start = y - coadd_dim//2
+    coadd_img = np.arange(coadd_dim**2).reshape((coadd_dim, coadd_dim))
     res = se_im.map_image_by_nearest_pixel(
         image=coadd_img,
         wcs=coadd_image_data['eu_wcs'],
@@ -65,9 +66,11 @@ def test_se_image_map_image(se_image_data, coadd_image_data):
             xc, yc = coadd_image_data['eu_wcs'].sky2image(ra, dec)
             xc -= coadd_image_data['position_offset']
             yc -= coadd_image_data['position_offset']
-            xc = int(np.floor(xc+0.5)) - x_start
-            yc = int(np.floor(yc+0.5)) - y_start
-            if yc >= 0 and yc < 2*dim and xc >= 0 and xc < 2*dim:
+            xc -= x_start
+            yc -= y_start
+            xc = int(np.floor(xc+0.5))
+            yc = int(np.floor(yc+0.5))
+            if yc >= 0 and yc < coadd_dim and xc >= 0 and xc < coadd_dim:
                 assert coadd_img[yc, xc] == res[row, col]
             else:
                 assert 0 == res[row, col]
