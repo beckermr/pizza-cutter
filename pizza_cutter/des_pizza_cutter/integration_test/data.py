@@ -85,17 +85,6 @@ single_epoch:
 
   bad_image_flags:
     - 1
-
-gaia_star_masks:
-  # multiply the radii by this factor
-  radius_factor: 1.0
-
-  # don't mask stars with gaia g mag less than this
-  max_g_mag: 18.0
-
-  # coefficients for log10(radius) vs mag.  Don't change this unless
-  # you know what you are doing
-  poly_coeffs: [0.00443223, -0.22569131, 2.99642999]
 """
 
 
@@ -144,17 +133,6 @@ single_epoch:
 
   bad_image_flags:
     - 1
-
-gaia_star_masks:
-  # multiply the radii by this factor
-  radius_factor: 1.0
-
-  # don't mask stars with gaia g mag less than this
-  max_g_mag: 18.0
-
-  # coefficients for log10(radius) vs mag.  Don't change this unless
-  # you know what you are doing
-  poly_coeffs: [0.00443223, -0.22569131, 2.99642999]
 """
 
 
