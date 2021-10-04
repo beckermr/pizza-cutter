@@ -4,6 +4,8 @@ import galsim
 import copy
 import esutil as eu
 import json
+import fitsio
+import yaml
 
 import pytest
 import numpy as np
@@ -97,6 +99,7 @@ def _coadd_end2end(tmp_path_factory, sim_config, n_extra_noise_images=0):
         'info': info,
         'bkgs': bkgs,
         'config': copy.deepcopy(sim_config),
+        'config_yaml': yaml.load(copy.deepcopy(sim_config)),
     }
 
 
@@ -445,9 +448,27 @@ def test_coadding_end2end_masks_gaia(coadd_end2end_gaia):
     bmask = m.get_cutout(0, 0, type='bmask')
     ormask = m.get_cutout(0, 0, type='ormask')
 
+    gaia_stars = fitsio.read(
+        coadd_end2end_gaia['info']['gaia_stars_file']
+    )
+    rs = 10.0**(np.poly1d(
+        coadd_end2end_gaia['config_yaml'][
+            'single_epoch'
+        ][
+            'gaia_star_masks'
+        ]['poly_coeffs']
+    )(gaia_stars['phot_g_mean_mag']))[0]
+
+    # we need to account for the rotation
+    # add in a small buffer for pixel offsets and the original row
+    yrot = 48 - gaia_stars['xgen'][0]
+    min_row = int(np.floor(yrot - rs + 3 + 0.5))
+    max_row = int(np.floor(yrot + rs - 3 + 0.5))
+    assert np.all((bmask[min_row:max_row, 14:15] & BMASK_NOISE_INTERP) == 0)
+
     # somwhere in the middle spline interpolation was done
     if False:
-        _plot_it(np.arcsinh(bmask))
+        _plot_it((bmask & BMASK_NOISE_INTERP) != 0)
         _plot_it(np.arcsinh(ormask))
     assert np.mean((bmask[:, 24:26] & BMASK_SPLINE_INTERP) != 0) > 0.0
     assert np.mean((bmask[24:26, :] & BMASK_SPLINE_INTERP) != 0) > 0.0

@@ -486,7 +486,13 @@ def generate_gaia_stars(rng, image_shape, num, wcs):
     wcs: galsim wcs
         Must have image2sky method
     """
-    dt = [('ra', 'f8'), ('dec', 'f8'), ('phot_g_mean_mag', 'f4')]
+    dt = [
+        ('ra', 'f8'),
+        ('dec', 'f8'),
+        ('phot_g_mean_mag', 'f4'),
+        ('xgen', 'f8'),
+        ('ygen', 'f8'),
+    ]
     data = np.zeros(num, dtype=dt)
 
     # fairly small radii
@@ -494,6 +500,8 @@ def generate_gaia_stars(rng, image_shape, num, wcs):
 
     rows = rng.uniform(low=10, high=image_shape[0]-10-1, size=num)
     cols = rng.uniform(low=10, high=image_shape[1]-10-1, size=num)
+    data['xgen'] = cols
+    data['ygen'] = rows
 
     data['ra'], data['dec'] = wcs.image2sky(cols, rows)
     return data
