@@ -125,8 +125,6 @@ def test_coadding_end2end_epochs_info(coadd_end2end):
     info = coadd_end2end['info']
     m = meds.MEDS(coadd_end2end['meds_path'])
 
-    assert GAIA_STARS_EXTNAME not in m._fits
-
     ei = m._fits['epochs_info'].read()
 
     ############################################################
