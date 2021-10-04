@@ -68,6 +68,8 @@ single_epoch:
   # "STREAK":    1024,  #/* pixel associated with streak from a       */
   #                     #/*       satellite, meteor, ufo...           */
   # "SUSPECT":   2048,  #/* nominally useful pixel but not perfect    */
+  # "FIXED":     4096,  # bad coilumn that DESDM reliably fixes       */
+  # "NEAREDGE":  8192,  #/* marks 25 bad columns neat the edge        */
   # "TAPEBUMP": 16384,  #/* tape bumps                                */
 
   spline_interp_flags:
@@ -90,8 +92,21 @@ single_epoch:
   # star areas are ignored for now - GAIA masks will handle them or star-gal sep
   #  - 32    # STAR
   #  - 2048  # SUSPECT
+  #  - 4096  # FIXED by DESDM reliably
+  #  - 8192  # NEAREDGE 25 bad columns on each edge, removed anyways due to 48 pixel boundry
   #  - 16384 # TAPEBUMP
 
   bad_image_flags:
     # data from non-functional amplifiers is ignored
     - 8     # BADAMP
+
+  gaia_star_masks:
+    poly_coeffs: [1.36055007e-03, -1.55098040e-01,  3.46641671e+00]
+    max_g_mag: 18.0
+    symmetrize: False
+    # interp:
+    #   fill_isolated_with_noise: False
+    #   iso_buff: 1
+    apodize:
+      ap_rad: 1
+    mask_expand_rad: 16

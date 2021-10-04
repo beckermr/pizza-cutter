@@ -103,7 +103,7 @@ def _build_slice_inputs(
         coordinates to the coordinates expected by the coadd WCS object.
     wcs_interp_delta : int
         The spacing to use for the WCS interpolation.
-    gaia_star_mask : np.ndarray
+    gaia_star_mask : np.ndarray, optional
         An array of booleans marking pixels masked by GAIA stars.
     se_src_info : list of dicts
         The 'src_info' entry from the info file.
@@ -116,8 +116,8 @@ def _build_slice_inputs(
         'noise' - use the maximum of the weight map for each SE image.
         'noise-fwhm' - use the maximum of the weight map divided by the
             (PSF FWHM)**4
-    tmpdir: optional, string
-        Optional temporary directory for temporary files
+    tmpdir: str, optional
+        Optional temporary directory for temporary files.
     n_extra_noise_images : int
         The number of extra noise images to make. These are written as cutout
         types 'noise1', 'noise2', etc. in the final MEDS file.
@@ -272,7 +272,7 @@ def _build_slice_inputs(
 
         # if we have a coadd gaia mask, we map it to the SE image and then
         # don't symmetrize stuff in that mask
-        if gaia_star_mask:
+        if gaia_star_mask is not None:
             se_gaia_star_mask = se_slice.map_image_by_nearest_pixel(
                 image=gaia_star_mask,
                 x_start=start_col,
@@ -285,7 +285,7 @@ def _build_slice_inputs(
             se_gaia_star_mask = None
 
         if symmetrize_masking:
-            logger.debug('symmetrizing the masks: var = %s', symmetrize_masking)
+            logger.debug('symmetrizing the masks: config var = %s', symmetrize_masking)
             if isinstance(symmetrize_masking, list):
                 weight_orig = se_slice.weight.copy()
                 bmask_orig = se_slice.bmask.copy()
