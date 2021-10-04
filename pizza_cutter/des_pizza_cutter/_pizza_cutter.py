@@ -282,7 +282,7 @@ def _coadd_single_slice(
 
     gaia_stars_file = info.get('gaia_stars_file', None)
     if gaia_stars_file is not None and "gaia_star_masks" in single_epoch_config:
-        logger.info("building GAIA star mask for slice")
+        logger.info("\n\n\n\n building GAIA star mask for slice\n\n\n\n\n\n\n\n")
         gaia_stars = _read_gaia_stars(
             fname=gaia_stars_file,
             wcs=wcs,
