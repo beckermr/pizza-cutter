@@ -13,7 +13,6 @@ esutil
 sep
 joblib
 jinja2
-tqdm
 piff
 cfitsio
 setuptools_scm
