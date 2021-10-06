@@ -80,6 +80,7 @@ def make_des_pizza_slices(
     single_epoch_config,
     n_extra_noise_images,
     n_jobs=1,
+    n_chunks=None,
 ):
     """Build a MEDS pizza slices file.
 
@@ -138,6 +139,8 @@ def make_des_pizza_slices(
     n_jobs : int, optional
         The number of multiprocessing jobs to use. Only works well for large
         numbers of slices.
+    n_chunks : int, optional
+        The number of chunks to use with n_jobs. Defaults to n_jobs if not set.
     """
 
     metadata, json_info_image = _build_metadata(config=config, json_info=json_info)
@@ -183,7 +186,8 @@ def make_des_pizza_slices(
                 slice_range=slice_range,
                 fpack_pars=fpack_pars,
                 tmpdir=tmpdir,
-                nworkers=n_jobs,
+                n_jobs=n_jobs,
+                n_chunks=n_chunks,
                 n_extra_noise_images=n_extra_noise_images,
             )
 
@@ -467,8 +471,11 @@ def _coadd_and_write_images(
     *, fits, fpack_pars, object_data, info, single_epoch_config,
     wcs, position_offset, coadding_weight, seed,
     slice_range=None,
-    tmpdir=None, nworkers=1, n_extra_noise_images,
+    tmpdir=None, n_jobs=1, n_extra_noise_images, n_chunks=None,
 ):
+
+    if n_chunks is None:
+        n_chunks = n_jobs
 
     # we use a space-filling curve to order the slices
     # avoids cache misses for the internal LRU caches
@@ -517,21 +524,21 @@ def _coadd_and_write_images(
 
     epochs_info = []
 
-    if nworkers > 1:
-        nsub = n_slices_to_do // nworkers
-        if nsub * nworkers < n_slices_to_do:
+    if n_jobs > 1:
+        nsub = n_slices_to_do // n_chunks
+        if nsub * n_chunks < n_slices_to_do:
             nsub += 1
 
-        result_queue = mp.Queue(maxsize=10*nworkers)
+        result_queue = mp.Queue(maxsize=10*n_jobs)
         with mp.Pool(
-            processes=nworkers,
+            processes=n_jobs,
             initializer=_init_result_queue,
             initargs=(result_queue,),
         ) as exec:
-            jobs = [[] for _ in range(nworkers)]
-            worker_seeds = [[] for _ in range(nworkers)]
+            jobs = [[] for _ in range(n_chunks)]
+            worker_seeds = [[] for _ in range(n_chunks)]
             futs = []
-            for w in range(nworkers):
+            for w in range(n_chunks):
                 for s in range(nsub):
                     loc = w * nsub + s
                     if loc < len(slices_to_do):
@@ -540,7 +547,7 @@ def _coadd_and_write_images(
 
             print("job chunk legths:", [len(j) for j in jobs], flush=True)
 
-            for w in range(nworkers):
+            for w in range(n_chunks):
                 futs.append(exec.apply_async(
                     _process_slice_chunk,
                     kwds=dict(
