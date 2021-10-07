@@ -4,6 +4,7 @@ import pytest
 from .._piff_tools import compute_piff_flags, get_piff_psf_info
 
 
+@pytest.mark.xfail()
 @pytest.mark.skipif(
     not os.path.exists(os.path.expanduser("~/.desservices.ini")),
     reason="no DESDM access",

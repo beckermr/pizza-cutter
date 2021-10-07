@@ -4,6 +4,8 @@ import galsim
 import copy
 import esutil as eu
 import json
+import fitsio
+import yaml
 
 import pytest
 import numpy as np
@@ -15,6 +17,7 @@ from ..data import (
     SIM_BMASK_NOISE_INTERP,
     SIM_CONFIG,
     SIM_CONFIG_ROTLIST,
+    SIM_CONFIG_GAIA,
 )
 from ..._constants import (
     MAGZP_REF, BMASK_SPLINE_INTERP, BMASK_NOISE_INTERP,
@@ -27,11 +30,11 @@ from ....slice_utils.procflags import (
 
 def _coadd_end2end(tmp_path_factory, sim_config, n_extra_noise_images=0):
     tmp_path = tmp_path_factory.getbasetemp()
-    info, images, weights, bmasks, bkgs, _ = generate_sim()
+    info, images, weights, bmasks, bkgs, gaia_stars = generate_sim()
     write_sim(
         path=tmp_path, info=info,
         images=images, weights=weights, bmasks=bmasks, bkgs=bkgs,
-        gaia_stars=None,
+        gaia_stars=gaia_stars,
     )
 
     with open(os.path.join(tmp_path, 'config.yaml'), 'w') as fp:
@@ -96,6 +99,7 @@ def _coadd_end2end(tmp_path_factory, sim_config, n_extra_noise_images=0):
         'info': info,
         'bkgs': bkgs,
         'config': copy.deepcopy(sim_config),
+        'config_yaml': yaml.load(copy.deepcopy(sim_config)),
     }
 
 
@@ -114,12 +118,15 @@ def coadd_end2end_rotlist(tmp_path_factory):
     return _coadd_end2end(tmp_path_factory, SIM_CONFIG_ROTLIST)
 
 
+@pytest.fixture(scope="session")
+def coadd_end2end_gaia(tmp_path_factory):
+    return _coadd_end2end(tmp_path_factory, SIM_CONFIG_GAIA)
+
+
 def test_coadding_end2end_epochs_info(coadd_end2end):
     weights = coadd_end2end['weights']
     info = coadd_end2end['info']
     m = meds.MEDS(coadd_end2end['meds_path'])
-
-    assert GAIA_STARS_EXTNAME not in m._fits
 
     ei = m._fits['epochs_info'].read()
 
@@ -399,9 +406,9 @@ def _plot_it(bmask, flag=None):
     import matplotlib.pyplot as plt
     fig, axs = plt.subplots(nrows=1, ncols=1)
     if flag is not None:
-        axs.imshow((bmask & flag) != 0)
+        axs.imshow((bmask & flag) != 0, origin='lower')
     else:
-        axs.imshow(bmask)
+        axs.imshow(bmask, origin='lower')
     import pdb
     pdb.set_trace()
 
@@ -413,7 +420,7 @@ def test_coadding_end2end_masks(coadd_end2end):
 
     # somwhere in the middle spline interpolation was done
     if False:
-        _plot_it(bmask)
+        _plot_it(np.arcsinh(bmask))
     assert np.mean((bmask[:, 24:26] & BMASK_SPLINE_INTERP) != 0) > 0.0
     assert np.mean((bmask[24:26, :] & BMASK_SPLINE_INTERP) != 0) > 0.0
     assert np.mean((ormask[:, 24:26] & SIM_BMASK_SPLINE_INTERP) != 0) > 0.0
@@ -423,6 +430,60 @@ def test_coadding_end2end_masks(coadd_end2end):
     assert np.mean((bmask[18:20, :] & BMASK_SPLINE_INTERP) != 0) > 0.0
     assert np.mean((ormask[:, 18:20] & SIM_BMASK_SPLINE_INTERP) != 0) > 0.0
     assert np.mean((ormask[18:20, :] & SIM_BMASK_SPLINE_INTERP) != 0) > 0.0
+
+    assert (
+        np.mean((bmask[:, 14:15] & BMASK_NOISE_INTERP) != 0)
+        == np.mean((bmask[34:35, :] & BMASK_NOISE_INTERP) != 0)
+    )
+
+    # we did some noise interp too
+    assert np.mean((bmask[:, 33:35] & BMASK_NOISE_INTERP) != 0) > 0.0
+    assert np.mean((bmask[33:35, :] & BMASK_NOISE_INTERP) != 0) > 0.0
+    assert np.mean((ormask[:, 33:35] & SIM_BMASK_NOISE_INTERP) != 0) > 0.0
+    assert np.mean((ormask[33:35, :] & SIM_BMASK_NOISE_INTERP) != 0) > 0.0
+
+
+def test_coadding_end2end_masks_gaia(coadd_end2end_gaia):
+    m = meds.MEDS(coadd_end2end_gaia['meds_path'])
+    bmask = m.get_cutout(0, 0, type='bmask')
+    ormask = m.get_cutout(0, 0, type='ormask')
+
+    gaia_stars = fitsio.read(
+        coadd_end2end_gaia['info']['gaia_stars_file']
+    )
+    rs = 10.0**(np.poly1d(
+        coadd_end2end_gaia['config_yaml'][
+            'single_epoch'
+        ][
+            'gaia_star_masks'
+        ]['poly_coeffs']
+    )(gaia_stars['phot_g_mean_mag']))[0]
+
+    # we need to account for the rotation
+    # add in a small buffer for pixel offsets and the original row
+    yrot = 48 - gaia_stars['xgen'][0]
+    min_row = int(np.floor(yrot - rs + 3 + 0.5))
+    max_row = int(np.floor(yrot + rs - 3 + 0.5))
+    assert np.all((bmask[min_row:max_row, 14:15] & BMASK_NOISE_INTERP) == 0)
+
+    # somwhere in the middle spline interpolation was done
+    if False:
+        _plot_it((bmask & BMASK_NOISE_INTERP) != 0)
+        _plot_it(np.arcsinh(ormask))
+    assert np.mean((bmask[:, 24:26] & BMASK_SPLINE_INTERP) != 0) > 0.0
+    assert np.mean((bmask[24:26, :] & BMASK_SPLINE_INTERP) != 0) > 0.0
+    assert np.mean((ormask[:, 24:26] & SIM_BMASK_SPLINE_INTERP) != 0) > 0.0
+    assert np.mean((ormask[24:26, :] & SIM_BMASK_SPLINE_INTERP) != 0) > 0.0
+
+    assert np.mean((bmask[:, 18:20] & BMASK_SPLINE_INTERP) != 0) > 0.0
+    assert np.mean((bmask[18:20, :] & BMASK_SPLINE_INTERP) != 0) > 0.0
+    assert np.mean((ormask[:, 18:20] & SIM_BMASK_SPLINE_INTERP) != 0) > 0.0
+    assert np.mean((ormask[18:20, :] & SIM_BMASK_SPLINE_INTERP) != 0) > 0.0
+
+    assert (
+        np.mean((bmask[:, 14:15] & BMASK_NOISE_INTERP) != 0)
+        < np.mean((bmask[34:35, :] & BMASK_NOISE_INTERP) != 0)
+    )
 
     # we did some noise interp too
     assert np.mean((bmask[:, 33:35] & BMASK_NOISE_INTERP) != 0) > 0.0
@@ -459,13 +520,6 @@ def test_coadding_end2end_masks_rotlist(coadd_end2end_rotlist):
 def test_coadding_end2end_mfrac(coadd_end2end):
     m = meds.MEDS(coadd_end2end['meds_path'])
     mfrac = m.get_cutout(0, 0, type='mfrac')
-
-    def _plot_it(iimg, **kwargs):
-        import matplotlib.pyplot as plt
-        fig, axs = plt.subplots(nrows=1, ncols=1)
-        axs.imshow(iimg, **kwargs)
-        import pdb
-        pdb.set_trace()
 
     # somwhere in the middle interpolation was done
     if False:

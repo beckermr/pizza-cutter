@@ -43,12 +43,18 @@ def _build_coadd_weight(*, coadding_weight, weight, psf):
 
 
 def _build_slice_inputs(
-    *, ra, dec, ra_psf, dec_psf, box_size,
+    *,
+    ra, dec, ra_psf, dec_psf,
+    box_size,
     frac_buffer,
-    coadd_info, start_row, start_col,
+    start_row,
+    start_col,
+    wcs, wcs_position_offset, wcs_interp_delta,
     se_src_info,
     rng,
     coadding_weight,
+    n_extra_noise_images,
+    # single epoch config options
     reject_outliers,
     symmetrize_masking,
     copy_masked_edges,
@@ -62,7 +68,7 @@ def _build_slice_inputs(
     wcs_color,
     psf_type,
     tmpdir=None,
-    n_extra_noise_images,
+    gaia_star_mask=None,
 ):
     """Build the inputs to coadd a single slice.
 
@@ -84,6 +90,21 @@ def _build_slice_inputs(
         The fractional amount by which to increse the coadd box size. Set
         up to sqrt(2) to account for full position angle rotations. In DES
         this number should be very tiny or zero.
+    start_row : int
+        The starting row/y value of the coadd patch in zero-indexed,
+        pixel-centered coordinates.
+    start_col : int
+        The starting column/x value of the coadd patch in zero-indexed,
+        pixel-centered coordinates.
+    wcs : `esutil.wcsutil.WCS` or `AffineWCS` object
+        The coadd WCS object.
+    wcs_position_offset : int
+        The position offset to get from zero-indexed, pixel-centered
+        coordinates to the coordinates expected by the coadd WCS object.
+    wcs_interp_delta : int
+        The spacing to use for the WCS interpolation.
+    gaia_star_mask : np.ndarray, optional
+        An array of booleans marking pixels masked by GAIA stars.
     se_src_info : list of dicts
         The 'src_info' entry from the info file.
     rng : np.random.RandomState
@@ -95,8 +116,8 @@ def _build_slice_inputs(
         'noise' - use the maximum of the weight map for each SE image.
         'noise-fwhm' - use the maximum of the weight map divided by the
             (PSF FWHM)**4
-    tmpdir: optional, string
-        Optional temporary directory for temporary files
+    tmpdir: str, optional
+        Optional temporary directory for temporary files.
     n_extra_noise_images : int
         The number of extra noise images to make. These are written as cutout
         types 'noise1', 'noise2', etc. in the final MEDS file.
@@ -243,30 +264,60 @@ def _build_slice_inputs(
         flags = 0
 
         # the test for interpolating a full edge is done only with the
-        # non-noise flags (se_interp_flags)
+        # non-noise flags (spline_interp_flags)
         # however, we compute the masked fraction using both the noise and
         # interp flags (called bad_flags below)
         # we also symmetrize both
         bad_flags = spline_interp_flags | noise_interp_flags
 
+        # if we have a coadd gaia mask, we map it to the SE image and then
+        # don't symmetrize stuff in that mask
+        if gaia_star_mask is not None:
+            se_gaia_star_mask = se_slice.map_image_by_nearest_pixel(
+                image=gaia_star_mask,
+                x_start=start_col,
+                y_start=start_row,
+                wcs=wcs,
+                wcs_position_offset=wcs_position_offset,
+                wcs_interp_delta=wcs_interp_delta,
+            )
+        else:
+            se_gaia_star_mask = None
+
         if symmetrize_masking:
-            logger.debug('symmetrizing the masks: var = %s', symmetrize_masking)
+            logger.debug('symmetrizing the masks: config var = %s', symmetrize_masking)
             if isinstance(symmetrize_masking, list):
                 weight_orig = se_slice.weight.copy()
                 bmask_orig = se_slice.bmask.copy()
                 for angle in symmetrize_masking:
                     weight_r = weight_orig.copy()
-                    symmetrize_weight(weight=weight_r, angle=angle)
+                    symmetrize_weight(
+                        weight=weight_r,
+                        angle=angle,
+                        no_sym_mask=se_gaia_star_mask,
+                    )
                     msk = weight_r == 0
                     se_slice.weight[msk] = 0
 
                     bmask_r = bmask_orig.copy()
-                    symmetrize_bmask(bmask=bmask_r, angle=angle)
+                    symmetrize_bmask(
+                        bmask=bmask_r,
+                        angle=angle,
+                        sym_flags=bad_flags,
+                        no_sym_mask=se_gaia_star_mask,
+                    )
                     se_slice.bmask |= bmask_r
             else:
                 # this operates in place on references
-                symmetrize_bmask(bmask=se_slice.bmask)
-                symmetrize_weight(weight=se_slice.weight)
+                symmetrize_bmask(
+                    bmask=se_slice.bmask,
+                    sym_flags=bad_flags,
+                    no_sym_mask=se_gaia_star_mask,
+                )
+                symmetrize_weight(
+                    weight=se_slice.weight,
+                    no_sym_mask=se_gaia_star_mask,
+                )
 
         if not copy_masked_edges:
             skip_edge_masked = slice_full_edge_masked(
@@ -278,8 +329,10 @@ def _build_slice_inputs(
             bmask=se_slice.bmask, flags=bad_image_flags)
         skip_masked_fraction = (
             compute_masked_fraction(
-                weight=se_slice.weight, bmask=se_slice.bmask,
-                bad_flags=bad_flags
+                weight=se_slice.weight,
+                bmask=se_slice.bmask,
+                bad_flags=bad_flags,
+                ignore_mask=se_gaia_star_mask,
             )
             >= max_masked_fraction
         )
@@ -416,7 +469,16 @@ def _build_slice_inputs(
             interp_noises = _interp_noises
 
             # retest masked fraction
-            masked_frac = np.mean(pmask != 0)
+            if gaia_star_mask is not None:
+                if np.all(se_gaia_star_mask):
+                    masked_frac = 1.0
+                else:
+                    masked_frac = np.sum(
+                        (pmask != 0) & (~se_gaia_star_mask)
+                    ) / np.sum(~se_gaia_star_mask)
+            else:
+                masked_frac = np.mean(pmask != 0)
+
             if masked_frac >= max_masked_fraction:
                 flags |= procflags.HIGH_MASKED_FRAC
                 slices_not_used.append(se_slice)

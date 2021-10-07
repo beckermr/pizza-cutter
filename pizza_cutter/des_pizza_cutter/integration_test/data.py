@@ -85,17 +85,6 @@ single_epoch:
 
   bad_image_flags:
     - 1
-
-gaia_star_masks:
-  # multiply the radii by this factor
-  radius_factor: 1.0
-
-  # don't mask stars with gaia g mag less than this
-  max_g_mag: 18.0
-
-  # coefficients for log10(radius) vs mag.  Don't change this unless
-  # you know what you are doing
-  poly_coeffs: [0.00443223, -0.22569131, 2.99642999]
 """
 
 
@@ -144,17 +133,59 @@ single_epoch:
 
   bad_image_flags:
     - 1
+"""
 
-gaia_star_masks:
-  # multiply the radii by this factor
-  radius_factor: 1.0
 
-  # don't mask stars with gaia g mag less than this
-  max_g_mag: 18.0
+SIM_CONFIG_GAIA = """\
+fpack_pars:
+  FZQVALUE: 4
+  FZTILE: "(10240,1)"
+  FZALGOR: "RICE_1"
+  # preserve zeros, don't dither them
+  FZQMETHD: "SUBTRACTIVE_DITHER_2"
 
-  # coefficients for log10(radius) vs mag.  Don't change this unless
-  # you know what you are doing
-  poly_coeffs: [0.00443223, -0.22569131, 2.99642999]
+coadd:
+  # these are in pixels
+  # the total "pizza slice" will be central_size + 2 * buffer_size
+  central_size: 33  # size of the central region
+  buffer_size: 8  # size of the buffer on each size
+
+  psf_box_size: 51
+
+  wcs_type: affine
+  coadding_weight: 'noise'
+
+single_epoch:
+  # pixel spacing for building various WCS interpolants
+  se_wcs_interp_delta: 8
+  coadd_wcs_interp_delta: 8
+
+  frac_buffer: 1
+  psf_type: galsim
+  wcs_type: affine
+  wcs_color: 0
+
+  reject_outliers: False
+  symmetrize_masking: True
+  copy_masked_edges: False
+  max_masked_fraction: 0.1
+  edge_buffer: 8
+
+  mask_tape_bumps: False
+
+  spline_interp_flags:
+    - 2
+
+  noise_interp_flags:
+    - 4
+
+  bad_image_flags:
+    - 1
+
+  gaia_star_masks:
+    poly_coeffs: [1.4e-03, -1.6e-01,  3.5e+00]
+    max_g_mag: 18.0
+    symmetrize: False
 """
 
 
@@ -455,7 +486,13 @@ def generate_gaia_stars(rng, image_shape, num, wcs):
     wcs: galsim wcs
         Must have image2sky method
     """
-    dt = [('ra', 'f8'), ('dec', 'f8'), ('phot_g_mean_mag', 'f4')]
+    dt = [
+        ('ra', 'f8'),
+        ('dec', 'f8'),
+        ('phot_g_mean_mag', 'f4'),
+        ('xgen', 'f8'),
+        ('ygen', 'f8'),
+    ]
     data = np.zeros(num, dtype=dt)
 
     # fairly small radii
@@ -463,6 +500,8 @@ def generate_gaia_stars(rng, image_shape, num, wcs):
 
     rows = rng.uniform(low=10, high=image_shape[0]-10-1, size=num)
     cols = rng.uniform(low=10, high=image_shape[1]-10-1, size=num)
+    data['xgen'] = cols
+    data['ygen'] = rows
 
     data['ra'], data['dec'] = wcs.image2sky(cols, rows)
     return data

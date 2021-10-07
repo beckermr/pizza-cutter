@@ -160,7 +160,10 @@ def _get_wcs_inverse(wcs, wcs_position_offset, se_wcs, se_im_shape, delta):
     x_coadd -= wcs_position_offset
     y_coadd -= wcs_position_offset
 
-    return WCSInversionInterpolator(x_coadd, y_coadd, x_se, y_se)
+    return (
+        WCSInversionInterpolator(x_coadd, y_coadd, x_se, y_se),
+        WCSInversionInterpolator(x_se, y_se, x_coadd, y_coadd),
+    )
 
 
 def _compute_wcs_area(se_wcs, x_se, y_se, dxy=1):
@@ -1104,7 +1107,8 @@ class SEImageSlice(object):
         interp_noises : list of np.ndarray
             The interpolated noise fields.
         mask : np.ndarray
-            An array of ints w/ the same shape as the image.
+            An array of ints w/ the same shape as the image indicating where
+            interpolation was done.
         """
         msk = mask != 0
 
@@ -1117,6 +1121,71 @@ class SEImageSlice(object):
         self.image = interp_image
         self.noises = interp_noises
         self.pmask = mask
+
+    def map_image_by_nearest_pixel(
+        self,
+        *,
+        image, x_start, y_start,
+        wcs,
+        wcs_position_offset,
+        wcs_interp_delta
+    ):
+        """Map an image to the slice using the nearest pixel.
+
+        NOTE: Typically, the input WCS object will be for a coadd.
+
+        Parameters
+        ----------
+        image : np.ndarray
+            The image to be mapped to the SE slice.
+        x_start : int
+            The zero-indexed, pixel-centered starting x/column of the input image.
+        y_start : int
+            The zero-indexed, pixel-centered starting y/row of the input image.
+        wcs : `esutil.wcsutil.WCS` or `AffineWCS` object
+            The WCS model to use for the input image. This object is
+            assumed to take one-indexed, pixel-centered coordinates.
+        wcs_position_offset : int
+            The coordinate offset, if any, to get from the zero-indexed, pixel-
+            centered coordinates used by this class to the coordinate convetion
+            of the input `wcs` object.
+        wcs_interp_delta : int
+            The spacing in pixels used for interpolating the WCS transforms.
+        """
+        if not hasattr(self, 'box_size'):
+            raise RuntimeError("You must call set_slice before mapping images!")
+
+        mapped_image = np.zeros((self.box_size, self.box_size), dtype=image.dtype)
+
+        t0 = time.time()
+        _, wcs_interp = _get_wcs_inverse(
+            wcs, wcs_position_offset,
+            self,
+            self._im_shape,
+            wcs_interp_delta)
+        if hasattr(_get_wcs_inverse, "cache_info"):
+            logger.debug('wcs interp cache info: %s', _get_wcs_inverse.cache_info())
+        logger.debug('wcs interp took %f seconds', time.time() - t0)
+
+        y_self, x_self = np.mgrid[0:self.box_size, 0:self.box_size]
+        x_self = x_self.ravel() + self.x_start
+        y_self = y_self.ravel() + self.y_start
+        x_img, y_img = wcs_interp(x_self, y_self)
+        x_img -= x_start
+        y_img -= y_start
+        y_img = np.floor(y_img + 0.5).astype(np.int64)
+        x_img = np.floor(x_img + 0.5).astype(np.int64)
+        msk = (
+            (x_img >= 0)
+            & (x_img < image.shape[1])
+            & (y_img >= 0)
+            & (y_img < image.shape[0])
+        )
+        mapped_image[
+            y_self[msk] - self.y_start,
+            x_self[msk] - self.x_start
+        ] = image[y_img[msk], x_img[msk]]
+        return mapped_image
 
     def resample(
         self, *, wcs, wcs_position_offset, wcs_interp_shape,
@@ -1203,7 +1272,7 @@ class SEImageSlice(object):
         # terms which require a root finder
         # we use a buffer to make sure edge pixels are ok
         t0 = time.time()
-        wcs_interp = _get_wcs_inverse(
+        wcs_interp, _ = _get_wcs_inverse(
             wcs, wcs_position_offset,
             self,
             self._im_shape,
