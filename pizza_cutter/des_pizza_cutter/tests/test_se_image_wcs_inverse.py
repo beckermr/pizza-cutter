@@ -48,6 +48,7 @@ def test_se_image_get_wcs_inverse_caches(se_image_data, coadd_image_data):
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=1,
         wcs_color=0,
+        psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
     )
