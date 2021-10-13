@@ -38,6 +38,7 @@ def test_se_image_wcs_color_pixmappy(se_image_data, wcs_pos_offset):
         wcs=wcs,
         wcs_position_offset=wcs_pos_offset,
         wcs_color=0.7,
+        psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
     )

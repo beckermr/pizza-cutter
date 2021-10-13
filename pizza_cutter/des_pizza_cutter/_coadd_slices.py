@@ -67,6 +67,7 @@ def _build_slice_inputs(
     wcs_type,
     wcs_color,
     psf_type,
+    psf_kwargs,
     tmpdir=None,
     gaia_star_mask=None,
 ):
@@ -174,6 +175,8 @@ def _build_slice_inputs(
         pixmappy where a default of 0.61 may be needed.
     psf_type : str
         The SE PSF model to use. This should be one 'psfex' or 'piff'.
+    psf_kwargs : dict or None
+        A set of keywords to feed the PSF model call.
 
     Returns
     -------
@@ -198,6 +201,7 @@ def _build_slice_inputs(
             se_slice = SEImageSlice(
                 source_info=se_info,
                 psf_model=psf_type,
+                psf_kwargs=psf_kwargs,
                 wcs=wcs_type,
                 wcs_position_offset=se_info['position_offset'],
                 wcs_color=wcs_color,

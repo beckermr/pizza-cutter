@@ -330,6 +330,8 @@ class SEImageSlice(object):
             or `piff.PSF` object
         The PSF model to use. The type of input will be detected and then
         called appropriately.
+    psf_kwargs : dict or None
+        A set of keywords to feed the PSF model call.
     wcs : a ` esutil.wcsutil.WCS`, `AffineWCS` or `galsim.BaseWCS` instance
         The WCS model to use.
     wcs_position_offset : float
@@ -429,6 +431,7 @@ class SEImageSlice(object):
                  *,
                  source_info,
                  psf_model,
+                 psf_kwargs,
                  wcs,
                  wcs_position_offset,
                  wcs_color,
@@ -469,6 +472,7 @@ class SEImageSlice(object):
                 raise RuntimeError("psf type %s not allowed!" % psf_model)
 
         self._psf_model = psf_model
+        self._psf_kwargs = psf_kwargs or {}
         self._wcs = wcs
 
         # get the image shape
@@ -993,7 +997,11 @@ class SEImageSlice(object):
             im = self._psf_model.draw(
                 x=x + self._wcs_position_offset,
                 y=y + self._wcs_position_offset,
+                # some versions need this and some don't - this is a hack that
+                # makes it work
+                chipnum=self.source_info["ccdnum"] if self._psf_kwargs else 0,
                 image=image,
+                **self._psf_kwargs,
             )
             psf_im = im.array.copy()
         else:

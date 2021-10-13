@@ -1,7 +1,7 @@
 des_data:
   campaign: Y6A2_COADD
   source_type: finalcut
-  piff_campaign: Y6A1_PIFF
+  piff_campaign: Y6A2_PIFF_TEST_V3
 
 # optional but these are good defaults
 fpack_pars:
@@ -39,6 +39,8 @@ single_epoch:
   # if using piff in DES and a release earlier than Y6,
   # you need to set the piff_run above too
   psf_type: piff
+  psf_kwargs:
+    GI_COLOR: 0.61
 
   # which SE WCS to use - one of piff, pixmappy or image
   wcs_type: pixmappy
