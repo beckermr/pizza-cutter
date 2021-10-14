@@ -10,7 +10,7 @@ from .._se_image import SEImageSlice
     reason=(
         'SEImageSlice can only be tested if '
         'test data is at TEST_DESDATA'))
-@pytest.mark.parametrize('eps', [-0.5, -0.1, 0, 0.1, 0.499999])
+@pytest.mark.parametrize('eps', [-0.499999, -0.1, 0, 0.1, 0.499999])
 def test_se_image_slice_bnds_odd(se_image_data, eps):
     se_im = SEImageSlice(
         source_info=se_image_data['source_info'],

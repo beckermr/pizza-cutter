@@ -123,7 +123,9 @@ def test_se_image_wcs_pixel_area_galsim(se_image_data, wcs_pos_offset):
         'SEImageSlice can only be tested if '
         'test data is at TEST_DESDATA'))
 def test_se_image_get_wcs_pixel_area_pixmappy(se_image_data, coadd_image_data):
-    se_wcs = piff.PSF.read(se_image_data['source_info']['piff_path']).wcs[0]
+    se_wcs = piff.PSF.read(
+        se_image_data['source_info']['piff_path']
+    ).wcs[se_image_data['source_info']['ccdnum']]
 
     # this hack mocks up an esutil-like interface to the pixmappy WCS
     def se_image2sky(x, y):
