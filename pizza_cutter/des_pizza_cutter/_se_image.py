@@ -227,7 +227,7 @@ def _get_wcs_area_interp(se_wcs, se_im_shape, delta, position_offset=0):
 
 
 @lru_cache(maxsize=BIG_IMAGE_CACHE_SIZE)
-def _load_piff_pixmappy(piff_path):
+def _load_piff_pixmappy(piff_path, chipnum):
     ci = _load_piff_pixmappy.cache_info()
     if ci.misses == ci.maxsize+1:
         print(
@@ -455,7 +455,10 @@ class SEImageSlice(object):
             elif wcs == 'affine':
                 wcs = source_info['affine_wcs']
             elif wcs == 'pixmappy':
-                res = _load_piff_pixmappy(source_info['piff_path'])
+                res = _load_piff_pixmappy(
+                    source_info['piff_path'],
+                    source_info["ccdnum"],
+                )
                 wcs = res[1]
             else:
                 raise RuntimeError("wcs type %s not allowed!" % wcs)
@@ -466,7 +469,10 @@ class SEImageSlice(object):
             elif psf_model == 'psfex':
                 psf_model = _load_psfex(source_info['psfex_path'])
             elif psf_model == 'piff':
-                res = _load_piff_pixmappy(source_info['piff_path'])
+                res = _load_piff_pixmappy(
+                    source_info['piff_path'],
+                    source_info["ccdnum"],
+                )
                 psf_model = res[0]
             else:
                 raise RuntimeError("psf type %s not allowed!" % psf_model)
