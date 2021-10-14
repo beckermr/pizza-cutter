@@ -16,9 +16,9 @@ from .._se_image import SEImageSlice
         'test data is at TEST_DESDATA'))
 @pytest.mark.parametrize('wcs_pos_offset', [0, 1])
 def test_se_image_wcs_color_pixmappy(se_image_data, wcs_pos_offset):
-    psf = piff.PSF.read(se_image_data["piff_data"]["g"])
-    if isinstance(psf.wcs[0], pixmappy.GalSimWCS):
-        wcs = psf.wcs[0]
+    psf = piff.PSF.read(se_image_data["source_info"]["piff_path"])
+    if isinstance(psf.wcs[se_image_data["source_info"]["ccdnum"]], pixmappy.GalSimWCS):
+        wcs = psf.wcs[se_image_data["source_info"]["ccdnum"]]
 
         # HACK at the internals to code around a bug!
         if isinstance(

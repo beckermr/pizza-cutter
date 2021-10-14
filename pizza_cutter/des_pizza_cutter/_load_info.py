@@ -155,10 +155,7 @@ def load_objects_into_info(*, info, verbose=True, skip_se=False):
                 piff_path = expandvars(ii['piff_path'])
                 try:
                     ii['piff_psf'] = get_piff_psf(piff_path)
-                    if isinstance(ii['piff_psf'].wcs, list):
-                        ii['piff_wcs'] = ii['piff_psf'].wcs[0]
-                    else:
-                        ii['piff_wcs'] = ii['piff_psf'].wcs[ii["ccdnum"]]
+                    ii['piff_wcs'] = ii['piff_psf'].wcs[ii["ccdnum"]]
 
                     # try and grab pixmappy from piff
                     if isinstance(ii['piff_wcs'], pixmappy.GalSimWCS):

@@ -234,14 +234,14 @@ def test_se_image_psf_piff_color(se_image_data, eps_x, eps_y, wcs_pos_offset):
     dx = get_center_delta(x)
     dy = get_center_delta(y)
 
-    psf_mod = piff.PSF.read(se_image_data['piff_data']['g'])
+    psf_mod = piff.PSF.read(se_image_data['source_info']['piff_path'])
     se_im = SEImageSlice(
         source_info=se_image_data['source_info'],
         psf_model=psf_mod,
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=wcs_pos_offset,
         wcs_color=0.7,
-        psf_kwargs=None,
+        psf_kwargs={"GI_COLOR": 0.61},
         noise_seeds=[10],
         mask_tape_bumps=False,
     )
@@ -259,7 +259,7 @@ def test_se_image_psf_piff_color(se_image_data, eps_x, eps_y, wcs_pos_offset):
     assert np.abs(xbar - dx) < 1e-1, 'x: %g xbar: %g dx: %g' % (x, xbar, dx)
     assert np.abs(ybar - dy) < 1e-1, ybar
 
-    psf_mod = piff.PSF.read(se_image_data['piff_data']['g'])
+    psf_mod = piff.PSF.read(se_image_data['source_info']['piff_path'])
     image = galsim.ImageD(
         PIFF_STAMP_SIZE,
         PIFF_STAMP_SIZE,
@@ -271,6 +271,8 @@ def test_se_image_psf_piff_color(se_image_data, eps_x, eps_y, wcs_pos_offset):
         image=image,
         center=True,
         offset=(x - np.floor(x+0.5), y - np.floor(y+0.5)),
+        chipnum=se_image_data['source_info']['ccdnum'],
+        GI_COLOR=0.61,
     ).array
     true_psf_im /= np.sum(true_psf_im)
     assert np.array_equal(psf_im, true_psf_im)
