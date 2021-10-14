@@ -211,7 +211,7 @@ def test_se_image_get_wcs_pixel_area_pixmappy(se_image_data, coadd_image_data):
     assert np.all(np.isfinite(err)), np.sum(~np.isfinite(err))
 
     # in the interior the interp should be really good
-    assert np.all(err[ok_pix] < 1e-4), np.max(err[ok_pix])
+    assert np.all(err[ok_pix] < 2e-4), np.max(err[ok_pix])
 
     # for the full image we allow more errors
     assert np.all(err < 5e-3), np.max(err)
