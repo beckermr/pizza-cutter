@@ -23,7 +23,7 @@ def test_se_image_pickles(se_image_data, noise_seeds):
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=1,
         wcs_color=0,
-        psf_kwargs=None,
+        psf_kwargs={"GI_COLOR": 0.61},
         noise_seeds=noise_seeds,
         mask_tape_bumps=False,
     )
