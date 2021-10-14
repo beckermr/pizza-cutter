@@ -1003,9 +1003,7 @@ class SEImageSlice(object):
             im = self._psf_model.draw(
                 x=x + self._wcs_position_offset,
                 y=y + self._wcs_position_offset,
-                # some versions need this and some don't - this is a hack that
-                # makes it work
-                chipnum=self.source_info["ccdnum"] if self._psf_kwargs else 0,
+                chipnum=self.source_info["ccdnum"],
                 image=image,
                 **self._psf_kwargs,
             )
