@@ -138,7 +138,9 @@ def test_se_image_get_wcs_pixel_area_pixmappy(se_image_data, coadd_image_data):
             (np.atleast_1d(x) - se_wcs.x0 +
              se_image_data['source_info']['position_offset']),
             (np.atleast_1d(y) - se_wcs.y0 +
-             se_image_data['source_info']['position_offset']))
+             se_image_data['source_info']['position_offset']),
+            c=0.61,
+        )
         np.degrees(ra, out=ra)
         np.degrees(dec, out=dec)
         if is_scalar:
