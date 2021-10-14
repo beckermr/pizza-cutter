@@ -23,7 +23,7 @@ def test_se_image_resample_smoke(se_image_data, coadd_image_data):
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=1,
         wcs_color=0,
-        psf_kwargs=None,
+        psf_kwargs={"GI_COLOR": 0.61},
         noise_seeds=[10, 11, 23, 45],
         mask_tape_bumps=False,
     )
