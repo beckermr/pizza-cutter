@@ -24,7 +24,7 @@ def main():
     order = 2
 
     t = fitsio.read(args.stars_file, lower=True)
-    radius_factor = 2.0
+    radius_factor = 1.0
     t['radius'] /= radius_factor
     logr = np.log10(t['radius'])
 
