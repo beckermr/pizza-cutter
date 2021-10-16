@@ -44,6 +44,9 @@ single_epoch:
   wcs_type: pixmappy
   wcs_color: 0.61
 
+  ignored_ccds:
+    - 31
+
   reject_outliers: False
   symmetrize_masking: True
   copy_masked_edges: True
