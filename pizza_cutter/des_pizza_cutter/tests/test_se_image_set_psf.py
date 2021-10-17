@@ -24,6 +24,7 @@ def test_se_image_set_psf(se_image_data, eps_x, eps_y):
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=1,
         wcs_color=0,
+        psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
     )

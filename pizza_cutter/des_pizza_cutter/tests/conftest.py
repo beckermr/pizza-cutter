@@ -83,21 +83,15 @@ def se_image_data():
 
     if 'TEST_DESDATA' in os.environ:
         DESDATA = os.path.join(os.environ['TEST_DESDATA'], 'DESDATA')
-        PIFF_DATA_DIR = os.path.join(
-            os.environ['TEST_DESDATA'], 'PIFF_DATA_DIR')
 
         pth = os.path.join(
             os.environ['TEST_DESDATA'], 'source_info.yaml')
         with open(pth, 'r') as fp:
             source_info = yaml.load(fp, Loader=yaml.Loader)
-        source_info['weight_path'] = source_info['image_path']
-        source_info['bmask_path'] = source_info['image_path']
 
         for k in source_info:
-            if '_path' in k and k != 'piff_path':
+            if '_path' in k:
                 source_info[k] = os.path.join(DESDATA, source_info[k])
-        source_info['piff_path'] = os.path.join(
-            PIFF_DATA_DIR, source_info['piff_path'])
 
         _se_wcs_data = fitsio.read_header(
             source_info['image_path'],
@@ -110,23 +104,14 @@ def se_image_data():
 
         source_info['position_offset'] = 1.0
 
-        pth = os.path.join(
-            os.environ['TEST_DESDATA'], 'piff_data.yaml')
-        with open(pth, 'r') as fp:
-            piff_data = yaml.load(fp, Loader=yaml.Loader)
-        for band in piff_data:
-            piff_data[band] = os.path.join(DESDATA, piff_data[band])
-
     else:
         source_info = None
-        piff_data = None
 
     return {
         'source_info': source_info,
         'wcs_header': se_wcs_data,
         'eu_wcs': FastHashingWCS(se_wcs_data),
         'gs_wcs': get_gs_fits_wcs_from_dict(se_wcs_data),
-        'piff_data': piff_data,
     }
 
 
