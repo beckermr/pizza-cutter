@@ -23,6 +23,7 @@ def test_se_image_psf_array(se_image_data, x, y):
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=1,
         wcs_color=0,
+        psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
     )
@@ -62,6 +63,7 @@ def test_se_image_psf_gsobject(se_image_data, eps_x, eps_y, wcs_pos_offset):
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=wcs_pos_offset,
         wcs_color=0,
+        psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
     )
@@ -119,6 +121,7 @@ def test_se_image_psf_psfex(
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=wcs_pos_offset,
         wcs_color=0,
+        psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
     )
@@ -167,8 +170,8 @@ def get_center_delta(x):
 @pytest.mark.parametrize('eps_y', [
     -0.75, -0.50, -0.25, 0.0, 0.25, 0.50, 0.75])
 def test_se_image_psf_piff(se_image_data, eps_x, eps_y, wcs_pos_offset):
-    x = 10 + eps_x
-    y = 11 + eps_y
+    x = 101 + eps_x
+    y = 111 + eps_y
 
     dx = get_center_delta(x)
     dy = get_center_delta(y)
@@ -180,23 +183,27 @@ def test_se_image_psf_piff(se_image_data, eps_x, eps_y, wcs_pos_offset):
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=wcs_pos_offset,
         wcs_color=0,
+        psf_kwargs={"GI_COLOR": 0.61},
         noise_seeds=[10],
         mask_tape_bumps=False,
     )
 
-    psf_im = se_im.get_psf_image(x, y)
-
-    cen = (psf_im.shape[0] - 1) / 2
+    psf_im_cen = se_im.get_psf_image(np.floor(x+0.5), np.floor(y+0.5))
+    _y, _x = np.mgrid[:psf_im_cen.shape[0], :psf_im_cen.shape[1]]
+    xcen = np.mean(_x * psf_im_cen) / np.mean(psf_im_cen)
+    ycen = np.mean(_y * psf_im_cen) / np.mean(psf_im_cen)
 
     # check mean (x, y) to make sure it is not the center
+    psf_im = se_im.get_psf_image(x, y)
     _y, _x = np.mgrid[:psf_im.shape[0], :psf_im.shape[1]]
-    xbar = np.mean((_x - cen) * psf_im) / np.mean(psf_im)
-    ybar = np.mean((_y - cen) * psf_im) / np.mean(psf_im)
+    xbar = np.mean((_x - xcen) * psf_im) / np.mean(psf_im)
+    ybar = np.mean((_y - ycen) * psf_im) / np.mean(psf_im)
 
     # Piff is not exactly centered, so the tolerance here is bigger
     print("\ncenter offsets:", xbar, dx, ybar, dy)
+
     assert np.abs(xbar - dx) < 1e-1, 'x: %g xbar: %g dx: %g' % (x, xbar, dx)
-    assert np.abs(ybar - dy) < 1e-1, ybar
+    assert np.abs(ybar - dy) < 1e-1, 'y: %g ybar: %g dy: %g' % (y, ybar, dy)
 
     psf_mod = piff.PSF.read(se_image_data['source_info']['piff_path'])
     image = galsim.ImageD(
@@ -210,6 +217,8 @@ def test_se_image_psf_piff(se_image_data, eps_x, eps_y, wcs_pos_offset):
         image=image,
         center=True,
         offset=(x - np.floor(x+0.5), y - np.floor(y+0.5)),
+        GI_COLOR=0.61,
+        chipnum=se_image_data["source_info"]["ccdnum"],
     ).array
     true_psf_im /= np.sum(true_psf_im)
     assert np.array_equal(psf_im, true_psf_im)
@@ -230,31 +239,34 @@ def test_se_image_psf_piff_color(se_image_data, eps_x, eps_y, wcs_pos_offset):
     dx = get_center_delta(x)
     dy = get_center_delta(y)
 
-    psf_mod = piff.PSF.read(se_image_data['piff_data']['g'])
+    psf_mod = piff.PSF.read(se_image_data['source_info']['piff_path'])
     se_im = SEImageSlice(
         source_info=se_image_data['source_info'],
         psf_model=psf_mod,
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=wcs_pos_offset,
         wcs_color=0.7,
+        psf_kwargs={"GI_COLOR": 0.61},
         noise_seeds=[10],
         mask_tape_bumps=False,
     )
 
-    psf_im = se_im.get_psf_image(x, y)
-
-    cen = (psf_im.shape[0] - 1) / 2
+    psf_im_cen = se_im.get_psf_image(np.floor(x+0.5), np.floor(y+0.5))
+    _y, _x = np.mgrid[:psf_im_cen.shape[0], :psf_im_cen.shape[1]]
+    xcen = np.mean(_x * psf_im_cen) / np.mean(psf_im_cen)
+    ycen = np.mean(_y * psf_im_cen) / np.mean(psf_im_cen)
 
     # check mean (x, y) to make sure it is not the center
+    psf_im = se_im.get_psf_image(x, y)
     _y, _x = np.mgrid[:psf_im.shape[0], :psf_im.shape[1]]
-    xbar = np.mean((_x - cen) * psf_im) / np.mean(psf_im)
-    ybar = np.mean((_y - cen) * psf_im) / np.mean(psf_im)
+    xbar = np.mean((_x - xcen) * psf_im) / np.mean(psf_im)
+    ybar = np.mean((_y - ycen) * psf_im) / np.mean(psf_im)
 
     # Piff is not exactly centered, so the tolerance here is bigger
     assert np.abs(xbar - dx) < 1e-1, 'x: %g xbar: %g dx: %g' % (x, xbar, dx)
     assert np.abs(ybar - dy) < 1e-1, ybar
 
-    psf_mod = piff.PSF.read(se_image_data['piff_data']['g'])
+    psf_mod = piff.PSF.read(se_image_data['source_info']['piff_path'])
     image = galsim.ImageD(
         PIFF_STAMP_SIZE,
         PIFF_STAMP_SIZE,
@@ -266,6 +278,8 @@ def test_se_image_psf_piff_color(se_image_data, eps_x, eps_y, wcs_pos_offset):
         image=image,
         center=True,
         offset=(x - np.floor(x+0.5), y - np.floor(y+0.5)),
+        chipnum=se_image_data['source_info']['ccdnum'],
+        GI_COLOR=0.61,
     ).array
     true_psf_im /= np.sum(true_psf_im)
     assert np.array_equal(psf_im, true_psf_im)
@@ -275,6 +289,8 @@ def test_se_image_psf_piff_color(se_image_data, eps_x, eps_y, wcs_pos_offset):
         x=x+wcs_pos_offset,
         y=y+wcs_pos_offset,
         stamp_size=psf_im.shape[0],
+        chipnum=se_image_data['source_info']['ccdnum'],
+        GI_COLOR=0.61,
     ).array
     not_true_psf_im /= np.sum(not_true_psf_im)
     assert not np.array_equal(psf_im, not_true_psf_im)

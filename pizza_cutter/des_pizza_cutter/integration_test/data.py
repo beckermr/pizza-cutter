@@ -66,6 +66,7 @@ single_epoch:
 
   frac_buffer: 1
   psf_type: galsim
+  psf_kwargs: null
   wcs_type: affine
   wcs_color: 0
 
@@ -117,6 +118,7 @@ single_epoch:
 
   frac_buffer: 1
   psf_type: galsim
+  psf_kwargs: null
   wcs_type: affine
   wcs_color: 0
 
@@ -168,6 +170,7 @@ single_epoch:
 
   frac_buffer: 1
   psf_type: galsim
+  psf_kwargs: null
   wcs_type: affine
   wcs_color: 0
 

@@ -20,6 +20,7 @@ def test_se_image_get_wcs_inverse_caches(se_image_data, coadd_image_data):
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=1,
         wcs_color=0,
+        psf_kwargs={"GI_COLOR": 0.61},
         noise_seeds=[10],
         mask_tape_bumps=False,
     )
@@ -47,6 +48,7 @@ def test_se_image_get_wcs_inverse_caches(se_image_data, coadd_image_data):
         wcs=se_image_data['eu_wcs'],
         wcs_position_offset=1,
         wcs_color=0,
+        psf_kwargs={"GI_COLOR": 0.61},
         noise_seeds=[10],
         mask_tape_bumps=False,
     )
@@ -69,7 +71,9 @@ def test_se_image_get_wcs_inverse_caches(se_image_data, coadd_image_data):
 def test_se_image_get_wcs_inverse_pixmappy(se_image_data, coadd_image_data):
     coadd_wcs = coadd_image_data['eu_wcs']
 
-    se_wcs = piff.PSF.read(se_image_data['source_info']['piff_path']).wcs[0]
+    se_wcs = piff.PSF.read(
+        se_image_data['source_info']['piff_path']
+    ).wcs[se_image_data['source_info']['ccdnum']]
 
     # this hack mocks up an esutil-like interface to the pixmappy WCS
     def se_image2sky(x, y):
@@ -82,7 +86,9 @@ def test_se_image_get_wcs_inverse_pixmappy(se_image_data, coadd_image_data):
             (np.atleast_1d(x) - se_wcs.x0 +
              se_image_data['source_info']['position_offset']),
             (np.atleast_1d(y) - se_wcs.y0 +
-             se_image_data['source_info']['position_offset']))
+             se_image_data['source_info']['position_offset']),
+            c=0.61,
+        )
         np.degrees(ra, out=ra)
         np.degrees(dec, out=dec)
         if is_scalar:
@@ -153,8 +159,10 @@ def test_se_image_get_wcs_inverse_pixmappy(se_image_data, coadd_image_data):
     # everything should be finite
     assert np.all(np.isfinite(err)), np.sum(~np.isfinite(err))
 
+    print("max ok err|max err:", np.max(err[ok_pix]), np.max(err))
+
     # in the interior the interp should be really good
-    assert np.all(err[ok_pix] < 1e-3), np.max(err[ok_pix])
+    assert np.all(err[ok_pix] < 2e-3), np.max(err[ok_pix])
 
     # for the full image we allow more errors
     assert np.all(err < 2e-2), np.max(err)
