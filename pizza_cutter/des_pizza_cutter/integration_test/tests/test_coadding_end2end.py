@@ -99,7 +99,7 @@ def _coadd_end2end(tmp_path_factory, sim_config, n_extra_noise_images=0):
         'info': info,
         'bkgs': bkgs,
         'config': copy.deepcopy(sim_config),
-        'config_yaml': yaml.load(copy.deepcopy(sim_config)),
+        'config_yaml': yaml.safe_load(copy.deepcopy(sim_config)),
     }
 
 

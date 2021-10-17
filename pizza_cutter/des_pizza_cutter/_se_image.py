@@ -227,7 +227,7 @@ def _get_wcs_area_interp(se_wcs, se_im_shape, delta, position_offset=0):
 
 
 @lru_cache(maxsize=BIG_IMAGE_CACHE_SIZE)
-def _load_piff_pixmappy(piff_path):
+def _load_piff_pixmappy(piff_path, chipnum):
     ci = _load_piff_pixmappy.cache_info()
     if ci.misses == ci.maxsize+1:
         print(
@@ -330,6 +330,8 @@ class SEImageSlice(object):
             or `piff.PSF` object
         The PSF model to use. The type of input will be detected and then
         called appropriately.
+    psf_kwargs : dict or None
+        A set of keywords to feed the PSF model call.
     wcs : a ` esutil.wcsutil.WCS`, `AffineWCS` or `galsim.BaseWCS` instance
         The WCS model to use.
     wcs_position_offset : float
@@ -429,6 +431,7 @@ class SEImageSlice(object):
                  *,
                  source_info,
                  psf_model,
+                 psf_kwargs,
                  wcs,
                  wcs_position_offset,
                  wcs_color,
@@ -452,7 +455,10 @@ class SEImageSlice(object):
             elif wcs == 'affine':
                 wcs = source_info['affine_wcs']
             elif wcs == 'pixmappy':
-                res = _load_piff_pixmappy(source_info['piff_path'])
+                res = _load_piff_pixmappy(
+                    source_info['piff_path'],
+                    source_info["ccdnum"],
+                )
                 wcs = res[1]
             else:
                 raise RuntimeError("wcs type %s not allowed!" % wcs)
@@ -463,12 +469,16 @@ class SEImageSlice(object):
             elif psf_model == 'psfex':
                 psf_model = _load_psfex(source_info['psfex_path'])
             elif psf_model == 'piff':
-                res = _load_piff_pixmappy(source_info['piff_path'])
+                res = _load_piff_pixmappy(
+                    source_info['piff_path'],
+                    source_info["ccdnum"],
+                )
                 psf_model = res[0]
             else:
                 raise RuntimeError("psf type %s not allowed!" % psf_model)
 
         self._psf_model = psf_model
+        self._psf_kwargs = psf_kwargs or {}
         self._wcs = wcs
 
         # get the image shape
@@ -993,7 +1003,9 @@ class SEImageSlice(object):
             im = self._psf_model.draw(
                 x=x + self._wcs_position_offset,
                 y=y + self._wcs_position_offset,
+                chipnum=self.source_info["ccdnum"],
                 image=image,
+                **self._psf_kwargs,
             )
             psf_im = im.array.copy()
         else:
