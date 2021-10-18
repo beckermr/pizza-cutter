@@ -70,6 +70,9 @@ single_epoch:
   wcs_type: affine
   wcs_color: 0
 
+  ignored_ccds:
+   - 23
+
   reject_outliers: False
   symmetrize_masking: True
   copy_masked_edges: False
@@ -119,6 +122,9 @@ single_epoch:
   wcs_type: affine
   wcs_color: 0
 
+  ignored_ccds:
+   - 23
+
   reject_outliers: False
   symmetrize_masking: [90, 180, 270]
   copy_masked_edges: False
@@ -167,6 +173,9 @@ single_epoch:
   psf_kwargs: null
   wcs_type: affine
   wcs_color: 0
+
+  ignored_ccds:
+   - 23
 
   reject_outliers: False
   symmetrize_masking: True
@@ -289,8 +298,9 @@ def generate_sim():
         image 7 - too high mask fraction (weight = 0)
         image 8 - noise interpolated on the edge
         image 10 - spline interpolated on the edge
+        image 11 - ignored CCD in config above
 
-    This leaves 4 pristine images (images 11, 12, 13, and 14) plus the ones
+    This leaves 3 pristine images (images 12, 13, and 14) plus the ones
     that can be used from the list above (images 4, 8, 9, and 10).
 
     Returns

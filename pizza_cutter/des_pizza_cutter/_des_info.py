@@ -5,6 +5,10 @@ import subprocess
 from ._constants import MAGZP_REF, POSITION_OFFSET
 from ._piff_tools import get_piff_psf_info, compute_piff_flags
 
+# these start at 30 and count down
+# piff stuff starts at 0 and counts up
+IGNORED_CCD = 2**30
+
 logger = logging.getLogger(__name__)
 
 
@@ -42,21 +46,26 @@ def flag_data_in_info(*, info, config):
     config : dict
         The input config data.
     """
-    if "single_epoch" in config and "piff_cuts" in config["single_epoch"]:
-        for index, ii in enumerate(info['src_info']):
-            if "piff_info" in ii:
-                piff_flags = compute_piff_flags(
-                    piff_info=ii["piff_info"],
-                    **config["single_epoch"]["piff_cuts"],
-                )
-                ii["image_flags"] |= piff_flags
-                if piff_flags != 0:
-                    logger.info(
-                        "ignoring image %s/%s due to non-zero Piff flags %d",
-                        ii["path"],
-                        ii["filename"],
-                        piff_flags,
+    for index, ii in enumerate(info['src_info']):
+        if "single_epoch" in config:
+            if "piff_cuts" in config["single_epoch"]:
+                if "piff_info" in ii:
+                    piff_flags = compute_piff_flags(
+                        piff_info=ii["piff_info"],
+                        **config["single_epoch"]["piff_cuts"],
                     )
+                    ii["image_flags"] |= piff_flags
+                    if piff_flags != 0:
+                        logger.info(
+                            "ignoring image %s/%s due to non-zero Piff flags %d",
+                            ii["path"],
+                            ii["filename"],
+                            piff_flags,
+                        )
+
+        if "ignored_ccds" in config["single_epoch"]:
+            if int(ii['ccdnum']) in config["single_epoch"]["ignored_ccds"]:
+                ii["image_flags"] |= IGNORED_CCD
 
 
 def add_extra_des_coadd_tile_info(*, info, piff_campaign):

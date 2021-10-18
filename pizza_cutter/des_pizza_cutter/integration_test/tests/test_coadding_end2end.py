@@ -132,12 +132,13 @@ def test_coadding_end2end_epochs_info(coadd_end2end):
 
     ############################################################
     # check the epochs info for correct flags
-    # images 0, 1, 2 do not intersect the slice or get cut before they make
+    # images 0, 1, 2, 11 do not intersect the slice or get cut before they make
     # it into the epochs_info extensions
     # we add 1 for the file id's
     assert np.all(ei['image_id'] != 1)
     assert np.all(ei['image_id'] != 2)
     assert np.all(ei['image_id'] != 3)
+    assert np.all(ei['image_id'] != 12)
 
     # images 4 is flagged at the pixel level
     msk = ei['image_id'] == 4
@@ -209,7 +210,7 @@ def test_coadding_end2end_image_info(coadd_end2end):
 
     assert np.all(
         image_info['image_flags'] ==
-        np.array([0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
+        np.array([0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2**30, 0, 0, 0]))
 
 
 def test_coadding_end2end_object_data(coadd_end2end):
@@ -252,7 +253,7 @@ def test_coadding_end2end_object_data(coadd_end2end):
     assert object_data['dvdrow'][0, 0] == 0.25
     assert object_data['dvdcol'][0, 0] == 0
 
-    assert object_data['nepoch'][0] == 8
+    assert object_data['nepoch'][0] == 7
     assert np.allclose(object_data['nepoch_eff'][0], nepoch_eff)
     assert object_data['psf_box_size'][0] == 51
     assert object_data['psf_cutout_col'][0, 0] == 25
@@ -310,7 +311,7 @@ def test_coadding_end2end_psf(coadd_end2end):
     )
     assert np.abs(
         galsim.ImageD(psf_im, scale=0.25).calculateFWHM() -
-        galsim.ImageD(psf_m, scale=0.25).calculateFWHM()) < 4e-3
+        galsim.ImageD(psf_m, scale=0.25).calculateFWHM()) < 5e-3
 
 
 def test_coadding_end2end_gal(coadd_end2end):
@@ -382,10 +383,10 @@ def test_coadding_end2end_gal(coadd_end2end):
     ))
     assert np.abs(
         np.sum(x*gal_m)/np.sum(gal_m) -
-        np.sum(x*gal_im)/np.sum(gal_im)) < 1.5e-1
+        np.sum(x*gal_im)/np.sum(gal_im)) < 1.6e-1
     assert np.abs(
         np.sum(y*gal_m)/np.sum(gal_m) -
-        np.sum(y*gal_im)/np.sum(gal_im)) < 1.5e-1
+        np.sum(y*gal_im)/np.sum(gal_im)) < 1.6e-1
 
     # and shear
     mom_im = galsim.hsm.FindAdaptiveMom(galsim.ImageD(gal_im, scale=0.25))
