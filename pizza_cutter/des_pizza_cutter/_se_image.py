@@ -242,7 +242,7 @@ def _load_piff_pixmappy(piff_path, chipnum):
     psf = get_piff_psf(piff_path)
 
     # try and grab pixmappy from piff
-    wcs = psf.wcs[0]
+    wcs = psf.wcs[chipnum]
     if isinstance(wcs, pixmappy.GalSimWCS):
         # HACK at the internals to code around a bug!
         if isinstance(
