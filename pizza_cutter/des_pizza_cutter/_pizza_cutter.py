@@ -332,7 +332,7 @@ def _coadd_single_slice(
         wcs_type=single_epoch_config['wcs_type'],
         wcs_color=single_epoch_config['wcs_color'],
         psf_type=single_epoch_config['psf_type'],
-        psf_kwargs=single_epoch_config['psf_kwargs'],
+        psf_kwargs=single_epoch_config['psf_kwargs'][info["band"]],
         rng=rng,
         tmpdir=tmpdir,
         n_extra_noise_images=n_extra_noise_images,

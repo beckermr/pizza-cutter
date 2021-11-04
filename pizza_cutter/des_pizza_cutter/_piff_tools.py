@@ -121,8 +121,8 @@ def compute_piff_flags(
             2**1 - fwhm_cen >= max_fwhm_cen
             2**2 - star_t_std >= max_ccd_T_std_fac * star_t_mean
             2**3 - nstar < min_nstar
-            2**4 - star_t_mean - exp_star_t_mean >= max_exp_T_mean_fac * exp_star_t_std
-    """
+            2**4 - |star_t_mean - exp_star_t_mean| >= max_exp_T_mean_fac * exp_star_t_std
+    """  # noqa
     flags = 0
 
     if piff_info["desdm_flags"] != 0:
