@@ -195,6 +195,7 @@ def _build_slice_inputs(
     # this is fast and lets us stop if nothing can be used
     logger.info('generating slice objects for ra,dec = %s|%s', ra, dec)
     possible_slices = []
+    slice_psf_flags = []
     for se_info in se_src_info:
         if se_info['image_flags'] == 0:
             # no flags so init the object
@@ -232,14 +233,14 @@ def _build_slice_inputs(
 
                     # we will want this for storing in the meds file,
                     # even if this slice doesn't ultimately get used
-                    se_slice.set_psf(ra_psf, dec_psf)
+                    slice_psf_flags.append(se_slice.set_psf(ra_psf, dec_psf))
 
                     possible_slices.append(se_slice)
 
     logger.info('images found in rough cut: %d', len(possible_slices))
 
     # just stop now if we find nothing
-    if not possible_slices:
+    if not possible_slices or all(slice_psf_flags):
         return [], [], [], []
 
     # we reject outliers after scaling the images to the same zero points
@@ -258,7 +259,7 @@ def _build_slice_inputs(
     weights = []
     slices_not_used = []
     flags_not_used = []
-    for se_slice in possible_slices:
+    for se_slice, se_slice_psf_flag in possible_slices:
         logger.info(
             'pre-processing image %s/%s',
             se_slice.source_info["path"],
@@ -344,7 +345,8 @@ def _build_slice_inputs(
         skip = (
             skip_edge_masked or
             skip_has_flags or
-            skip_masked_fraction
+            skip_masked_fraction or
+            se_slice_psf_flag
         )
 
         if skip:
@@ -360,6 +362,10 @@ def _build_slice_inputs(
             if skip_masked_fraction:
                 msg.append('masked fraction too high')
                 flags |= procflags.HIGH_MASKED_FRAC
+
+            if se_slice_psf_flag:
+                msg.append("bad PSF model")
+                flags |= procflags.BAD_PSF_MODEL
 
             msg = '; '.join(msg)
             logger.info(

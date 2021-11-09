@@ -299,6 +299,47 @@ def _load_image_wcs(image_path, image_ext):
     )
 
 
+@lru_cache(maxsize=BIG_IMAGE_CACHE_SIZE)
+def _compute_bad_piff_model_mask(
+    *, piff_path, ccdnum,
+    image_path, image_ext,
+    bkg_path, bkg_ext,
+    wgt_path, wgt_ext,
+    any_bad_thresh,
+    flag_bad_thresh,
+    grid_size,
+    seed, piff_kwargs,
+):
+    from des_y6utils.piff import (
+        make_good_regions_for_piff_model_star_and_gal_grid,
+    )
+
+    piff_model = _load_piff_pixmappy(
+        piff_path,
+        ccdnum,
+    )[0]
+
+    img = (
+        _read_image(image_path, ext=image_ext)
+        - _read_image(bkg_path, ext=bkg_ext)
+    )
+
+    wgt = _read_image(wgt_path, ext=wgt_ext)
+
+    res = make_good_regions_for_piff_model_star_and_gal_grid(
+        piff_model, img, wgt, piff_kwargs=piff_kwargs, seed=seed,
+        any_bad_thresh=any_bad_thresh, flag_bad_thresh=flag_bad_thresh,
+        grid_size=grid_size,
+    )
+    return res["bad_msk"]
+
+
+def _check_point_in_bad_piff_model_mask(x, y, bad_msk, grid_size):
+    xg = np.clip(np.floor(x/grid_size), 0, bad_msk.shape[1]-1).astype(int)
+    yg = np.clip(np.floor(y/grid_size), 0, bad_msk.shape[0]-1).astype(int)
+    return bad_msk[yg, xg]
+
+
 def clear_image_and_wcs_caches():
     """Clear the global image and WCS caches."""
     _get_image_shape.cache_clear()
@@ -342,9 +383,29 @@ class SEImageSlice(object):
         it is worth thinking about this. A good default might be 0.61.
     noise_seeds : list of int
         The list of seeds to use for the noise fields.
-    mask_tape_bumps: boold
+    mask_tape_bumps: bool
         If True, turn on TAPEBUMP flag and turn off SUSPECT in bmask for
         tape bump regions in DES CCDs.
+    mask_piff_failure_config : dict or None
+        If not None, then a dictionary with the parameters used to mask regions of
+        Piff models where the fit appears to fail. Required keys are:
+
+            grid_size : int
+                Set to something that divides the SE image evenly. 128 is a
+                good choice.
+            any_bad_thresh : float
+                The threshold for marking a CCD as having had failed. A value of
+                5 is good here.
+            flag_bad_thresh : float
+                The threshold for marking regions where a CCD is bad. A value of
+                2 is good here.
+            seed : int
+                An RNG seed to use.
+
+        The algorithm looks at the difference between T for galaxies and T for
+        stars at each grid point. If it finds any `any_bad_thresh`-sigma outliers
+        in this distribution, it flags any grid point that is a `flag_bad_thresh`-sigma
+        outlier as unusable.
     tmpdir: optional, string
         Optional temporary directory for temporary files
 
@@ -437,6 +498,7 @@ class SEImageSlice(object):
                  wcs_color,
                  noise_seeds,
                  mask_tape_bumps,
+                 mask_piff_failure_config,
                  tmpdir=None):
 
         self.source_info = source_info
@@ -444,6 +506,7 @@ class SEImageSlice(object):
         self._wcs_color = wcs_color
         self._noise_seeds = noise_seeds
         self._mask_tape_bumps = mask_tape_bumps
+        self._mask_piff_failure_config = mask_piff_failure_config
         self._tmpdir = tmpdir
 
         if isinstance(wcs, str):
@@ -1098,9 +1161,43 @@ class SEImageSlice(object):
             The right ascension of the sky position.
         dec : float
             The declination of the sky position.
+
+        Returns
+        -------
+        flag : bool
+            If True, the PSF model is flagged and this SE image at this point
+            should not be used.
         """
 
         x, y = self.sky2image(ra, dec)
+
+        if (
+            self._mask_piff_failure_config is not None
+            and isinstance(self._psf_model, piff.PSF)
+        ):
+            self._piff_bad_mask = _compute_bad_piff_model_mask(
+                piff_path=self.source_info['piff_path'],
+                ccdnum=self.source_info['ccdnum'],
+                image_path=self.source_info['image_path'],
+                image_ext=self.source_info['image_ext'],
+                bkg_path=self.source_info['bkg_path'],
+                bkg_ext=self.source_info['bkg_ext'],
+                wgt_path=self.source_info['weight_path'],
+                wgt_ext=self.source_info['weight_ext'],
+                any_bad_thresh=self._mask_piff_failure_config["any_bad_thresh"],
+                flag_bad_thresh=self._mask_piff_failure_config["flag_bad_thresh"],
+                grid_size=self._mask_piff_failure_config["grid_size"],
+                seed=self._mask_piff_failure_config["seed"],
+                piff_kwargs=self._psf_kwargs,
+            )
+            flag = _check_point_in_bad_piff_model_mask(
+                x, y,
+                self._piff_bad_mask,
+                grid_size=self._mask_piff_failure_config["grid_size"],
+            )
+        else:
+            flag = False
+
         psf = self.get_psf_image(x, y)
         xmin, ymin = self._compute_psf_stamp_bounds(x, y, psf.shape[0])
 
@@ -1108,6 +1205,8 @@ class SEImageSlice(object):
         self.psf_x_start = xmin
         self.psf_y_start = ymin
         self.psf_box_size = psf.shape[0]
+
+        return flag
 
     def set_interp_image_noise_pmask(self, *, interp_image, interp_noises, mask):
         """Set the inteprolated image, noise and processing mask.
