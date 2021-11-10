@@ -5,7 +5,25 @@ import pytest
 import galsim
 import piff
 
-from .._se_image import SEImageSlice, PIFF_STAMP_SIZE
+from .._se_image import (
+    SEImageSlice,
+    PIFF_STAMP_SIZE,
+    _check_point_in_bad_piff_model_mask,
+)
+
+
+def test_check_point_in_bad_piff_model_mask():
+    xdim = 1024
+    ydim = 512
+    grid_size = 64
+    bad_msk = np.zeros((ydim//grid_size, xdim//grid_size)).astype(bool)
+    bad_msk[3, 2] = True
+
+    assert not _check_point_in_bad_piff_model_mask(-10, -10, bad_msk, grid_size)
+    assert not _check_point_in_bad_piff_model_mask(45454, 343243, bad_msk, grid_size)
+    assert _check_point_in_bad_piff_model_mask(145, 200, bad_msk, grid_size)
+    assert _check_point_in_bad_piff_model_mask(128, 192, bad_msk, grid_size)
+    assert not _check_point_in_bad_piff_model_mask(127, 191, bad_msk, grid_size)
 
 
 @pytest.mark.skipif(
