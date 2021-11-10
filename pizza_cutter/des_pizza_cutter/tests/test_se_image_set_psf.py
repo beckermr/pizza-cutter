@@ -27,6 +27,7 @@ def test_se_image_set_psf(se_image_data, eps_x, eps_y):
         psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     # due to the WCS inversion in the function (and it not being exact),

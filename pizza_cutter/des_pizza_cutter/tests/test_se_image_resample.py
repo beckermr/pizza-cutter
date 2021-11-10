@@ -26,6 +26,7 @@ def test_se_image_resample_smoke(se_image_data, coadd_image_data):
         psf_kwargs={"GI_COLOR": 0.61},
         noise_seeds=[10, 11, 23, 45],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
     se_im._im_shape = (512, 512)
     dim = 10
@@ -156,6 +157,7 @@ def test_se_image_resample_shifts(se_image_data, eps_x, eps_y, noise_seeds):
         psf_kwargs=None,
         noise_seeds=noise_seeds,
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
     se_im._im_shape = (512, 512)
 

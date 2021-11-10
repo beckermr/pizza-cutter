@@ -43,6 +43,7 @@ def test_se_image_wcs_color_pixmappy(se_image_data, wcs_pos_offset):
         psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     x = np.arange(2)

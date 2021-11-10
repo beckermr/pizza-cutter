@@ -26,6 +26,7 @@ def test_se_image_psf_array(se_image_data, x, y):
         psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     with pytest.raises(AssertionError):
@@ -66,6 +67,7 @@ def test_se_image_psf_gsobject(se_image_data, eps_x, eps_y, wcs_pos_offset):
         psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     psf_im = se_im.get_psf_image(x, y)
@@ -124,6 +126,7 @@ def test_se_image_psf_psfex(
         psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     if use_wcs:
@@ -186,6 +189,7 @@ def test_se_image_psf_piff(se_image_data, eps_x, eps_y, wcs_pos_offset):
         psf_kwargs={"GI_COLOR": 0.61},
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     psf_im_cen = se_im.get_psf_image(np.floor(x+0.5), np.floor(y+0.5))
@@ -249,6 +253,7 @@ def test_se_image_psf_piff_color(se_image_data, eps_x, eps_y, wcs_pos_offset):
         psf_kwargs={"GI_COLOR": 0.61},
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     psf_im_cen = se_im.get_psf_image(np.floor(x+0.5), np.floor(y+0.5))

@@ -25,6 +25,7 @@ def test_se_image_sky_bnds_array_shape(se_image_data, x, y):
         psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     with pytest.raises(AssertionError):
@@ -49,6 +50,7 @@ def test_se_image_sky_bnds_array(se_image_data):
         psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     ra = se_im._ra_ccd * np.ones(10)
@@ -75,6 +77,7 @@ def test_se_image_sky_bnds_scalar(se_image_data):
         psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     ra = se_im._ra_ccd
@@ -105,6 +108,7 @@ def test_se_image_sky_bnds_affine_array(se_image_data):
         psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     ra = se_im._ra_ccd * np.ones(10)
@@ -132,6 +136,7 @@ def test_se_image_sky_bnds_affine_scalar(se_image_data):
         psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     ra = se_im._ra_ccd

@@ -21,6 +21,7 @@ def test_se_image_slice_bnds_odd(se_image_data, eps):
         psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     row_cen = 16
@@ -52,6 +53,7 @@ def test_se_image_slice_bnds_even(se_image_data, eps):
         psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     row_cen = 16

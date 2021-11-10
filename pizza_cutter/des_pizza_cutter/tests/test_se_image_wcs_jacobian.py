@@ -26,6 +26,7 @@ def test_se_image_wcs_jacobian_array(se_image_data, x, y):
         psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     with pytest.raises(AssertionError):
@@ -57,6 +58,7 @@ def test_se_image_wcs_jacobian_esutil(se_image_data, wcs_pos_offset):
         psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     rng = np.random.RandomState(seed=10)
@@ -88,6 +90,7 @@ def test_se_image_wcs_jacobian_galsim(se_image_data, wcs_pos_offset):
         psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     rng = np.random.RandomState(seed=10)

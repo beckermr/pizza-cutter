@@ -25,6 +25,7 @@ def test_se_image_map_image(se_image_data, coadd_image_data, coadd_dim):
         psf_kwargs={"GI_COLOR": 0.61},
         noise_seeds=[10, 11, 23, 45],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
     se_im._im_shape = (512, 512)
     dim = 10

@@ -26,6 +26,7 @@ def test_se_image_pickles(se_image_data, noise_seeds):
         psf_kwargs={"GI_COLOR": 0.61},
         noise_seeds=noise_seeds,
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     psf_im = se_im.get_psf_image(20, 20.5)
