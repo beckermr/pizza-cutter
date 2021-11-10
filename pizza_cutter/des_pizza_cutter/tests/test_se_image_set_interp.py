@@ -24,6 +24,7 @@ def test_se_image_interp_set(se_image_data, coadd_image_data):
         psf_kwargs=None,
         noise_seeds=[10, 12, 11],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
     se_im._im_shape = (512, 512)
     dim = 10

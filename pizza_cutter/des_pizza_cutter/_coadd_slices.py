@@ -1,5 +1,5 @@
 import logging
-
+import copy
 import numpy as np
 
 import meds.meds
@@ -63,6 +63,7 @@ def _build_slice_inputs(
     bad_image_flags,
     max_masked_fraction,
     mask_tape_bumps,
+    mask_piff_failure_config,
     edge_buffer,
     wcs_type,
     wcs_color,
@@ -162,6 +163,26 @@ def _build_slice_inputs(
     mask_tape_bumps: bool
         If True, turn on TAPEBUMP flag and turn off SUSPECT in bmask. This
         option is only applicable to DES Y3 processing.
+    mask_piff_failure_config : dict or None
+        If not None, then a dictionary with the parameters used to mask regions of
+        Piff models where the fit appears to fail. Required keys are:
+
+            grid_size : int
+                Set to something that divides the SE image evenly. 128 is a
+                good choice.
+            any_bad_thresh : float
+                The threshold for marking a CCD as having had failed. A value of
+                5 is good here.
+            flag_bad_thresh : float
+                The threshold for marking regions where a CCD is bad. A value of
+                2 is good here.
+            seed : int
+                An RNG seed to use.
+
+        The algorithm looks at the difference between T for galaxies and T for
+        stars at each grid point. If it finds any `any_bad_thresh`-sigma outliers
+        in this distribution, it flags any grid point that is a `flag_bad_thresh`-sigma
+        outlier as unusable.
     edge_buffer : int
         A buffer region of this many pixels will be excluded from the coadds.
         Note that any SE image whose relevant region for a given coadd
@@ -195,8 +216,16 @@ def _build_slice_inputs(
     # this is fast and lets us stop if nothing can be used
     logger.info('generating slice objects for ra,dec = %s|%s', ra, dec)
     possible_slices = []
+    slice_psf_flags = []
     for se_info in se_src_info:
         if se_info['image_flags'] == 0:
+            if mask_piff_failure_config is not None:
+                # we need to add a seed here - it was made earlier
+                _mpf_copy = copy.deepcopy(mask_piff_failure_config)
+                _mpf_copy["seed"] = se_info["mask_piff_failure_seed"]
+            else:
+                _mpf_copy = None
+
             # no flags so init the object
             se_slice = SEImageSlice(
                 source_info=se_info,
@@ -207,6 +236,7 @@ def _build_slice_inputs(
                 wcs_color=wcs_color,
                 noise_seeds=se_info['noise_seeds'],
                 mask_tape_bumps=mask_tape_bumps,
+                mask_piff_failure_config=_mpf_copy,
                 tmpdir=tmpdir,
             )
 
@@ -232,14 +262,14 @@ def _build_slice_inputs(
 
                     # we will want this for storing in the meds file,
                     # even if this slice doesn't ultimately get used
-                    se_slice.set_psf(ra_psf, dec_psf)
+                    slice_psf_flags.append(se_slice.set_psf(ra_psf, dec_psf))
 
                     possible_slices.append(se_slice)
 
     logger.info('images found in rough cut: %d', len(possible_slices))
 
     # just stop now if we find nothing
-    if not possible_slices:
+    if not possible_slices or all(slice_psf_flags):
         return [], [], [], []
 
     # we reject outliers after scaling the images to the same zero points
@@ -258,7 +288,7 @@ def _build_slice_inputs(
     weights = []
     slices_not_used = []
     flags_not_used = []
-    for se_slice in possible_slices:
+    for se_slice, se_slice_psf_flag in zip(possible_slices, slice_psf_flags):
         logger.info(
             'pre-processing image %s/%s',
             se_slice.source_info["path"],
@@ -344,7 +374,8 @@ def _build_slice_inputs(
         skip = (
             skip_edge_masked or
             skip_has_flags or
-            skip_masked_fraction
+            skip_masked_fraction or
+            se_slice_psf_flag
         )
 
         if skip:
@@ -360,6 +391,10 @@ def _build_slice_inputs(
             if skip_masked_fraction:
                 msg.append('masked fraction too high')
                 flags |= procflags.HIGH_MASKED_FRAC
+
+            if se_slice_psf_flag:
+                msg.append("bad PSF model")
+                flags |= procflags.BAD_PSF_MODEL
 
             msg = '; '.join(msg)
             logger.info(

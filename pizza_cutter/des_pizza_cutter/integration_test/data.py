@@ -68,6 +68,7 @@ single_epoch:
   psf_type: galsim
   psf_kwargs:
     a: null
+  mask_piff_failure: null
   wcs_type: affine
   wcs_color: 0
 
@@ -121,6 +122,7 @@ single_epoch:
   psf_type: galsim
   psf_kwargs:
     a: null
+  mask_piff_failure: null
   wcs_type: affine
   wcs_color: 0
 
@@ -174,6 +176,7 @@ single_epoch:
   psf_type: galsim
   psf_kwargs:
     a: null
+  mask_piff_failure: null
   wcs_type: affine
   wcs_color: 0
 

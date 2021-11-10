@@ -23,6 +23,7 @@ def test_se_image_get_wcs_inverse_caches(se_image_data, coadd_image_data):
         psf_kwargs={"GI_COLOR": 0.61},
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
     se_im._im_shape = (512, 512)
     _get_wcs_inverse(
@@ -51,6 +52,7 @@ def test_se_image_get_wcs_inverse_caches(se_image_data, coadd_image_data):
         psf_kwargs={"GI_COLOR": 0.61},
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
     se_im._im_shape = (512, 512)
     _get_wcs_inverse(

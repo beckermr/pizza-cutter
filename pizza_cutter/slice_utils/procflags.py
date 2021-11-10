@@ -9,3 +9,6 @@ HIGH_MASKED_FRAC = 2**2
 
 # the interpolant can fail if there is too much area masked
 HIGH_INTERP_MASKED_FRAC = 2**4
+
+# the PSF model is bad when constructing the slice
+BAD_PSF_MODEL = 2**5

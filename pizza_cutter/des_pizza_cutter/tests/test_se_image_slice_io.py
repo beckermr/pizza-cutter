@@ -32,6 +32,7 @@ def test_se_image_slice_read(monkeypatch, se_image_data):
             noise_seeds=[10, 12],
             mask_tape_bumps=False,
             tmpdir=tmpdir,
+            mask_piff_failure_config=None,
         )
         patch_bnds = Bounds(
             rowmin=50,
@@ -112,6 +113,7 @@ def test_se_image_slice_noise_adjacent(monkeypatch, se_image_data):
             noise_seeds=[10, 11],
             mask_tape_bumps=False,
             tmpdir=tmpdir,
+            mask_piff_failure_config=None,
         )
         patch_bnds = Bounds(
             rowmin=50,
@@ -131,6 +133,7 @@ def test_se_image_slice_noise_adjacent(monkeypatch, se_image_data):
             noise_seeds=[10, 11],
             mask_tape_bumps=False,
             tmpdir=tmpdir,
+            mask_piff_failure_config=None,
         )
         patch_bnds = Bounds(
             rowmin=50,
@@ -165,6 +168,7 @@ def test_se_image_slice_double_use(monkeypatch, se_image_data):
             noise_seeds=[10],
             mask_tape_bumps=False,
             tmpdir=tmpdir,
+            mask_piff_failure_config=None,
         )
         patch_bnds = Bounds(
             rowmin=50,
@@ -234,6 +238,7 @@ def test_se_image_slice_two_obj(monkeypatch, se_image_data):
             noise_seeds=[10, 11],
             mask_tape_bumps=False,
             tmpdir=tmpdir,
+            mask_piff_failure_config=None,
         )
         patch_bnds = Bounds(
             rowmin=50,
@@ -269,6 +274,7 @@ def test_se_image_slice_two_obj(monkeypatch, se_image_data):
             noise_seeds=[10, 11],
             mask_tape_bumps=False,
             tmpdir=tmpdir,
+            mask_piff_failure_config=None,
         )
         patch_bnds = Bounds(
             rowmin=50,

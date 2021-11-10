@@ -5,7 +5,25 @@ import pytest
 import galsim
 import piff
 
-from .._se_image import SEImageSlice, PIFF_STAMP_SIZE
+from .._se_image import (
+    SEImageSlice,
+    PIFF_STAMP_SIZE,
+    _check_point_in_bad_piff_model_mask,
+)
+
+
+def test_check_point_in_bad_piff_model_mask():
+    xdim = 1024
+    ydim = 512
+    grid_size = 64
+    bad_msk = np.zeros((ydim//grid_size, xdim//grid_size)).astype(bool)
+    bad_msk[3, 2] = True
+
+    assert not _check_point_in_bad_piff_model_mask(-10, -10, bad_msk, grid_size)
+    assert not _check_point_in_bad_piff_model_mask(45454, 343243, bad_msk, grid_size)
+    assert _check_point_in_bad_piff_model_mask(145, 200, bad_msk, grid_size)
+    assert _check_point_in_bad_piff_model_mask(128, 192, bad_msk, grid_size)
+    assert not _check_point_in_bad_piff_model_mask(127, 191, bad_msk, grid_size)
 
 
 @pytest.mark.skipif(
@@ -26,6 +44,7 @@ def test_se_image_psf_array(se_image_data, x, y):
         psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     with pytest.raises(AssertionError):
@@ -66,6 +85,7 @@ def test_se_image_psf_gsobject(se_image_data, eps_x, eps_y, wcs_pos_offset):
         psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     psf_im = se_im.get_psf_image(x, y)
@@ -124,6 +144,7 @@ def test_se_image_psf_psfex(
         psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     if use_wcs:
@@ -186,6 +207,7 @@ def test_se_image_psf_piff(se_image_data, eps_x, eps_y, wcs_pos_offset):
         psf_kwargs={"GI_COLOR": 0.61},
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     psf_im_cen = se_im.get_psf_image(np.floor(x+0.5), np.floor(y+0.5))
@@ -249,6 +271,7 @@ def test_se_image_psf_piff_color(se_image_data, eps_x, eps_y, wcs_pos_offset):
         psf_kwargs={"GI_COLOR": 0.61},
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     psf_im_cen = se_im.get_psf_image(np.floor(x+0.5), np.floor(y+0.5))

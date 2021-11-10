@@ -21,6 +21,7 @@ def test_se_image_ccd_bnds_in(se_image_data):
         psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     in_bnds = Bounds(10, 20, 50, 60)
@@ -47,6 +48,7 @@ def test_se_image_ccd_bnds_in_edge(se_image_data, in_bnds):
         psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     assert se_im.ccd_contains_bounds(in_bnds)
@@ -73,6 +75,7 @@ def test_se_image_ccd_bnds_over(se_image_data, over_bnds):
         psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     assert not se_im.ccd_contains_bounds(over_bnds)
@@ -98,6 +101,7 @@ def test_se_image_ccd_bnds_out(se_image_data, out_bnds):
         psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     assert not se_im.ccd_contains_bounds(out_bnds)
@@ -119,6 +123,7 @@ def test_se_image_ccd_bnds_buffer_in(se_image_data, buffer):
         psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     in_bnds = Bounds(20, 4075, 20, 2027)
@@ -145,6 +150,7 @@ def test_se_image_ccd_bnds_buffer_out(se_image_data, out_bnds):
         psf_kwargs=None,
         noise_seeds=[10],
         mask_tape_bumps=False,
+        mask_piff_failure_config=None,
     )
 
     assert not se_im.ccd_contains_bounds(out_bnds, buffer=15)
