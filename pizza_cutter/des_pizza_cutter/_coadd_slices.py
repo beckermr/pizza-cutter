@@ -288,7 +288,7 @@ def _build_slice_inputs(
     weights = []
     slices_not_used = []
     flags_not_used = []
-    for se_slice, se_slice_psf_flag in possible_slices:
+    for se_slice, se_slice_psf_flag in zip(possible_slices, slice_psf_flags):
         logger.info(
             'pre-processing image %s/%s',
             se_slice.source_info["path"],

@@ -557,10 +557,10 @@ def test_coadding_end2end_noise(coadd_end2end):
 
     # due to interpolation causing correlations noise
     # variance should be smaller
-    # we also demand that it matches to better than 20%
+    # we also demand that it matches to better than 25%
     assert np.std(nse) <= np.sqrt(var)
     assert np.std(nse) > 0
-    assert np.allclose(np.std(nse), np.sqrt(var), atol=0, rtol=0.2)
+    assert np.allclose(np.std(nse), np.sqrt(var), atol=0, rtol=0.25)
 
 
 def test_coadding_end2end_extra_noise_images(coadd_end2end_extra_noise_images):
