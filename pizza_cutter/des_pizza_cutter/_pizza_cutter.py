@@ -328,6 +328,7 @@ def _coadd_single_slice(
         bad_image_flags=sum(single_epoch_config['bad_image_flags']),
         max_masked_fraction=single_epoch_config['max_masked_fraction'],
         mask_tape_bumps=single_epoch_config['mask_tape_bumps'],
+        mask_piff_failure_config=single_epoch_config["mask_piff_failure"],
         edge_buffer=single_epoch_config['edge_buffer'],
         wcs_type=single_epoch_config['wcs_type'],
         wcs_color=single_epoch_config['wcs_color'],
@@ -514,9 +515,11 @@ def _coadd_and_write_images(
     slice_seeds = rng.randint(1, 2**32-1, size=len(object_data))
 
     # set the noise image seeds for each SE image via the RNG once
+    # also set a seed for masking
     for i in range(len(info['src_info'])):
         info['src_info'][i]['noise_seeds'] = rng.randint(
             low=1, high=2**30, size=n_extra_noise_images+1)
+        info['src_info'][i]["mask_piff_failure_seed"] = rng.randint(low=1, high=2**30)
 
     print(
         'processing %d slices: %s' % (len(slices_to_do), slice_range or "all slices"),

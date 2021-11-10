@@ -308,7 +308,7 @@ def _compute_bad_piff_model_mask(
     any_bad_thresh,
     flag_bad_thresh,
     grid_size,
-    seed, piff_kwargs,
+    seed, piff_tuples,
 ):
     from des_y6utils.piff import (
         make_good_regions_for_piff_model_star_and_gal_grid,
@@ -325,6 +325,8 @@ def _compute_bad_piff_model_mask(
     )
 
     wgt = _read_image(wgt_path, ext=wgt_ext)
+
+    piff_kwargs = {k: v for k, v in piff_tuples}
 
     res = make_good_regions_for_piff_model_star_and_gal_grid(
         piff_model, img, wgt, piff_kwargs=piff_kwargs, seed=seed,
@@ -1175,21 +1177,22 @@ class SEImageSlice(object):
             self._mask_piff_failure_config is not None
             and isinstance(self._psf_model, piff.PSF)
         ):
-            self._piff_bad_mask = _compute_bad_piff_model_mask(
-                piff_path=self.source_info['piff_path'],
-                ccdnum=self.source_info['ccdnum'],
-                image_path=self.source_info['image_path'],
-                image_ext=self.source_info['image_ext'],
-                bkg_path=self.source_info['bkg_path'],
-                bkg_ext=self.source_info['bkg_ext'],
-                wgt_path=self.source_info['weight_path'],
-                wgt_ext=self.source_info['weight_ext'],
-                any_bad_thresh=self._mask_piff_failure_config["any_bad_thresh"],
-                flag_bad_thresh=self._mask_piff_failure_config["flag_bad_thresh"],
-                grid_size=self._mask_piff_failure_config["grid_size"],
-                seed=self._mask_piff_failure_config["seed"],
-                piff_kwargs=self._psf_kwargs,
-            )
+            if not hasattr(self, "_piff_bad_mask"):
+                self._piff_bad_mask = _compute_bad_piff_model_mask(
+                    piff_path=self.source_info['piff_path'],
+                    ccdnum=self.source_info['ccdnum'],
+                    image_path=self.source_info['image_path'],
+                    image_ext=self.source_info['image_ext'],
+                    bkg_path=self.source_info['bkg_path'],
+                    bkg_ext=self.source_info['bkg_ext'],
+                    wgt_path=self.source_info['weight_path'],
+                    wgt_ext=self.source_info['weight_ext'],
+                    any_bad_thresh=self._mask_piff_failure_config["any_bad_thresh"],
+                    flag_bad_thresh=self._mask_piff_failure_config["flag_bad_thresh"],
+                    grid_size=self._mask_piff_failure_config["grid_size"],
+                    seed=self._mask_piff_failure_config["seed"],
+                    piff_tuples=tuple((k, v) for k, v in self._psf_kwargs.items()),
+                )
             flag = _check_point_in_bad_piff_model_mask(
                 x, y,
                 self._piff_bad_mask,
