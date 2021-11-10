@@ -310,6 +310,17 @@ def _compute_bad_piff_model_mask(
     grid_size,
     seed, piff_tuples,
 ):
+    ci = _compute_bad_piff_model_mask.cache_info()
+    if ci.misses == ci.maxsize+1:
+        print(
+            "_compute_bad_piff_model_mask cache size exceeded: maxsize = %d" % (
+                ci.maxsize,
+            ),
+            flush=True,
+        )
+
+    logger.debug("Piff bad mask cache miss for %s", piff_path)
+
     from des_y6utils.piff import (
         make_good_regions_for_piff_model_star_and_gal_grid,
     )
@@ -353,6 +364,7 @@ def clear_image_and_wcs_caches():
     _load_psfex.cache_clear()
     _load_image_wcs.cache_clear()
     _load_piff_pixmappy.cache_clear()
+    _compute_bad_piff_model_mask.cache_clear()
 
 
 class SEImageSlice(object):
@@ -1177,6 +1189,7 @@ class SEImageSlice(object):
             self._mask_piff_failure_config is not None
             and isinstance(self._psf_model, piff.PSF)
         ):
+            t0 = time.time()
             if not hasattr(self, "_piff_bad_mask"):
                 self._piff_bad_mask = _compute_bad_piff_model_mask(
                     piff_path=self.source_info['piff_path'],
@@ -1193,6 +1206,13 @@ class SEImageSlice(object):
                     seed=self._mask_piff_failure_config["seed"],
                     piff_tuples=tuple((k, v) for k, v in self._psf_kwargs.items()),
                 )
+                if hasattr(_compute_bad_piff_model_mask, "cache_info"):
+                    logger.debug(
+                        'Piff bad mask cache info: %s',
+                        _compute_bad_piff_model_mask.cache_info()
+                    )
+            logger.debug('Piff bad mask took %f seconds', time.time() - t0)
+
             flag = _check_point_in_bad_piff_model_mask(
                 x, y,
                 self._piff_bad_mask,
