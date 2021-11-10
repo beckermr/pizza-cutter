@@ -223,6 +223,8 @@ def _build_slice_inputs(
                 # we need to add a seed here - it was made earlier
                 _mpf_copy = copy.deepcopy(mask_piff_failure_config)
                 _mpf_copy["seed"] = se_info["mask_piff_failure_seed"]
+            else:
+                _mpf_copy = None
 
             # no flags so init the object
             se_slice = SEImageSlice(
