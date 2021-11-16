@@ -10,6 +10,9 @@ BMASK_RESAMPLE_BOUNDS = 2**26
 BMASK_GAIA_STAR = 2**25
 BMASK_EXPAND_GAIA_STAR = 2**24
 
+# apodization
+BMASK_SLICE_APODIZED = 2**23
+
 # these are constants that are etched in stone for MEDS files
 MAGZP_REF = 30.0
 OBJECT_DATA_EXTNAME = 'object_data'
