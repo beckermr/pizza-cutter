@@ -399,8 +399,8 @@ def test_coadding_end2end_gal(coadd_end2end):
         mom_im.observed_shape.e2,
         mom_m.observed_shape.e2,
     ))
-    assert np.abs(mom_im.observed_shape.e1 - mom_m.observed_shape.e1) < 0.005
-    assert np.abs(mom_im.observed_shape.e2 - mom_m.observed_shape.e2) < 0.005
+    assert np.abs(mom_im.observed_shape.e1 - mom_m.observed_shape.e1) < 0.006
+    assert np.abs(mom_im.observed_shape.e2 - mom_m.observed_shape.e2) < 0.006
 
 
 def _plot_it(bmask, flag=None):
