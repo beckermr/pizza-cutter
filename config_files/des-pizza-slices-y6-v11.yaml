@@ -50,13 +50,12 @@ single_epoch:
       IZ_COLOR: 0.34
   piff_cuts:
     max_fwhm_cen: 3.6
-    min_nstar: 25
+    min_nstar: 30
     max_exp_T_mean_fac: 4
     max_ccd_T_std_fac: 0.3
   mask_piff_failure:
     grid_size: 128
-    any_bad_thresh: 5
-    flag_bad_thresh: 2
+    max_abs_T_diff: 0.15
 
   # which SE WCS to use - one of piff, pixmappy or image
   wcs_type: pixmappy

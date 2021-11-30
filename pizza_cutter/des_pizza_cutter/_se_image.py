@@ -300,20 +300,13 @@ def _load_image_wcs(image_path, image_ext):
 
 
 @lru_cache(maxsize=BIG_IMAGE_CACHE_SIZE)
-def _compute_bad_piff_model_mask(
-    *, piff_path, ccdnum,
-    image_path, image_ext,
-    bkg_path, bkg_ext,
-    wgt_path, wgt_ext,
-    any_bad_thresh,
-    flag_bad_thresh,
-    grid_size,
-    seed, piff_tuples,
+def _compute_bad_piff_model_delta_flag(
+    *, piff_path, ccdnum, grid_size, seed, piff_tuples, max_abs_T_diff,
 ):
-    ci = _compute_bad_piff_model_mask.cache_info()
+    ci = _compute_bad_piff_model_delta_flag.cache_info()
     if ci.misses == ci.maxsize+1:
         print(
-            "_compute_bad_piff_model_mask cache size exceeded: maxsize = %d" % (
+            "_compute_bad_piff_model_delta_flag cache size exceeded: maxsize = %d" % (
                 ci.maxsize,
             ),
             flush=True,
@@ -321,30 +314,25 @@ def _compute_bad_piff_model_mask(
 
     logger.debug("Piff bad mask cache miss for %s", piff_path)
 
-    from des_y6utils.piff import (
-        make_good_regions_for_piff_model_star_and_gal_grid,
-    )
+    from des_y6utils.piff import measure_t_grid_for_piff_model
 
     piff_model = _load_piff_pixmappy(
         piff_path,
         ccdnum,
     )[0]
 
-    img = (
-        _read_image(image_path, ext=image_ext)
-        - _read_image(bkg_path, ext=bkg_ext)
-    )
-
-    wgt = _read_image(wgt_path, ext=wgt_ext)
-
     piff_kwargs = {k: v for k, v in piff_tuples}
 
-    res = make_good_regions_for_piff_model_star_and_gal_grid(
-        piff_model, img, wgt, piff_kwargs=piff_kwargs, seed=seed,
-        any_bad_thresh=any_bad_thresh, flag_bad_thresh=flag_bad_thresh,
-        grid_size=grid_size,
+    res = measure_t_grid_for_piff_model(
+        piff_model, piff_kwargs, seed=seed, grid_size=grid_size
     )
-    return res["bad_msk"]
+    has_nans = np.any(~np.isfinite(res))
+    abs_T_diff = np.nanmax(np.abs(res - np.nanmedian(res)))
+
+    if has_nans or abs_T_diff > max_abs_T_diff:
+        return True
+    else:
+        return False
 
 
 def _check_point_in_bad_piff_model_mask(x, y, bad_msk, grid_size):
@@ -364,7 +352,7 @@ def clear_image_and_wcs_caches():
     _load_psfex.cache_clear()
     _load_image_wcs.cache_clear()
     _load_piff_pixmappy.cache_clear()
-    _compute_bad_piff_model_mask.cache_clear()
+    _compute_bad_piff_model_delta_flag.cache_clear()
 
 
 class SEImageSlice(object):
@@ -407,19 +395,15 @@ class SEImageSlice(object):
             grid_size : int
                 Set to something that divides the SE image evenly. 128 is a
                 good choice.
-            any_bad_thresh : float
-                The threshold for marking a CCD as having had failed. A value of
-                5 is good here.
-            flag_bad_thresh : float
-                The threshold for marking regions where a CCD is bad. A value of
-                2 is good here.
+            max_abs_T_diff : float
+                The maximum allowed absolute difference from the median PSF model
+                T allowed. Default of 0.15 is pretty good.
             seed : int
                 An RNG seed to use.
 
-        The algorithm looks at the difference between T for galaxies and T for
-        stars at each grid point. If it finds any `any_bad_thresh`-sigma outliers
-        in this distribution, it flags any grid point that is a `flag_bad_thresh`-sigma
-        outlier as unusable.
+        The algorithm computes the value of T on a grid on the CCD. If any T
+        values come out as NaN or the max deviation from the median is greater
+        than `max_abs_T_diff`, then the whole CCD is flagged as bad.
     tmpdir: optional, string
         Optional temporary directory for temporary files
 
@@ -1190,34 +1174,20 @@ class SEImageSlice(object):
             and isinstance(self._psf_model, piff.PSF)
         ):
             t0 = time.time()
-            if not hasattr(self, "_piff_bad_mask"):
-                self._piff_bad_mask = _compute_bad_piff_model_mask(
+            flag = _compute_bad_piff_model_delta_flag(
                     piff_path=self.source_info['piff_path'],
                     ccdnum=self.source_info['ccdnum'],
-                    image_path=self.source_info['image_path'],
-                    image_ext=self.source_info['image_ext'],
-                    bkg_path=self.source_info['bkg_path'],
-                    bkg_ext=self.source_info['bkg_ext'],
-                    wgt_path=self.source_info['weight_path'],
-                    wgt_ext=self.source_info['weight_ext'],
-                    any_bad_thresh=self._mask_piff_failure_config["any_bad_thresh"],
-                    flag_bad_thresh=self._mask_piff_failure_config["flag_bad_thresh"],
+                    max_abs_T_diff=self._mask_piff_failure_config["max_abs_T_diff"],
                     grid_size=self._mask_piff_failure_config["grid_size"],
                     seed=self._mask_piff_failure_config["seed"],
                     piff_tuples=tuple((k, v) for k, v in self._psf_kwargs.items()),
                 )
-                if hasattr(_compute_bad_piff_model_mask, "cache_info"):
-                    logger.debug(
-                        'Piff bad mask cache info: %s',
-                        _compute_bad_piff_model_mask.cache_info()
-                    )
+            if hasattr(_compute_bad_piff_model_delta_flag, "cache_info"):
+                logger.debug(
+                    'Piff bad mask cache info: %s',
+                    _compute_bad_piff_model_delta_flag.cache_info()
+                )
             logger.debug('Piff bad mask took %f seconds', time.time() - t0)
-
-            flag = _check_point_in_bad_piff_model_mask(
-                x, y,
-                self._piff_bad_mask,
-                grid_size=self._mask_piff_failure_config["grid_size"],
-            )
         else:
             flag = False
 
