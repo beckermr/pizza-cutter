@@ -170,19 +170,15 @@ def _build_slice_inputs(
             grid_size : int
                 Set to something that divides the SE image evenly. 128 is a
                 good choice.
-            any_bad_thresh : float
-                The threshold for marking a CCD as having had failed. A value of
-                5 is good here.
-            flag_bad_thresh : float
-                The threshold for marking regions where a CCD is bad. A value of
-                2 is good here.
+            max_abs_T_diff : float
+                The maximum allowed absolute difference from the median PSF model
+                T allowed. Default of 0.15 is pretty good.
             seed : int
                 An RNG seed to use.
 
-        The algorithm looks at the difference between T for galaxies and T for
-        stars at each grid point. If it finds any `any_bad_thresh`-sigma outliers
-        in this distribution, it flags any grid point that is a `flag_bad_thresh`-sigma
-        outlier as unusable.
+        The algorithm computes the value of T on a grid on the CCD. If any T
+        values come out as NaN or the max deviation from the median is greater
+        than `max_abs_T_diff`, then the whole CCD is flagged as bad.
     edge_buffer : int
         A buffer region of this many pixels will be excluded from the coadds.
         Note that any SE image whose relevant region for a given coadd
