@@ -128,18 +128,24 @@ def compute_piff_flags(
     if piff_info["desdm_flags"] != 0:
         flags |= 2**0
 
-    if piff_info["fwhm_cen"] >= max_fwhm_cen:
+    if max_fwhm_cen is not None and piff_info["fwhm_cen"] >= max_fwhm_cen:
         flags |= 2**1
 
-    if piff_info["star_t_std"] >= max_ccd_T_std_fac * piff_info["star_t_mean"]:
+    if (
+        max_ccd_T_std_fac is not None
+        and piff_info["star_t_std"] >= max_ccd_T_std_fac * piff_info["star_t_mean"]
+    ):
         flags |= 2**2
 
-    if piff_info["nstar"] < min_nstar:
+    if min_nstar is not None and piff_info["nstar"] < min_nstar:
         flags |= 2**3
 
     if (
-        np.abs(piff_info["star_t_mean"] - piff_info["exp_star_t_mean"])
-        >= max_exp_T_mean_fac * piff_info["exp_star_t_std"]
+        max_exp_T_mean_fac is not None
+        and (
+            np.abs(piff_info["star_t_mean"] - piff_info["exp_star_t_mean"])
+            >= max_exp_T_mean_fac * piff_info["exp_star_t_std"]
+        )
     ):
         flags |= 2**4
 
