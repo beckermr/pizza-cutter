@@ -1,5 +1,6 @@
 import os
 import pytest
+import yaml
 
 from .._piff_tools import compute_piff_flags, get_piff_psf_info
 
@@ -143,3 +144,61 @@ def test_compute_piff_flags():
     assert (flags & 2**2) != 0
     assert (flags & 2**3) != 0
     assert (flags & 2**4) != 0
+
+
+def test_compute_piff_flags_null():
+    piff_cuts = yaml.safe_load(
+        """\
+  piff_cuts:
+    max_fwhm_cen: 3.6
+    min_nstar: 30
+    max_exp_T_mean_fac: null
+    max_ccd_T_std_fac: null
+"""
+    )
+    piff_info = dict(
+        desdm_flags=1,
+        fwhm_cen=4,
+        star_t_std=0.03,
+        star_t_mean=0.5,
+        nstar=20,
+        exp_star_t_mean=0.55,
+        exp_star_t_std=0.02,
+    )
+    flags = compute_piff_flags(
+        piff_info=piff_info,
+        **piff_cuts["piff_cuts"],
+    )
+    assert (flags & 2**0) != 0
+    assert (flags & 2**1) != 0
+    assert (flags & 2**2) == 0
+    assert (flags & 2**3) != 0
+    assert (flags & 2**4) == 0
+
+    piff_cuts = yaml.safe_load(
+        """\
+  piff_cuts:
+    max_fwhm_cen: null
+    min_nstar: 30
+    max_exp_T_mean_fac: null
+    max_ccd_T_std_fac: null
+"""
+    )
+    piff_info = dict(
+        desdm_flags=1,
+        fwhm_cen=4,
+        star_t_std=0.03,
+        star_t_mean=0.5,
+        nstar=20,
+        exp_star_t_mean=0.55,
+        exp_star_t_std=0.02,
+    )
+    flags = compute_piff_flags(
+        piff_info=piff_info,
+        **piff_cuts["piff_cuts"],
+    )
+    assert (flags & 2**0) != 0
+    assert (flags & 2**1) == 0
+    assert (flags & 2**2) == 0
+    assert (flags & 2**3) != 0
+    assert (flags & 2**4) == 0
