@@ -3,6 +3,7 @@ import time
 import pprint
 from functools import lru_cache
 import os
+import copy
 
 import fitsio
 import numpy as np
@@ -964,7 +965,7 @@ class SEImageSlice(object):
 
         return xmin, ymin
 
-    def get_psf_image(self, x, y):
+    def get_psf_image(self, x, y, dx=0, dy=0, psf_kwargs=None):
         """Get an image of the PSF as a numpy array at the given location.
 
         Parameters
@@ -975,13 +976,20 @@ class SEImageSlice(object):
         y : scalar
             The y/row image location in zero-indexed, pixel centered
             coordinates.
+        dx : float, optional
+            An extra offset that is applied to the x PSF center location.
+        dy : float, optional
+            An extra offset that is applied to the y PSF center location.
+        psf_kwargs : None or dict, optional
+            If not None, the PSF will be drawn with these kwargs passed to the Piff
+            call when using Piff.
 
         Returns
         -------
         psf_im : np.ndarray
             An image of the PSF with odd dimension and with the PSF centered
-            at the subpixel offset (x - floor(x+0.5), y - floor(y+0.5)) relative
-            to the true center of the image.
+            at the subpixel offset (x - floor(x+0.5) + dx, y - floor(y+0.5) + dy)
+            relative to the true center of the image.
         """
         assert np.ndim(x) == 0 and np.ndim(y) == 0, (
             "PSFs are only returned for a single position at a time")
@@ -992,8 +1000,8 @@ class SEImageSlice(object):
         # - when used with a coadd via interpolation, this should
         #   locate the PSF center at the proper pixel location in the final
         #   coadd
-        dx = x - np.floor(x+0.5)
-        dy = y - np.floor(y+0.5)
+        _dx = dx + (x - np.floor(x+0.5))
+        _dy = dy + (y - np.floor(y+0.5))
 
         if isinstance(self._psf_model, galsim.GSObject):
             # get jacobian
@@ -1013,7 +1021,7 @@ class SEImageSlice(object):
                 nx=self._galsim_psf_dim,
                 ny=self._galsim_psf_dim,
                 wcs=wcs,
-                offset=galsim.PositionD(x=dx, y=dy))
+                offset=galsim.PositionD(x=_dx, y=_dy))
             psf_im = im.array.copy()
 
             if logging.DEBUG_PLOT >= logger.getEffectiveLevel():
@@ -1042,7 +1050,7 @@ class SEImageSlice(object):
             # draw the image - always use 33 pixels for DES Y3+
             im = psf.drawImage(
                 nx=33, ny=33, wcs=wcs, method='no_pixel',
-                offset=galsim.PositionD(x=dx, y=dy))
+                offset=galsim.PositionD(x=_dx, y=_dy))
             psf_im = im.array.copy()
 
         elif isinstance(self._psf_model, piff.PSF):
@@ -1061,12 +1069,18 @@ class SEImageSlice(object):
 
             # draw into this image
             image = galsim.ImageD(bounds, wcs=wcs)
+            if psf_kwargs is not None:
+                __kwargs = copy.deepcopy(self._psf_kwargs)
+                __kwargs.update(psf_kwargs)
+            else:
+                __kwargs = self._psf_kwargs
             im = self._psf_model.draw(
                 x=x + self._wcs_position_offset,
                 y=y + self._wcs_position_offset,
                 chipnum=self.source_info["ccdnum"],
                 image=image,
-                **self._psf_kwargs,
+                offset=(dx, dy),
+                **__kwargs,
             )
             psf_im = im.array.copy()
         else:
@@ -1150,7 +1164,7 @@ class SEImageSlice(object):
 
         return patch_bnds
 
-    def set_psf(self, ra, dec):
+    def set_psf(self, ra, dec, dx=0, dy=0, psf_kwargs=None):
         """Set the PSF of the slice using the input (ra, dec).
 
         Parameters
@@ -1159,6 +1173,13 @@ class SEImageSlice(object):
             The right ascension of the sky position.
         dec : float
             The declination of the sky position.
+        dx : float, optional
+            An extra offset that is applied to the x PSF center location.
+        dy : float, optional
+            An extra offset that is applied to the y PSF center location.
+        psf_kwargs : None or dict, optional
+            If not None, the PSF will be drawn with these kwargs passed to the Piff
+            call when using Piff.
 
         Returns
         -------
@@ -1173,6 +1194,12 @@ class SEImageSlice(object):
             self._mask_piff_failure_config is not None
             and isinstance(self._psf_model, piff.PSF)
         ):
+            if psf_kwargs is not None:
+                __kwargs = copy.deepcopy(self._psf_kwargs)
+                __kwargs.update(psf_kwargs)
+            else:
+                __kwargs = self._psf_kwargs
+
             t0 = time.time()
             flag = _compute_bad_piff_model_delta_flag(
                     piff_path=self.source_info['piff_path'],
@@ -1180,7 +1207,7 @@ class SEImageSlice(object):
                     max_abs_t_diff=self._mask_piff_failure_config["max_abs_T_diff"],
                     grid_size=self._mask_piff_failure_config["grid_size"],
                     seed=self._mask_piff_failure_config["seed"],
-                    piff_tuples=tuple((k, v) for k, v in self._psf_kwargs.items()),
+                    piff_tuples=tuple((k, v) for k, v in __kwargs.items()),
                 )
             if hasattr(_compute_bad_piff_model_delta_flag, "cache_info"):
                 logger.debug(
@@ -1191,7 +1218,7 @@ class SEImageSlice(object):
         else:
             flag = False
 
-        psf = self.get_psf_image(x, y)
+        psf = self.get_psf_image(x, y, dx=dx, dy=dy, psf_kwargs=psf_kwargs)
         xmin, ymin = self._compute_psf_stamp_bounds(x, y, psf.shape[0])
 
         self.psf = psf
@@ -1552,12 +1579,6 @@ class SEImageSlice(object):
             function.
         coadd_wcs_interp_delta : int
             The spacing in pixels used for interpolating the coadd WCS pixel area.
-        dx : float, optional
-            An extra offset that is added to the x SE image locations of the pixels in
-            the frame to which we are resampling (i.e., the coadd frame).
-        dy : float, optional
-            An extra offset that is added to the y SE image locations of the pixels in
-            the frame to which we are resampling (i.e., the coadd frame).
 
         Returns
         -------
@@ -1620,9 +1641,6 @@ class SEImageSlice(object):
         # remove the offset to local coords for resampling
         x_rs_se -= self.psf_x_start
         y_rs_se -= self.psf_y_start
-        # include any resampling shifts (used for DCR corrections)
-        x_rs_se += dx
-        y_rs_se += dy
         rs_psf, edge = lanczos_resample(
             self.psf / area_se.reshape(self.psf_box_size, self.psf_box_size),
             y_rs_se,
