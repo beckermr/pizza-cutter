@@ -1598,7 +1598,7 @@ class SEImageSlice(object):
             )
         logger.debug('coadd wcs area interp took %f seconds', time.time() - t0)
 
-        # 5. do the PSF image
+        # 2. do the PSF image
         y_rs, x_rs = np.mgrid[0:psf_box_size, 0:psf_box_size]
         y_rs = y_rs.ravel() + psf_y_start
         x_rs = x_rs.ravel() + psf_x_start
