@@ -3,7 +3,6 @@ import os
 import sys
 import logging
 import desmeds
-import subprocess
 
 import yaml
 from pizza_cutter.des_pizza_cutter import (
