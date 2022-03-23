@@ -301,7 +301,7 @@ def _load_image_wcs(image_path, image_ext):
 
 @lru_cache(maxsize=BIG_IMAGE_CACHE_SIZE)
 def _compute_bad_piff_model_delta_flag(
-    *, piff_path, ccdnum, grid_size, seed, piff_tuples, max_abs_T_diff,
+    *, piff_path, ccdnum, grid_size, seed, piff_tuples, max_abs_t_diff,
 ):
     ci = _compute_bad_piff_model_delta_flag.cache_info()
     if ci.misses == ci.maxsize+1:
@@ -327,9 +327,9 @@ def _compute_bad_piff_model_delta_flag(
         piff_model, piff_kwargs, seed=seed, grid_size=grid_size
     )
     has_nans = np.any(~np.isfinite(res))
-    abs_T_diff = np.nanmax(np.abs(res - np.nanmedian(res)))
+    abs_t_diff = np.nanmax(np.abs(res - np.nanmedian(res)))
 
-    if has_nans or abs_T_diff > max_abs_T_diff:
+    if has_nans or abs_t_diff > max_abs_t_diff:
         return True
     else:
         return False
@@ -702,7 +702,7 @@ class SEImageSlice(object):
 
         ccdnum = self.source_info['ccdnum']
         bumps = TAPE_BUMPS[ccdnum]
-        SUSPECT = 2048
+        suspect = 2048
         for bump in bumps:
             bmask[
                 bump['row1']:bump['row2']+1,
@@ -711,7 +711,7 @@ class SEImageSlice(object):
             bmask[
                 bump['row1']:bump['row2']+1,
                 bump['col1']:bump['col2']+1,
-            ] &= ~SUSPECT
+            ] &= ~suspect
 
     def image2sky(self, x, y):
         """Compute ra, dec for a given set of pixel coordinates.
@@ -1177,7 +1177,7 @@ class SEImageSlice(object):
             flag = _compute_bad_piff_model_delta_flag(
                     piff_path=self.source_info['piff_path'],
                     ccdnum=self.source_info['ccdnum'],
-                    max_abs_T_diff=self._mask_piff_failure_config["max_abs_T_diff"],
+                    max_abs_t_diff=self._mask_piff_failure_config["max_abs_T_diff"],
                     grid_size=self._mask_piff_failure_config["grid_size"],
                     seed=self._mask_piff_failure_config["seed"],
                     piff_tuples=tuple((k, v) for k, v in self._psf_kwargs.items()),
@@ -1406,7 +1406,29 @@ class SEImageSlice(object):
             )
         logger.debug('coadd wcs area interp took %f seconds', time.time() - t0)
 
-        # 2. using the lookup tables, we resample each image to the
+        # 2. resample the PSF image
+        resampled_data = {}
+        resampled_data['psf'] = self.esample_psf(
+            wcs=wcs,
+            wcs_position_offset=wcs_position_offset,
+            wcs_interp_shape=wcs_interp_shape,
+            psf_x_start=psf_x_start,
+            psf_y_start=psf_y_start,
+            psf_box_size=psf_box_size,
+            se_wcs_interp_delta=se_wcs_interp_delta,
+            coadd_wcs_interp_delta=coadd_wcs_interp_delta,
+        )
+
+        if logging.DEBUG_PLOT >= logger.getEffectiveLevel():
+            import matplotlib.pyplot as plt
+            plt.figure()
+            plt.title("RESAMP PSF")
+            plt.imshow(resampled_data['psf'])
+            ax = plt.gca()
+            ax.grid(False)
+            plt.show()
+
+        # 3. using the lookup tables, we resample each image to the
         # coadd coordinates
 
         # compute the SE image positions using the lookup table
@@ -1458,13 +1480,13 @@ class SEImageSlice(object):
             logger.warning("resampled SE image is all zero!")
 
         edge = edge.reshape(box_size, box_size)
-        resampled_data = {
+        resampled_data.update({
             'image': rim.reshape(box_size, box_size),
             'noises': [rn.reshape(box_size, box_size) for rn in rns],
             'interp_only_image': riom.reshape(box_size, box_size),
             'interp_frac': rif.reshape(box_size, box_size),
             'edge': edge,
-        }
+        })
 
         if logging.DEBUG_PLOT >= logger.getEffectiveLevel():
             import matplotlib.pyplot as plt
@@ -1475,7 +1497,7 @@ class SEImageSlice(object):
             ax.grid(False)
             plt.show()
 
-        # 3. do the nearest pixel for the bit mask
+        # 4. do the nearest pixel for the bit mask
         y_rs_se = (y_rs_se + 0.5).astype(np.int64)
         x_rs_se = (x_rs_se + 0.5).astype(np.int64)
         msk = (
@@ -1486,13 +1508,104 @@ class SEImageSlice(object):
         bmask[y_rs[~msk], x_rs[~msk]] = BMASK_EDGE
         resampled_data['bmask'] = bmask
 
-        # 4. do the nearest pixel for the pmask
+        # 5. do the nearest pixel for the pmask
         pmask = np.zeros((box_size, box_size), dtype=self.pmask.dtype)
         pmask[y_rs[msk], x_rs[msk]] = self.pmask[
             y_rs_se[msk], x_rs_se[msk]]
         pmask[y_rs[~msk], x_rs[~msk]] = BMASK_EDGE
         resampled_data['pmask'] = pmask
         resampled_data['pmask'][edge] |= BMASK_RESAMPLE_BOUNDS
+
+        return resampled_data
+
+    def resample_psf(
+        self, *, wcs, wcs_position_offset, wcs_interp_shape,
+        psf_x_start, psf_y_start, psf_box_size,
+        se_wcs_interp_delta, coadd_wcs_interp_delta
+    ):
+        """Resample a SEImageSlice PSF to a new WCS.
+
+        The resampling is done as follows. For each pixel in the destination
+        image, we compute its location in the source image. Then we use a
+        Lanczos3 interpolant in the source grid to compute the value of the
+        pixel in the destination image.
+
+        NOTE: For destination grids that are far from the input grid, this
+        function will not work.
+
+        NOTE: Typically, the input WCS object will be for a coadd.
+
+        Parameters
+        ----------
+        wcs : `esutil.wcsutil.WCS` or `AffineWCS` object
+            The WCS model to use for the resampled pixel grid. This object is
+            assumed to take one-indexed, pixel-centered coordinates.
+        wcs_position_offset : int
+            The coordinate offset, if any, to get from the zero-indexed, pixel-
+            centered coordinates used by this class to the coordinate convetion
+            of the input `wcs` object.
+        wcs_interp_shape : tuple of ints
+            The size of the box to be used to interpolate the wcs area
+        psf_x_start : int
+            The zero-indexed, pixel-centered starting x/column in the
+            destination PSF grid.
+        psf_y_start : int
+            The zero-indexed, pixel-centered starting y/row in the
+            destination PSF grid.
+        psf_box_size : int
+            The size of the square region to resample to in the destination
+            PSF grid.
+        se_wcs_interp_delta : int
+            The spacing in pixels used to interpolate coadd pixel to SE pixel WCS
+            function.
+        coadd_wcs_interp_delta : int
+            The spacing in pixels used for interpolating the coadd WCS pixel area.
+
+        Returns
+        -------
+        psf : np.ndarray
+            The resmapled PSF.
+        """
+        # error check
+        if not hasattr(self, 'psf_box_size'):
+            raise RuntimeError("You must call set_psf before resmpling!")
+
+        # 1. build the lookup table of SE position as a function of coadd
+        # position and also table for area interpolation
+        # we always go SE -> sky -> coadd because inverting the SE WCS will
+        # be more expensive since they typically have distortion/tree ring
+        # terms which require a root finder
+        # we use a buffer to make sure edge pixels are ok
+        t0 = time.time()
+        wcs_interp, _ = _get_wcs_inverse(
+            wcs, wcs_position_offset,
+            self,
+            self._im_shape,
+            se_wcs_interp_delta)
+        if hasattr(_get_wcs_inverse, "cache_info"):
+            logger.debug('wcs interp cache info: %s', _get_wcs_inverse.cache_info())
+        logger.debug('wcs interp took %f seconds', time.time() - t0)
+
+        t0 = time.time()
+        se_wcs_area_interp = _get_wcs_area_interp(
+            self, self._im_shape, se_wcs_interp_delta
+        )
+        if hasattr(_get_wcs_area_interp, "cache_info"):
+            logger.debug(
+                'SE wcs area cache info: %s', _get_wcs_area_interp.cache_info()
+            )
+        logger.debug('SE wcs area interp took %f seconds', time.time() - t0)
+
+        t0 = time.time()
+        coadd_wcs_area_interp = _get_wcs_area_interp(
+            wcs, wcs_interp_shape, coadd_wcs_interp_delta,
+            position_offset=wcs_position_offset,
+        )
+        if hasattr(_get_wcs_area_interp, "cache_info"):
+            logger.debug(
+                'coadd wcs area cache info: %s', _get_wcs_area_interp.cache_info()
+            )
+        logger.debug('coadd wcs area interp took %f seconds', time.time() - t0)
 
         # 5. do the PSF image
         y_rs, x_rs = np.mgrid[0:psf_box_size, 0:psf_box_size]
@@ -1516,16 +1629,7 @@ class SEImageSlice(object):
         )
         rs_psf[edge] = 0
         rs_psf *= area_coadd
-        resampled_data['psf'] = rs_psf.reshape(psf_box_size, psf_box_size)
-        resampled_data['psf'] /= np.sum(resampled_data['psf'])
+        resampled_psf = rs_psf.reshape(psf_box_size, psf_box_size)
+        resampled_psf /= np.sum(resampled_psf)
 
-        if logging.DEBUG_PLOT >= logger.getEffectiveLevel():
-            import matplotlib.pyplot as plt
-            plt.figure()
-            plt.title("RESAMP PSF")
-            plt.imshow(resampled_data['psf'])
-            ax = plt.gca()
-            ax.grid(False)
-            plt.show()
-
-        return resampled_data
+        return resampled_psf
