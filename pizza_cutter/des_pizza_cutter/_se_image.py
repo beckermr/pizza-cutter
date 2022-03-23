@@ -1512,7 +1512,8 @@ class SEImageSlice(object):
     def resample_psf(
         self, *, wcs, wcs_position_offset, wcs_interp_shape,
         psf_x_start, psf_y_start, psf_box_size,
-        se_wcs_interp_delta, coadd_wcs_interp_delta
+        se_wcs_interp_delta, coadd_wcs_interp_delta,
+        dx=0.0, dy=0.0,
     ):
         """Resample a SEImageSlice PSF to a new WCS.
 
@@ -1551,6 +1552,12 @@ class SEImageSlice(object):
             function.
         coadd_wcs_interp_delta : int
             The spacing in pixels used for interpolating the coadd WCS pixel area.
+        dx : float, optional
+            An extra offset that is added to the x SE image locations of the pixels in
+            the frame to which we are resampling (i.e., the coadd frame).
+        dy : float, optional
+            An extra offset that is added to the y SE image locations of the pixels in
+            the frame to which we are resampling (i.e., the coadd frame).
 
         Returns
         -------
@@ -1613,6 +1620,9 @@ class SEImageSlice(object):
         # remove the offset to local coords for resampling
         x_rs_se -= self.psf_x_start
         y_rs_se -= self.psf_y_start
+        # include any resampling shifts (used for DCR corrections)
+        x_rs_se += dx
+        y_rs_se += dy
         rs_psf, edge = lanczos_resample(
             self.psf / area_se.reshape(self.psf_box_size, self.psf_box_size),
             y_rs_se,
