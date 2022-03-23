@@ -1408,7 +1408,7 @@ class SEImageSlice(object):
 
         # 2. resample the PSF image
         resampled_data = {}
-        resampled_data['psf'] = self.esample_psf(
+        resampled_data['psf'] = self.resample_psf(
             wcs=wcs,
             wcs_position_offset=wcs_position_offset,
             wcs_interp_shape=wcs_interp_shape,
