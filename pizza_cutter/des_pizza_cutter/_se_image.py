@@ -1545,6 +1545,32 @@ class SEImageSlice(object):
 
         NOTE: Typically, the input WCS object will be for a coadd.
 
+        NOTE: The parameters dx, dy are intended for use in correction for mean
+        astrometric offsets due to color-dependent astrometry in coadd. The idea is
+        that we have some default WCS color that is used everywhere when building
+        coadds. We know this color is not correct for any given object which has some
+        other color and thus a different astrometry and different PSF. We can correct
+        for this by computing
+
+            1) the PSF at objects color but with the WCS of the default color.
+            2) the offset in SE pixels of a fixed location in ra,dec between the two
+               colors
+
+               dx, dy = (
+                   WCS^(-1)(ra, dec, object color)
+                   - WCS^(-1)(ra, dec, default color)
+               )
+
+        Then when we interpolate the SE PSF image to the coadd frame, we add -dx, -dy
+        to the locations of the SE pixels computed with the default color. For a
+        positive (dx, dy), this will shift the center of SE PSF by (dx, dy). Remember
+        we shift the coordinates where we evaluate the image before coadding by
+        -dx, -dy. The positive shift in the PSF center is the exact shift we
+        (incorrectly) applied to the image when coadding originally (where we also
+        evaluated the image at coordinates shifted by -dx, -dy). We now include it in
+        the PSF center so that when we analyze the data with the PSF at the object's
+        color, we get the right PSF size and extra braodening due to astrometric errors.
+
         Parameters
         ----------
         wcs : `esutil.wcsutil.WCS` or `AffineWCS` object
