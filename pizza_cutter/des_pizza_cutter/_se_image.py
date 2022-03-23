@@ -1419,15 +1419,6 @@ class SEImageSlice(object):
             coadd_wcs_interp_delta=coadd_wcs_interp_delta,
         )
 
-        if logging.DEBUG_PLOT >= logger.getEffectiveLevel():
-            import matplotlib.pyplot as plt
-            plt.figure()
-            plt.title("RESAMP PSF")
-            plt.imshow(resampled_data['psf'])
-            ax = plt.gca()
-            ax.grid(False)
-            plt.show()
-
         # 3. using the lookup tables, we resample each image to the
         # coadd coordinates
 
@@ -1631,5 +1622,14 @@ class SEImageSlice(object):
         rs_psf *= area_coadd
         resampled_psf = rs_psf.reshape(psf_box_size, psf_box_size)
         resampled_psf /= np.sum(resampled_psf)
+
+        if logging.DEBUG_PLOT >= logger.getEffectiveLevel():
+            import matplotlib.pyplot as plt
+            plt.figure()
+            plt.title("RESAMP PSF")
+            plt.imshow(resampled_psf)
+            ax = plt.gca()
+            ax.grid(False)
+            plt.show()
 
         return resampled_psf
