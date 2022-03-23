@@ -1531,7 +1531,7 @@ class SEImageSlice(object):
         self, *, wcs, wcs_position_offset, wcs_interp_shape,
         psf_x_start, psf_y_start, psf_box_size,
         se_wcs_interp_delta, coadd_wcs_interp_delta,
-        dx, dy,
+        dx=0, dy=0,
     ):
         """Resample a SEImageSlice PSF to a new WCS.
 
