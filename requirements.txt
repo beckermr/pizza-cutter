@@ -5,7 +5,7 @@ fitsio
 pyyaml
 numba
 des-easyaccess
-des-desmeds>=0.9.14
+des-desmeds
 meds
 ngmix
 click
