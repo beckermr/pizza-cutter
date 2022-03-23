@@ -101,19 +101,6 @@ def main():
         download_archive_file(gaia_path, source_dir)
         coadd.download()
 
-        print("running desmeds-prep-tile for simulation info", flush=True)
-        subprocess.run(
-            f"desmeds-prep-tile "
-            f"--medsconf={medsconf} "
-            f"--campaign={cfg['des_data']['campaign']} "
-            f"--piff-campaign={cfg['des_data']['piff_campaign']} "
-            f"--band={args.band} "
-            f"--tilename={args.tilename} "
-            "--save-in-meds-dir",
-            shell=True,
-            check=True,
-        )
-
         info = coadd.get_info()
         info["gaia_stars_file"] = os.path.join(source_dir, gaia_path)
 
