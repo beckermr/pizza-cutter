@@ -984,7 +984,7 @@ class SEImageSlice(object):
         -------
         psf_im : np.ndarray
             An image of the PSF with odd dimension and with the PSF centered
-            at the subpixel offset (x - floor(x+0.5) + dx, y - floor(y+0.5) + dy)
+            at the subpixel offset (x - floor(x+0.5), y - floor(y+0.5))
             relative to the true center of the image.
         """
         assert np.ndim(x) == 0 and np.ndim(y) == 0, (
