@@ -1,7 +1,7 @@
 des_data:
   campaign: Y6A2_COADD
   source_type: finalcut
-  piff_campaign: Y6A2_PIFF
+  piff_campaign: Y6A2_PIFF_V2
 
 # optional but these are good defaults
 fpack_pars:
