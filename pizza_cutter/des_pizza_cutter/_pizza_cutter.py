@@ -256,17 +256,9 @@ def _build_gaia_star_mask(
     ).astype(bool)
 
 
-def _coadd_single_slice(
-    *, i, object_data, info, single_epoch_config, wcs, position_offset,
-    coadding_weight, slice_seed, tmpdir, n_extra_noise_images,
-):
-    logger.info('processing slice %d', i)
-
-    results = {'i': i}
-    rng = np.random.RandomState(seed=slice_seed)
-
+def _build_coadd_psf_layout(*, wcs, ra, dec, box_size, position_offset):
     # we center the PSF at the nearest pixel center near the patch center
-    col, row = wcs.sky2image(object_data['ra'][i], object_data['dec'][i])
+    col, row = wcs.sky2image(ra, dec)
     # this col, row includes the position offset
     # we don't need to remove it when putting them back into the WCS
     # but we will remove it later since we work in zero-indexed coords
@@ -276,13 +268,33 @@ def _coadd_single_slice(
     ra_psf, dec_psf = wcs.image2sky(col, row)
 
     # now we find the lower left location of the PSF image
-    half = (object_data['psf_box_size'][i] - 1) / 2
+    half = (box_size - 1) / 2
     assert int(half) == half, "PSF images must have odd dimensions!"
     # here we remove the position offset
     col -= position_offset
     row -= position_offset
     psf_orig_start_col = col - half
     psf_orig_start_row = row - half
+
+    return ra_psf, dec_psf, psf_orig_start_row, psf_orig_start_col
+
+
+def _coadd_single_slice(
+    *, i, object_data, info, single_epoch_config, wcs, position_offset,
+    coadding_weight, slice_seed, tmpdir, n_extra_noise_images,
+):
+    logger.info('processing slice %d', i)
+
+    results = {'i': i}
+    rng = np.random.RandomState(seed=slice_seed)
+
+    ra_psf, dec_psf, psf_orig_start_row, psf_orig_start_col = _build_coadd_psf_layout(
+        wcs=wcs,
+        ra=object_data["ra"][i],
+        dec=object_data["dec"][i],
+        box_size=object_data["psf_box_size"][i],
+        position_offset=position_offset,
+    )
 
     gaia_stars_file = info.get('gaia_stars_file', None)
     if gaia_stars_file is not None and "gaia_star_masks" in single_epoch_config:
