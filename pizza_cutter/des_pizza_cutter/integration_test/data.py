@@ -289,7 +289,7 @@ def write_sim(
         yaml.dump(info, fp)
 
 
-def generate_sim():
+def generate_sim(gal_fwhm=2.5, artifacts=True):
     """Generate a set of SE images and their metadata for coadding.
 
     The returned images have various defects.
@@ -332,7 +332,7 @@ def generate_sim():
     image_shape = (128, 256)
     buff = 8
     noises = 3.5e-4 + 1e-5 * np.arange(n_se_images)
-    noise_fac = 1.0
+    noise_fac = 1.0 if artifacts else 0
 
     # randomly rotate the WCS
     thetas = (rng.uniform(size=n_se_images) - 0.5) * 2.0 * np.pi / 1e2
@@ -385,7 +385,7 @@ def generate_sim():
     bkgs = []
 
     psf_fwhms = 0.7 + 0.1*rng.uniform(size=n_se_images)
-    gal = galsim.Gaussian(fwhm=2.5).shear(g1=-0.2, g2=0.5)
+    gal = galsim.Gaussian(fwhm=gal_fwhm).shear(g1=-0.2, g2=0.5)
 
     for (dudx, dudy, dvdx, dvdy, x0, y0, position_offset,
          scale, noise, psf_fwhm) in zip(
@@ -433,38 +433,39 @@ def generate_sim():
 
     info['src_info'] = src_info
 
-    # image 1 has flags
-    info['src_info'][1]['image_flags'] = 10
-    images[1][:, :] = np.nan
+    if artifacts:
+        # image 1 has flags
+        info['src_info'][1]['image_flags'] = 10
+        images[1][:, :] = np.nan
 
-    # image 3 has a bad pixel that totally excludes it
-    x_loc = int(np.floor(x0s[3] + 0.5 - position_offsets[3]))
-    y_loc = int(np.floor(y0s[3] + 0.5 - position_offsets[3]))
-    bmasks[3][y_loc, x_loc] |= SIM_BMASK_BAD
+        # image 3 has a bad pixel that totally excludes it
+        x_loc = int(np.floor(x0s[3] + 0.5 - position_offsets[3]))
+        y_loc = int(np.floor(y0s[3] + 0.5 - position_offsets[3]))
+        bmasks[3][y_loc, x_loc] |= SIM_BMASK_BAD
 
-    # image 4 is interpolated in a strip
-    x_loc = int(np.floor(x0s[4] + 0.5 - position_offsets[4]))
-    y_loc = int(np.floor(y0s[4] + 0.5 - position_offsets[4]))
-    bmasks[4][y_loc:y_loc+2, :] |= SIM_BMASK_SPLINE_INTERP
+        # image 4 is interpolated in a strip
+        x_loc = int(np.floor(x0s[4] + 0.5 - position_offsets[4]))
+        y_loc = int(np.floor(y0s[4] + 0.5 - position_offsets[4]))
+        bmasks[4][y_loc:y_loc+2, :] |= SIM_BMASK_SPLINE_INTERP
 
-    # image 5 is too masked
-    bmasks[5][:, :] |= SIM_BMASK_SPLINE_INTERP
+        # image 5 is too masked
+        bmasks[5][:, :] |= SIM_BMASK_SPLINE_INTERP
 
-    # image 6 is too masked
-    bmasks[6][:, :] |= SIM_BMASK_NOISE_INTERP
+        # image 6 is too masked
+        bmasks[6][:, :] |= SIM_BMASK_NOISE_INTERP
 
-    # image 7 is too masked
-    weights[7][:64, :] = 0
+        # image 7 is too masked
+        weights[7][:64, :] = 0
 
-    # image 8 is noise interpolated
-    x_loc = int(np.floor(x0s[8] + 0.5 - position_offsets[8]))
-    y_loc = int(np.floor(y0s[8] + 0.5 - position_offsets[8]))
-    bmasks[8][y_loc-10:y_loc-8, :] |= SIM_BMASK_NOISE_INTERP
+        # image 8 is noise interpolated
+        x_loc = int(np.floor(x0s[8] + 0.5 - position_offsets[8]))
+        y_loc = int(np.floor(y0s[8] + 0.5 - position_offsets[8]))
+        bmasks[8][y_loc-10:y_loc-8, :] |= SIM_BMASK_NOISE_INTERP
 
-    # image 10 is spline interpolated in the noise
-    x_loc = int(np.floor(x0s[10] + 0.5 - position_offsets[10]))
-    y_loc = int(np.floor(y0s[10] + 0.5 - position_offsets[10]))
-    bmasks[10][y_loc-6:y_loc-4, :] |= SIM_BMASK_SPLINE_INTERP
+        # image 10 is spline interpolated in the noise
+        x_loc = int(np.floor(x0s[10] + 0.5 - position_offsets[10]))
+        y_loc = int(np.floor(y0s[10] + 0.5 - position_offsets[10]))
+        bmasks[10][y_loc-6:y_loc-4, :] |= SIM_BMASK_SPLINE_INTERP
 
     # set the coadd information too
     info['affine_wcs_config'] = {

@@ -1,9 +1,13 @@
 import os
-import numpy as np
-import pytest
 
+import numpy as np
+from scipy.spatial import cKDTree
+import fitsio
 import galsim
+import galsim.hsm
 import piff
+
+import pytest
 
 from .._se_image import (
     SEImageSlice,
@@ -317,3 +321,95 @@ def test_se_image_psf_piff_color(se_image_data, eps_x, eps_y, wcs_pos_offset):
     ).array
     not_true_psf_im /= np.sum(not_true_psf_im)
     assert not np.array_equal(psf_im, not_true_psf_im)
+
+
+@pytest.mark.skipif(
+    os.environ.get('TEST_DESDATA', None) is None,
+    reason=(
+        'SEImageSlice can only be tested if '
+        'test data is at TEST_DESDATA'))
+def test_se_image_psf_piff_hsm(se_image_data):
+    psf_mod = piff.PSF.read(se_image_data['source_info']['piff_path'])
+    wcs = psf_mod.wcs[se_image_data["source_info"]["ccdnum"]]
+    se_im = SEImageSlice(
+        source_info=se_image_data['source_info'],
+        psf_model=psf_mod,
+        wcs=wcs,
+        wcs_position_offset=1,
+        wcs_color=1.6,
+        psf_kwargs=None,
+        noise_seeds=[10],
+        mask_tape_bumps=False,
+        mask_piff_failure_config=None,
+    )
+
+    cat = fitsio.read(se_image_data["source_info"]["piff_cat_path"], lower=True)
+    hsm_cat = fitsio.read(se_image_data["source_info"]["piff_hsmcat_path"])
+
+    ctree = cKDTree(np.array([cat["xwin_image"], cat["ywin_image"]]).T)
+    lol = ctree.query_ball_point(np.array([hsm_cat["x"], hsm_cat["y"]]).T, 1e-4)
+    inds = [lst[0] for lst in lol]
+    cat = cat[inds]
+    assert np.array_equal(cat["xwin_image"], hsm_cat["x"])
+    assert np.array_equal(cat["ywin_image"], hsm_cat["y"])
+
+    for i in range(len(cat)):
+        if hsm_cat["reserve"][i] != 1:
+            continue
+
+        x = hsm_cat["x"][i]
+        y = hsm_cat["y"][i]
+        psf_im = se_im.get_psf_image(
+            x-1, y-1,
+            psf_kwargs={"GI_COLOR": cat["gi_color"][i]},
+        )
+        jac = se_im.get_wcs_jacobian(x-1, y-1)
+
+        im = galsim.ImageD(psf_im, wcs=jac)
+
+        res = galsim.hsm.FindAdaptiveMom(im)
+        # this code is lifted from Piff under its license
+        # Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at
+        # https://github.com/rmjarvis/Piff  All rights reserved.
+        #
+        # Piff is free software: Redistribution and use in source and binary forms,
+        # with or without modification, are permitted provided that the following
+        # conditions are met:
+        #
+        # 1. Redistributions of source code must retain the above copyright notice, this
+        #    list of conditions and the following disclaimer.
+        #
+        # 2. Redistributions in binary form must reproduce the above copyright notice,
+        #    this list of conditions and the following disclaimer in the documentation
+        #    and/or other materials provided with the distribution.
+        #
+        # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+        # AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+        # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+        # DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+        # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+        # DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+        # SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+        # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+        # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+        # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+        # start of lifted code from Piff
+        sigma = res.moments_sigma
+        shape = res.observed_shape
+        scale, shear, theta, flip = jac.getDecomposition()
+        # Fix sigma
+        sigma *= scale
+        # Fix shear.  First the flip, if any.
+        if flip:
+            shape = galsim.Shear(g1=-shape.g1, g2=shape.g2)
+        # Next the rotation
+        shape = galsim.Shear(g=shape.g, beta=shape.beta + theta)
+        # Finally the shear
+        shape = shear + shape
+        # enf of lifted code from Piff
+
+        # this T is actually sigma due to a Piff bug
+        assert np.allclose(sigma, hsm_cat["T_model"][i], atol=5e-4, rtol=0)
+        shear_eps = 2e-3
+        assert np.allclose(shape.g1, hsm_cat["g1_model"][i], atol=shear_eps, rtol=0)
+        assert np.allclose(shape.g2, hsm_cat["g2_model"][i], atol=shear_eps, rtol=0)
