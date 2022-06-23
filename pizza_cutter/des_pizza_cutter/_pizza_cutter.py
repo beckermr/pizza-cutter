@@ -404,20 +404,23 @@ def _process_slice_chunk(
     *, slice_inds, object_data, info, single_epoch_config, wcs, position_offset,
     coadding_weight, slice_seeds, tmpdir, n_extra_noise_images,
 ):
-    for i, slice_seed in zip(slice_inds, slice_seeds):
-        results = _coadd_single_slice(
-            i=i,
-            object_data=object_data,
-            info=info,
-            single_epoch_config=single_epoch_config,
-            wcs=wcs,
-            position_offset=position_offset,
-            coadding_weight=coadding_weight,
-            slice_seed=slice_seed,
-            tmpdir=tmpdir,
-            n_extra_noise_images=n_extra_noise_images,
-        )
-        RESULT_QUEUE.put(results, block=True)
+    try:
+        for i, slice_seed in zip(slice_inds, slice_seeds):
+            results = _coadd_single_slice(
+                i=i,
+                object_data=object_data,
+                info=info,
+                single_epoch_config=single_epoch_config,
+                wcs=wcs,
+                position_offset=position_offset,
+                coadding_weight=coadding_weight,
+                slice_seed=slice_seed,
+                tmpdir=tmpdir,
+                n_extra_noise_images=n_extra_noise_images,
+            )
+            RESULT_QUEUE.put(results, block=True)
+    except Exception as e:
+        RESULT_QUEUE.put(e, block=True)
 
 
 def _process_results(
@@ -583,6 +586,8 @@ def _coadd_and_write_images(
             for ib in PBar(range(n_slices_to_do), total=n_slices_to_do):
                 logger.debug("waiting for result %d", ib)
                 results = result_queue.get()
+                if isinstance(results, Exception):
+                    raise results
                 _process_results(
                     results=results,
                     start_row=results['i'] * npix,
