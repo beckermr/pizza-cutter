@@ -191,6 +191,7 @@ def make_des_pizza_slices(
                 n_extra_noise_images=n_extra_noise_images,
             )
 
+            print("writing metadata", flush=True)
             fits.write(metadata, extname=METADATA_EXTNAME)
             fits.write(json_info_image, extname=TILE_INFO_EXTNAME)
             fits.write(image_info, extname=IMAGE_INFO_EXTNAME)
@@ -209,8 +210,8 @@ def make_des_pizza_slices(
         except FileNotFoundError:
             pass
         cmd = 'fpack %s' % staged_meds_path
-        logger.info('fpacking:')
-        logger.info("    command: '%s'" % cmd)
+        print("fpacking:", flush=True)
+        print("    command: '%s'" % cmd, flush=True)
         try:
             subprocess.check_call(cmd, shell=True)
         except Exception:
@@ -220,7 +221,7 @@ def make_des_pizza_slices(
                 os.remove(staged_meds_path)
 
     # validate the fpacked file
-    logger.info('validating:')
+    print('validating:', flush=True)
     validate_meds(meds_path + '.fz')
 
 
