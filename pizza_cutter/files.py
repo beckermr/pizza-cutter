@@ -218,9 +218,6 @@ class StagedInFile(object):
 
             self.was_staged_in = True
 
-    def __del__(self):
-        self.cleanup()
-
     def cleanup(self):
         if self.was_staged_in and os.path.exists(self.path):
             logger.info("removing temporary file: %s", self.path)
