@@ -106,7 +106,7 @@ def main():
 
         add_extra_des_coadd_tile_info(
             info=info,
-            piff_campaign=None,  # FIXME cfg["des_data"]["piff_campaign"].upper(),
+            piff_campaign=cfg["des_data"]["piff_campaign"].upper(),
         )
 
         print("running sanity checks on tile info...", end="", flush=True)
