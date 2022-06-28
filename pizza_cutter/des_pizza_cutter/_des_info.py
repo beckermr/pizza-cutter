@@ -311,7 +311,7 @@ def make_coaddtile_geom_fits(tilename, ofile):
         The file to which to write the FITS info.
     """
     with tempfile.TemporaryDirectory() as tmpdir:
-        with open(os.patg.join(tmpdir, "sql.txt"), "w") as fp:
+        with open(os.path.join(tmpdir, "sql.txt"), "w") as fp:
             fp.write(f"""
 SELECT ID, PIXELSCALE, NAXIS1, NAXIS2,
     RA_CENT, DEC_CENT,
