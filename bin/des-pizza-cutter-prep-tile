@@ -10,6 +10,7 @@ from pizza_cutter.des_pizza_cutter import (
     get_gaia_path,
     download_archive_file,
     check_info,
+    make_coaddtile_geom_fits,
 )
 from pizza_cutter.files import makedir_fromfile, get_des_info_file
 import argparse
@@ -122,6 +123,10 @@ def main():
         makedir_fromfile(output_path)
         with open(output_path, 'w') as fp:
             yaml.dump(info, fp)
+
+        octg = os.path.join(os.path.dirname(output_path), "../coadd_tile_geom.fits")
+        print("making the coadd tile geom file:", octg, flush=True)
+        make_coaddtile_geom_fits(args.tilename, octg)
 
 
 if __name__ == '__main__':

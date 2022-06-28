@@ -7,6 +7,7 @@ from ._des_info import (
     check_info,
     get_coaddtile_geom,
     flag_data_in_info,
+    make_coaddtile_geom_fits,
 )
 from ._constants import *
 from ._load_info import load_objects_into_info

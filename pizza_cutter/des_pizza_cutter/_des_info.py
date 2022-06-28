@@ -1,6 +1,7 @@
 import logging
 import os
 import subprocess
+import tempfile
 
 from ._constants import MAGZP_REF, POSITION_OFFSET
 from ._piff_tools import get_piff_psf_info, compute_piff_flags
@@ -171,7 +172,11 @@ def add_extra_des_coadd_tile_info(*, info, piff_campaign):
         # image scale
         ii['scale'] = 10.0**(0.4*(MAGZP_REF - ii['magzp']))
 
-        if 'piff_path' in ii and ii['piff_path'] is not None:
+        if (
+            'piff_path' in ii
+            and ii['piff_path'] is not None
+            and piff_campaign is not None
+        ):
             fname = os.path.basename(ii['piff_path'])
             ii['piff_info'] = get_piff_psf_info(
                 expnum=ii['expnum'],
@@ -292,6 +297,42 @@ def check_info(*, info):
         raise RuntimeError(
             "Found problems with info file for tile!\n\n===\n\n%s\n\n===\n\n"
             % "\n\n===\n\n".join(errors)
+        )
+
+
+def make_coaddtile_geom_fits(tilename, ofile):
+    """Make a fits file with the coadd tile geometry info.
+
+    Parameters
+    ----------
+    tilename : str
+        The name of the tile
+    ofile : str
+        The file to which to write the FITS info.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with open(os.path.join(tmpdir, "sql.txt"), "w") as fp:
+            fp.write(f"""
+SELECT ID, PIXELSCALE, NAXIS1, NAXIS2,
+    RA_CENT, DEC_CENT,
+    RA_SIZE,DEC_SIZE,
+    RAC1, RAC2, RAC3, RAC4,
+    DECC1, DECC2, DECC3, DECC4,
+    RACMIN,RACMAX,DECCMIN,DECCMAX,
+    CROSSRA0
+FROM coaddtile_geom
+    WHERE tilename='{tilename}';>{tmpdir}/ctg.fits
+""")
+        subprocess.run(
+            "easyaccess --db desoper -l sql.txt",
+            cwd=str(tmpdir),
+            check=True,
+            shell=True,
+        )
+        subprocess.run(
+            f"cp {tmpdir}/ctg.fits {ofile}",
+            shell=True,
+            check=True,
         )
 
 
