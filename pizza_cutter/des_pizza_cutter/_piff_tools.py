@@ -42,7 +42,7 @@ select
   qa.exp_star_t_mean,
   qa.exp_star_t_std
 from
-  PIFF_HSM_MODEL_QA qa,
+  PIFF_HSM_MODEL_QA_OLD qa,
   proctag t,
   miscfile m
 where
