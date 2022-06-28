@@ -172,7 +172,11 @@ def add_extra_des_coadd_tile_info(*, info, piff_campaign):
         # image scale
         ii['scale'] = 10.0**(0.4*(MAGZP_REF - ii['magzp']))
 
-        if 'piff_path' in ii and ii['piff_path'] is not None:
+        if (
+            'piff_path' in ii
+            and ii['piff_path'] is not None
+            and piff_campaign is not None
+        ):
             fname = os.path.basename(ii['piff_path'])
             ii['piff_info'] = get_piff_psf_info(
                 expnum=ii['expnum'],
