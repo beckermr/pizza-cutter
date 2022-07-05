@@ -124,7 +124,12 @@ def main():
         with open(output_path, 'w') as fp:
             yaml.dump(info, fp)
 
-        octg = os.path.join(os.path.dirname(output_path), "../coadd_tile_geom.fits")
+        octg = os.path.join(
+            os.path.dirname(output_path),
+            "..",
+            args.tilename,
+            "coadd_tile_geom.fits",
+        )
         print("making the coadd tile geom file:", octg, flush=True)
         make_coaddtile_geom_fits(args.tilename, octg)
 
