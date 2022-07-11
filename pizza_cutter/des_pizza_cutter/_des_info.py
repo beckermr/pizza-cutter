@@ -230,17 +230,17 @@ def check_info(*, info):
 
     # 4: bands in coadd file names should match band above
     ends = dict(
-        bmask_path=f"_{band}.fits.fz",
-        cat_path=f"_{band}_cat.fits",
-        image_path=f"_{band}.fits.fz",
-        psf_path=f"_{band}_psfcat.psf",
-        seg_path=f"_{band}_segmap.fits",
+        bmask_path=[f"_{band}.fits.fz", f"_{band}.fits"],
+        cat_path=[f"_{band}_cat.fits"],
+        image_path=[f"_{band}.fits.fz", f"_{band}.fits"],
+        psf_path=[f"_{band}_psfcat.psf"],
+        seg_path=[f"_{band}_segmap.fits", f"_{band}_segmap.fits.fz"],
     )
-    for key, end in ends.items():
-        if not info[key].endswith(end):
+    for key, ends in ends.items():
+        if not any(info[key].endswith(end) for end in ends):
             errors.append(
-                "File path %s doesn't end with %s and this looks wrong!" % (
-                    info[key], end,
+                "File path %s doesn't end with %r and this looks wrong!" % (
+                    info[key], ends,
                 )
             )
 
