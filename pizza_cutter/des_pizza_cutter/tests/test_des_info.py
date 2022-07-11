@@ -182,7 +182,7 @@ def test_check_info_coadd_band():
         _info[key] = _info[key].replace(end, end.replace(f"_{band}", "_a"))
         with pytest.raises(RuntimeError) as e:
             check_info(info=_info)
-        assert f"doesn't end with {end}" in str(e.value)
+        assert f"doesn't end with ['{end}" in str(e.value)
 
 
 def test_check_info_se_files():
