@@ -165,14 +165,9 @@ def main(
             n_chunks,
         )
 
-    if use_tmpdir and tmpdir is None:
-        tmpdir = tempfile.TemporaryDirectory().name
-
-    if tmpdir is not None:
-        try:
-            _call(tmpdir)
-        finally:
-            os.system("rm -rf %s" % os.path.join(tmpdir, "*"))
+    if use_tmpdir or tmpdir is not None:
+        with tempfile.TemporaryDirectory(dir=tmpdir) as _tmpdir:
+            _call(_tmpdir)
     else:
         _call(tmpdir)
 
