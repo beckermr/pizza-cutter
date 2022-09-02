@@ -184,6 +184,13 @@ def add_extra_des_coadd_tile_info(*, info, piff_campaign):
             )[fname]
 
 
+def _key_is_null(key, info):
+    if key in info and info[key] is not None and len(info[key]) > 0:
+        return False
+    else:
+        return True
+
+
 def check_info(*, info):
     """Do some sanity checks on the info data. Will raise if something
     fails.
@@ -202,7 +209,7 @@ def check_info(*, info):
         "psf_path", "gaia_stars_file",
     ]
     for key in coadd_keys:
-        if key in info and info[key] is not None and len(info[key]) > 0:
+        if not _key_is_null(key, info):
             fname = os.path.basename(info[key]).split("_")[0]
             tilenames.add(fname)
     if len(tilenames) > 1:
@@ -237,12 +244,13 @@ def check_info(*, info):
         seg_path=[f"_{band}_segmap.fits", f"_{band}_segmap.fits.fz"],
     )
     for key, ends in ends.items():
-        if not any(info[key].endswith(end) for end in ends):
-            errors.append(
-                "File path %s doesn't end with %r and this looks wrong!" % (
-                    info[key], ends,
+        if not _key_is_null(key, info):
+            if not any(info[key].endswith(end) for end in ends):
+                errors.append(
+                    "File path %s doesn't end with %r and this looks wrong!" % (
+                        info[key], ends,
+                    )
                 )
-            )
 
     # 5: make sure filenames in info exts match band, ccdnum and expnum
     se_keys = [
@@ -258,7 +266,7 @@ def check_info(*, info):
     for ii in info["src_info"]:
         ccd_slug = "D%08d_%s_c%02d_" % (ii["expnum"], band, ii["ccdnum"])
         for key in se_keys:
-            if key not in ii or ii[key] is None:
+            if _key_is_null(key, ii):
                 continue
             if not os.path.basename(ii[key]).startswith(ccd_slug):
                 errors.append(
@@ -276,16 +284,21 @@ def check_info(*, info):
 
     # 7: make sure scamp head starts with tilename and ends with right slug
     for ii in info["src_info"]:
-        if not os.path.basename(ii["head_path"]).startswith(tilename):
-            errors.append("File path %s doesn't start with %s and this looks wrong!" % (
-                ii["head_path"], tilename,
-            ))
+        if not _key_is_null("head_path", ii):
+            if not os.path.basename(ii["head_path"]).startswith(tilename):
+                errors.append(
+                    "File path %s doesn't start with %s and this looks wrong!" % (
+                        ii["head_path"], tilename,
+                    )
+                )
 
-        scamp_slug = "_%s_c%02d_scamp.ohead" % (band, ii["ccdnum"])
-        if not os.path.basename(ii["head_path"]).endswith(scamp_slug):
-            errors.append("File path %s doesn't end with %s and this looks wrong!" % (
-                ii["head_path"], scamp_slug,
-            ))
+            scamp_slug = "_%s_c%02d_scamp.ohead" % (band, ii["ccdnum"])
+            if not os.path.basename(ii["head_path"]).endswith(scamp_slug):
+                errors.append(
+                    "File path %s doesn't end with %s and this looks wrong!" % (
+                        ii["head_path"], scamp_slug,
+                    )
+                )
 
     # report and raise any errors
     if len(errors) > 0:

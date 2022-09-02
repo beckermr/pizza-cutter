@@ -194,6 +194,16 @@ def test_check_info_coadd_band():
             check_info(info=_info)
         assert f"doesn't end with ['{end}" in str(e.value)
 
+    for key, end in ends.items():
+        _info = copy.deepcopy(info)
+        _info[key] = None
+        check_info(info=_info)
+
+    for key, end in ends.items():
+        _info = copy.deepcopy(info)
+        _info[key] = ""
+        check_info(info=_info)
+
 
 def test_check_info_se_files():
     info = copy.deepcopy(yaml.safe_load(INFO_YAML))
@@ -220,6 +230,22 @@ def test_check_info_se_files():
             with pytest.raises(RuntimeError) as e:
                 check_info(info=_info)
             assert f"doesn't start with {ccd_slug}" in str(e.value)
+
+    for i in range(len(info["src_info"])):
+        ii = info["src_info"][i]
+        ccd_slug = "D%08d_%s_c%02d_" % (ii["expnum"], band, ii["ccdnum"])
+        for key in se_keys:
+            _info = copy.deepcopy(info)
+            _info["src_info"][i][key] = ""
+            check_info(info=_info)
+
+    for i in range(len(info["src_info"])):
+        ii = info["src_info"][i]
+        ccd_slug = "D%08d_%s_c%02d_" % (ii["expnum"], band, ii["ccdnum"])
+        for key in se_keys:
+            _info = copy.deepcopy(info)
+            _info["src_info"][i][key] = None
+            check_info(info=_info)
 
 
 def test_check_info_se_tilename():
@@ -257,3 +283,13 @@ def test_check_info_se_scamp_header():
         with pytest.raises(RuntimeError) as e:
             check_info(info=_info)
         assert f"doesn't end with {scamp_slug}" in str(e.value)
+
+    for i in range(len(info["src_info"])):
+        _info = copy.deepcopy(info)
+        _info["src_info"][i][key] = ""
+        check_info(info=_info)
+
+    for i in range(len(info["src_info"])):
+        _info = copy.deepcopy(info)
+        _info["src_info"][i][key] = None
+        check_info(info=_info)
