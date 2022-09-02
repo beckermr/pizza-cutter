@@ -202,7 +202,7 @@ def check_info(*, info):
         "psf_path", "gaia_stars_file",
     ]
     for key in coadd_keys:
-        if key in info:
+        if key in info and info[key] is not None and len(info[key]) > 0:
             fname = os.path.basename(info[key]).split("_")[0]
             tilenames.add(fname)
     if len(tilenames) > 1:
