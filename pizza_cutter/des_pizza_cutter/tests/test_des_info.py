@@ -141,6 +141,16 @@ def test_check_info_coadd_paths():
             check_info(info=_info)
         assert _info[key] in str(e.value)
 
+    for key in coadd_keys:
+        _info = copy.deepcopy(info)
+        _info[key] = ""
+        check_info(info=_info)
+
+    for key in coadd_keys:
+        _info = copy.deepcopy(info)
+        _info[key] = None
+        check_info(info=_info)
+
 
 def test_check_info_coadd_scale():
     info = copy.deepcopy(yaml.safe_load(INFO_YAML))
