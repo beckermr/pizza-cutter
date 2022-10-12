@@ -235,7 +235,6 @@ def test_se_image_psf_piff(se_image_data, eps_x, eps_y, wcs_pos_offset):
     image = galsim.ImageD(
         PIFF_STAMP_SIZE,
         PIFF_STAMP_SIZE,
-        wcs=se_im.get_wcs_jacobian(x, y),
     )
     true_psf_im = psf_mod.draw(
         x=x+wcs_pos_offset,
@@ -297,7 +296,6 @@ def test_se_image_psf_piff_color(se_image_data, eps_x, eps_y, wcs_pos_offset):
     image = galsim.ImageD(
         PIFF_STAMP_SIZE,
         PIFF_STAMP_SIZE,
-        wcs=se_im.get_wcs_jacobian(x, y),
     )
     true_psf_im = psf_mod.draw(
         x=x+wcs_pos_offset,
