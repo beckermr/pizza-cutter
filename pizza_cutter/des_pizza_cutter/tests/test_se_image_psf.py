@@ -232,10 +232,16 @@ def test_se_image_psf_piff(se_image_data, eps_x, eps_y, wcs_pos_offset):
     assert np.abs(ybar - dy) < 1e-1, 'y: %g ybar: %g dy: %g' % (y, ybar, dy)
 
     psf_mod = piff.PSF.read(se_image_data['source_info']['piff_path'])
+    pos = galsim.PositionD(
+        x=x + wcs_pos_offset,
+        y=y + wcs_pos_offset,
+    )
     image = galsim.ImageD(
         PIFF_STAMP_SIZE,
         PIFF_STAMP_SIZE,
-        wcs=se_im.get_wcs_jacobian(x, y),
+        wcs=psf_mod.wcs[se_image_data["source_info"]["ccdnum"]].local(
+            image_pos=pos,
+        ),
     )
     true_psf_im = psf_mod.draw(
         x=x+wcs_pos_offset,
@@ -294,10 +300,16 @@ def test_se_image_psf_piff_color(se_image_data, eps_x, eps_y, wcs_pos_offset):
     assert np.abs(ybar - dy) < 1e-1, ybar
 
     psf_mod = piff.PSF.read(se_image_data['source_info']['piff_path'])
+    pos = galsim.PositionD(
+        x=x + wcs_pos_offset,
+        y=y + wcs_pos_offset,
+    )
     image = galsim.ImageD(
         PIFF_STAMP_SIZE,
         PIFF_STAMP_SIZE,
-        wcs=se_im.get_wcs_jacobian(x, y),
+        wcs=psf_mod.wcs[se_image_data["source_info"]["ccdnum"]].local(
+            image_pos=pos,
+        ),
     )
     true_psf_im = psf_mod.draw(
         x=x+wcs_pos_offset,
@@ -353,6 +365,8 @@ def test_se_image_psf_piff_hsm(se_image_data):
     assert np.array_equal(cat["xwin_image"], hsm_cat["x"])
     assert np.array_equal(cat["ywin_image"], hsm_cat["y"])
 
+    psf_mod = piff.PSF.read(se_image_data['source_info']['piff_path'])
+
     for i in range(len(cat)):
         if hsm_cat["reserve"][i] != 1:
             continue
@@ -363,10 +377,18 @@ def test_se_image_psf_piff_hsm(se_image_data):
             x-1, y-1,
             psf_kwargs={"GI_COLOR": cat["gi_color"][i]},
         )
-        jac = se_im.get_wcs_jacobian(x-1, y-1)
 
-        im = galsim.ImageD(psf_im, wcs=jac)
-
+        pos = galsim.PositionD(
+            x=x-1,
+            y=y-1,
+        )
+        jac = psf_mod.wcs[se_image_data["source_info"]["ccdnum"]].jacobian(
+            image_pos=pos,
+        )
+        im = galsim.ImageD(
+            psf_im,
+            wcs=jac,
+        )
         res = galsim.hsm.FindAdaptiveMom(im)
         # this code is lifted from Piff under its license
         # Copyright (c) 2016 by Mike Jarvis and the other collaborators on GitHub at
@@ -409,6 +431,11 @@ def test_se_image_psf_piff_hsm(se_image_data):
         # enf of lifted code from Piff
 
         # this T is actually sigma due to a Piff bug
+        print(
+            sigma, hsm_cat["T_model"][i],
+            shape.g1, hsm_cat["g1_model"][i],
+            shape.g2, hsm_cat["g2_model"][i],
+        )
         assert np.allclose(sigma, hsm_cat["T_model"][i], atol=5e-4, rtol=0)
         shear_eps = 2e-3
         assert np.allclose(shape.g1, hsm_cat["g1_model"][i], atol=shear_eps, rtol=0)
