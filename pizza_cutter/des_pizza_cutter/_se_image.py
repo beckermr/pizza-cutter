@@ -1050,12 +1050,8 @@ class SEImageSlice(object):
             psf_im = im.array.copy()
 
         elif isinstance(self._psf_model, piff.PSF):
-            # get jacobian
-            wcs = self.get_wcs_jacobian(x, y)
-
-            xmin, ymin = self._compute_psf_stamp_bounds(x, y, PIFF_STAMP_SIZE)
-
             # compute bounds in Piff wcs coords
+            xmin, ymin = self._compute_psf_stamp_bounds(x, y, PIFF_STAMP_SIZE)
             xmin += self._wcs_position_offset
             ymin += self._wcs_position_offset
             bounds = galsim.BoundsI(
@@ -1063,8 +1059,10 @@ class SEImageSlice(object):
                 ymin, ymin+PIFF_STAMP_SIZE-1,
             )
 
-            # draw into this image
-            image = galsim.ImageD(bounds, wcs=wcs)
+            # draw into an image with these bounds
+            # we leave the WCS unset so that piff
+            # uses it's internal WCS
+            image = galsim.ImageD(bounds)
             if psf_kwargs is not None:
                 __kwargs = copy.deepcopy(self._psf_kwargs)
                 __kwargs.update(psf_kwargs)
