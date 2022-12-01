@@ -1013,6 +1013,9 @@ class SEImageSlice(object):
                 else:
                     self._galsim_psf_dim = im.array.shape[0]
 
+                # galsim can be very agressive
+                self._galsim_psf_dim *= 5
+
             im = self._psf_model.drawImage(
                 nx=self._galsim_psf_dim,
                 ny=self._galsim_psf_dim,

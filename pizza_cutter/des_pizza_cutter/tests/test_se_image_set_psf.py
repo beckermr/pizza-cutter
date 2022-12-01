@@ -42,20 +42,20 @@ def test_se_image_set_psf(se_image_data, eps_x, eps_y):
 
     dx = x - np.floor(x + 0.5)
     dy = y - np.floor(y + 0.5)
-    x_start = int(np.floor(x + 0.5)) - 9
-    y_start = int(np.floor(y + 0.5)) - 9
+    x_start = int(np.floor(x + 0.5)) - 47
+    y_start = int(np.floor(y + 0.5)) - 47
 
     se_im.set_psf(ra, dec)
 
     true_psf_im = galsim.Gaussian(fwhm=0.8).drawImage(
-        nx=19,
-        ny=19,
+        nx=19*5,
+        ny=19*5,
         wcs=se_im.get_wcs_jacobian(x, y),
         offset=galsim.PositionD(x=dx, y=dy)
     ).array
     true_psf_im /= np.sum(true_psf_im)
 
     assert np.array_equal(se_im.psf, true_psf_im)
-    assert se_im.psf_box_size == 19
+    assert se_im.psf_box_size == 95
     assert se_im.psf_x_start == x_start
     assert se_im.psf_y_start == y_start
