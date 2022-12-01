@@ -56,6 +56,6 @@ def test_se_image_set_psf(se_image_data, eps_x, eps_y):
     true_psf_im /= np.sum(true_psf_im)
 
     assert np.array_equal(se_im.psf, true_psf_im)
-    assert se_im.psf_box_size == 19
+    assert se_im.psf_box_size == 95
     assert se_im.psf_x_start == x_start
     assert se_im.psf_y_start == y_start
