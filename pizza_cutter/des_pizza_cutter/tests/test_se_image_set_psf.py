@@ -48,8 +48,8 @@ def test_se_image_set_psf(se_image_data, eps_x, eps_y):
     se_im.set_psf(ra, dec)
 
     true_psf_im = galsim.Gaussian(fwhm=0.8).drawImage(
-        nx=19,
-        ny=19,
+        nx=19*5,
+        ny=19*5,
         wcs=se_im.get_wcs_jacobian(x, y),
         offset=galsim.PositionD(x=dx, y=dy)
     ).array
