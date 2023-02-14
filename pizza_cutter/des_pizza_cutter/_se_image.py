@@ -301,6 +301,34 @@ def _load_image_wcs(image_path, image_ext):
 
 
 @lru_cache(maxsize=BIG_IMAGE_CACHE_SIZE)
+def _load_head_wcs(head_path, image_path, image_ext):
+    ci = _load_head_wcs.cache_info()
+    if ci.misses == ci.maxsize+1:
+        print(
+            "_load_head_wcs cache size exceeded: maxsize = %d" % (
+                ci.maxsize,
+            ),
+            flush=True,
+        )
+
+    logger.debug("load wcs cache miss for %s[%s]", head_path)
+
+    im_hdr = _munge_fits_header(
+        fitsio.read_header(
+            os.path.expandvars(image_path), ext=image_ext,
+        )
+    )
+    hdr = _munge_fits_header(
+        fitsio.read_scamp_head(os.path.expandvars(head_path))
+    )
+    for key in ["naxis1", "naxis2", "znaxis1", "znaxis2"]:
+        if key in im_hdr:
+            hdr[key] = im_hdr[key]
+
+    return FastHashingWCS(hdr)
+
+
+@lru_cache(maxsize=BIG_IMAGE_CACHE_SIZE)
 def _compute_bad_piff_model_delta_flag(
     *, piff_path, ccdnum, grid_size, seed, piff_tuples, max_abs_t_diff,
 ):
@@ -352,6 +380,7 @@ def clear_image_and_wcs_caches():
     _cached_get_rough_sky_bounds.cache_clear()
     _load_psfex.cache_clear()
     _load_image_wcs.cache_clear()
+    _load_head_wcs.cache_clear()
     _load_piff_pixmappy.cache_clear()
     _compute_bad_piff_model_delta_flag.cache_clear()
 
@@ -511,6 +540,12 @@ class SEImageSlice(object):
         if isinstance(wcs, str):
             if wcs == 'image':
                 wcs = _load_image_wcs(
+                    source_info['image_path'],
+                    source_info['image_ext'],
+                )
+            elif wcs == "head":
+                wcs = _load_head_wcs(
+                    source_info["head_path"],
                     source_info['image_path'],
                     source_info['image_ext'],
                 )
@@ -1064,8 +1099,14 @@ class SEImageSlice(object):
 
             # draw into an image with these bounds
             # we leave the WCS unset so that piff
-            # uses it's internal WCS
-            image = galsim.ImageD(bounds)
+            # uses it's internal WCS for pixmappy
+            # otherwise grab wcs
+            if not isinstance(self._wcs, pixmappy.GalSimWCS):
+                wcs = self.get_wcs_jacobian(x, y)
+                image = galsim.ImageD(bounds, wcs=wcs)
+            else:
+                image = galsim.ImageD(bounds)
+
             if psf_kwargs is not None:
                 __kwargs = copy.deepcopy(self._psf_kwargs)
                 __kwargs.update(psf_kwargs)
