@@ -185,8 +185,8 @@ def _build_slice_inputs(
         intersects with this region will be fully excluded from the coadd,
         even if it has area that could be used.
     wcs_type : str
-        The SE WCS solution to use for coadd. This should be one of 'pixmappy'
-        or 'scamp'.
+        The SE WCS solution to use for coadding. This should be one of 'pixmappy'
+        'image' or 'head'.
     wcs_color : float
         The color to use for thr WCS, if any. A default of 0 is fine except for
         pixmappy where a default of 0.61 may be needed.
