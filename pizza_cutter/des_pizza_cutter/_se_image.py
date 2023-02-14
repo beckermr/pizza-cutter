@@ -538,6 +538,8 @@ class SEImageSlice(object):
         self._tmpdir = tmpdir
 
         if isinstance(wcs, str):
+            self._wcs_type = wcs
+
             if wcs == 'image':
                 wcs = _load_image_wcs(
                     source_info['image_path'],
@@ -559,6 +561,8 @@ class SEImageSlice(object):
                 wcs = res[1]
             else:
                 raise RuntimeError("wcs type %s not allowed!" % wcs)
+        else:
+            self._wcs_type = None
 
         if isinstance(psf_model, str):
             if psf_model == 'galsim':
@@ -1102,9 +1106,19 @@ class SEImageSlice(object):
             # uses it's internal WCS for pixmappy
             # otherwise grab wcs
             if not isinstance(self._wcs, pixmappy.GalSimWCS):
+                if self._wcs_type is not None:
+                    assert self._wcs_type != "pixmappy", (
+                        "WCS type cannot be pixmappy when using"
+                        " wcs w/ Piff!"
+                    )
                 wcs = self.get_wcs_jacobian(x, y)
                 image = galsim.ImageD(bounds, wcs=wcs)
             else:
+                if self._wcs_type is not None:
+                    assert self._wcs_type == "pixmappy", (
+                        "WCS type must be pixmappy when using"
+                        " no wcs w/ Piff!"
+                    )
                 image = galsim.ImageD(bounds)
 
             if psf_kwargs is not None:
