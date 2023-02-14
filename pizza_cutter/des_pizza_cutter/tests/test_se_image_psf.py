@@ -294,16 +294,10 @@ def test_se_image_psf_piff_color(se_image_data, eps_x, eps_y, wcs_pos_offset):
     assert np.abs(ybar - dy) < 1e-1, ybar
 
     psf_mod = piff.PSF.read(se_image_data['source_info']['piff_path'])
-    pos = galsim.PositionD(
-        x=x + wcs_pos_offset,
-        y=y + wcs_pos_offset,
-    )
     image = galsim.ImageD(
         PIFF_STAMP_SIZE,
         PIFF_STAMP_SIZE,
-        wcs=psf_mod.wcs[se_image_data["source_info"]["ccdnum"]].local(
-            image_pos=pos,
-        ),
+        wcs=se_im.get_wcs_jacobian(x, y),
     )
     true_psf_im = psf_mod.draw(
         x=x+wcs_pos_offset,
