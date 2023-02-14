@@ -311,7 +311,7 @@ def _load_head_wcs(head_path, image_path, image_ext):
             flush=True,
         )
 
-    logger.debug("load wcs cache miss for %s[%s]", head_path)
+    logger.debug("load wcs cache miss for %s", head_path)
 
     im_hdr = _munge_fits_header(
         fitsio.read_header(
