@@ -1055,11 +1055,18 @@ class SEImageSlice(object):
                 # galsim can be very agressive
                 self._galsim_psf_dim *= 5
 
+            if isinstance(self._psf_model, galsim.InterpolatedImage):
+                draw_method = 'no_pixel'
+            else:
+                draw_method = 'auto'
+
             im = self._psf_model.drawImage(
                 nx=self._galsim_psf_dim,
                 ny=self._galsim_psf_dim,
                 wcs=wcs,
-                offset=galsim.PositionD(x=dx, y=dy))
+                offset=galsim.PositionD(x=dx, y=dy),
+                method=draw_method,
+            )
             psf_im = im.array.copy()
 
             if logging.DEBUG_PLOT >= logger.getEffectiveLevel():
