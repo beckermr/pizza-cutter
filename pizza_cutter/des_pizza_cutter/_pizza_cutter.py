@@ -209,7 +209,7 @@ def make_des_pizza_slices(
             os.remove(staged_meds_path + '.fz')
         except FileNotFoundError:
             pass
-        cmd = 'fpack %s' % staged_meds_path
+        cmd = 'fpack -qz42 16 %s' % staged_meds_path
         print("fpacking:", flush=True)
         print("    command: '%s'" % cmd, flush=True)
         try:
