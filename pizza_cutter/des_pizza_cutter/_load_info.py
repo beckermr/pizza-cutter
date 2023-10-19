@@ -221,7 +221,15 @@ def _munge_fits_header(hdr):
 
 def _build_gsobject(config):
     dct = copy.deepcopy(config)
-    _psf, safe = galsim.config.BuildGSObject({'blah': dct}, 'blah')
+    try:
+        _psf, safe = galsim.config.BuildGSObject({'blah': dct}, 'blah')
+    except Exception as e1:
+        try:
+            _psf, safe = galsim.config.ParseValue(
+                {"blah": dct}, "blah", {"blah": dct}, None
+            )
+        except Exception as e2:
+            raise RuntimeError(repr(e1) + " and " + repr(e2))
     assert safe, (
         "You must provide a reusable PSF object for galsim object PSFs")
     return _psf
