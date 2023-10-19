@@ -3,6 +3,7 @@ from os.path import expandvars
 import subprocess
 import functools
 import json
+import hashlib
 import logging
 import multiprocessing as mp
 import copy
@@ -58,6 +59,15 @@ logger = logging.getLogger(__name__)
 
 
 RESULT_QUEUE = None
+
+
+def _hash_to_int(s):
+    # from https://stackoverflow.com/questions/
+    #  16008670/how-to-hash-a-string-into-8-digits
+    return min(
+            max(1, abs(int(hashlib.sha1(s.encode("utf-8")).hexdigest(), 16)) % 10**4),
+            9999,
+        )
 
 
 def _init_result_queue(q):
@@ -209,9 +219,8 @@ def make_des_pizza_slices(
             os.remove(staged_meds_path + '.fz')
         except FileNotFoundError:
             pass
-        fpack_seed = min(
-            max(1, abs(hash(info["tilename"] + info["band"])) % 10**4),
-            9999,
+        fpack_seed = _hash_to_int(
+            info["tilename"] + info["band"]
         )
         cmd = 'fpack -qz%d 16 %s' % (fpack_seed, staged_meds_path)
         print("fpacking:", flush=True)
