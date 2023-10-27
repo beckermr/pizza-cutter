@@ -116,3 +116,38 @@ class FastHashingWCS(eu.wcsutil.WCS):
         dra_dy *= cosdec
 
         return dra_dx, dra_dy, ddec_dx, ddec_dy
+
+    def sky2image(
+        self, longitude, latitude, distort=True, find=False, xtol=eu.wcsutil.DEFTOL,
+    ):
+        """Invert the WCS. This method is a copy of the original but uses the inverse
+        polynomial by default instead of root finding.
+
+        Usage:
+            x,y=sky2image(longitude, latitude, distort=True, find=True)
+
+        Purpose:
+            Convert between sky (lon,lat) and image coordinates (x,y)
+
+        Inputs:
+            longitude,latitude:  Probably ra,dec. Can be arrays.
+        Optional Inputs:
+            distort:  Use the distortion model if present.  Default is True
+            find: When the distortion model is present, simply find the
+                roots of the polynomial rather than using an inverse
+                polynomial.  This is more accurate but slower. Default False.
+            xtol: tolerance to use when root finding with find=True Default is
+                1e-8.
+        Outputs:
+            x,y: x and y coords in the image.  Will have the same shape as
+                lon,lat
+        Example:
+            from esutil import wcsutil
+            import pyfits
+            hdr=pyfits.getheader(fname)
+            wcs = wcsutil.WCS(hdr)
+            x,y = wcs.image2sky(ra,dec)
+        """
+        return super().sky2image(
+            longitude, latitude, distort=distort, find=find, xtol=xtol
+        )
