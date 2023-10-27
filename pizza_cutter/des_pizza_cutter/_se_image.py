@@ -1244,6 +1244,13 @@ class SEImageSlice(object):
 
         x, y = self.sky2image(ra, dec)
 
+        if x < -1 or x > self._im_shape[1] or y < -1 or y > self._im_shape[0]:
+            logger.debug(
+                f"Flagging PSF at weird position x,y = ({x}, {y}) "
+                f"for ra, dec = ({ra}, {dec})"
+            )
+            return False
+
         if (
             self._mask_piff_failure_config is not None
             and isinstance(self._psf_model, piff.PSF)
