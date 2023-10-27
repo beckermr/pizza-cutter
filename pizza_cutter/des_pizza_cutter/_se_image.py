@@ -1249,7 +1249,7 @@ class SEImageSlice(object):
                 f"Flagging PSF at weird position x,y = ({x}, {y}) "
                 f"for ra, dec = ({ra}, {dec})"
             )
-            return False
+            return True
 
         if (
             self._mask_piff_failure_config is not None
