@@ -434,7 +434,13 @@ def _process_slice_chunk(
             )
             RESULT_QUEUE.put(results, block=True)
     except Exception as e:
-        RESULT_QUEUE.put(e, block=True)
+        import traceback
+        eret = RuntimeError(
+            f"Encountered error for slice {i} w/ seed {slice_seed}:\n"
+            f"error: {repr(e)}\n"
+            f"traceback: {traceback.format_exc()}"
+        )
+        RESULT_QUEUE.put(eret, block=True)
 
 
 def _process_results(
